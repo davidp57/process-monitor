@@ -22,7 +22,7 @@ A cross-platform process monitoring tool that automatically relaunches applicati
 pip install -r requirements.txt
 
 # Run the monitor
-python process_monitor.py -p notepad.exe -e "C:\Windows\System32\notepad.exe"
+python process-monitor.py -p notepad.exe -e "C:\Windows\System32\notepad.exe"
 ```
 
 ### Option 2: Build Standalone Executable
@@ -45,7 +45,7 @@ python build.py
 Monitor a process and relaunch if not found:
 
 ```bash
-python process_monitor.py -p notepad.exe -e "C:\Windows\System32\notepad.exe"
+python process-monitor.py -p notepad.exe -e "C:\Windows\System32\notepad.exe"
 ```
 
 ### With Output Capture (TUI)
@@ -53,7 +53,7 @@ python process_monitor.py -p notepad.exe -e "C:\Windows\System32\notepad.exe"
 Capture and display STDOUT/STDERR in the TUI:
 
 ```bash
-python process_monitor.py -p myapp.exe -e "C:\path\to\myapp.exe" -c
+python process-monitor.py -p myapp.exe -e "C:\path\to\myapp.exe" -c
 ```
 
 ### With Output Capture (Log File)
@@ -61,7 +61,7 @@ python process_monitor.py -p myapp.exe -e "C:\path\to\myapp.exe" -c
 Capture output to a log file:
 
 ```bash
-python process_monitor.py -p myapp.exe -e myapp.exe -c -o output.log
+python process-monitor.py -p myapp.exe -e myapp.exe -c -o output.log
 ```
 
 ### Headless Mode
@@ -69,7 +69,7 @@ python process_monitor.py -p myapp.exe -e myapp.exe -c -o output.log
 Run without TUI (good for services):
 
 ```bash
-python process_monitor.py -p myapp.exe -e myapp.exe --no-tui -c -o output.log
+python process-monitor.py -p myapp.exe -e myapp.exe --no-tui -c -o output.log
 ```
 
 ### Custom Intervals
@@ -77,7 +77,7 @@ python process_monitor.py -p myapp.exe -e myapp.exe --no-tui -c -o output.log
 Set custom check interval (2.5s) and startup delay (5s):
 
 ```bash
-python process_monitor.py -p myapp.exe -e myapp.exe -i 2.5 -d 5.0
+python process-monitor.py -p myapp.exe -e myapp.exe -i 2.5 -d 5.0
 ```
 
 ### Using Configuration Files
@@ -99,14 +99,14 @@ verbose: true
 Then run with the config file:
 
 ```bash
-python process_monitor.py --config config.yaml
+python process-monitor.py --config config.yaml
 ```
 
 **CLI options override config file values:**
 
 ```bash
 # Use config file but override the interval
-python process_monitor.py --config config.yaml --interval 10.0
+python process-monitor.py --config config.yaml --interval 10.0
 ```
 
 ## YAML Configuration
@@ -135,7 +135,7 @@ verbose: false                      # Enable verbose logging (default: false)
 
 ### Automatic Default Configuration
 
-Every time the process monitor runs, it automatically saves the current configuration (merged from CLI options and config file) to `default-config.yaml` for easy reuse.
+Every time the process monitor runs, it automatically saves the current configuration (merged from CLI options and config file) to `process-monitor-default-config.yaml` for easy reuse.
 
 ### Configuration Priority
 
@@ -165,13 +165,13 @@ When both CLI options and a config file are provided:
 Monitor Notepad:
 
 ```bash
-python process_monitor.py -p notepad.exe -e "C:\Windows\System32\notepad.exe"
+python process-monitor.py -p notepad.exe -e "C:\Windows\System32\notepad.exe"
 ```
 
 Monitor custom application with output capture:
 
 ```bash
-python process_monitor.py -p myserver.exe -e "C:\Apps\myserver.exe" -c -o server.log
+python process-monitor.py -p myserver.exe -e "C:\Apps\myserver.exe" -c -o server.log
 ```
 
 ### Linux/macOS
@@ -179,13 +179,13 @@ python process_monitor.py -p myserver.exe -e "C:\Apps\myserver.exe" -c -o server
 Monitor Firefox:
 
 ```bash
-python process_monitor.py -p firefox -e /usr/bin/firefox
+python process-monitor.py -p firefox -e /usr/bin/firefox
 ```
 
 Monitor custom application:
 
 ```bash
-python process_monitor.py -p myapp -e /opt/myapp/myapp -c -o output.log
+python process-monitor.py -p myapp -e /opt/myapp/myapp -c -o output.log
 ```
 
 ## Building Executable
@@ -216,7 +216,7 @@ If you prefer to build manually:
 ```bash
 pyinstaller --onefile --console --name=process-monitor \
     --hidden-import=rich --hidden-import=psutil --hidden-import=click \
-    process_monitor.py
+    process-monitor.py
 ```
 
 ## Running as a Service
@@ -260,7 +260,7 @@ sudo systemctl start process-monitor
 
 The monitor creates two log files:
 
-- `process_monitor.log` - Monitor's own activity log
+- `process-monitor.log` - Monitor's own activity log
 - Custom output log (if `-o` specified) - Captured process STDOUT/STDERR
 
 ## Dependencies

@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['process_monitor.py'],
+    ['process-monitor.py'],
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=['rich', 'rich.console', 'rich.live', 'rich.layout', 'rich.panel', 'rich.table', 'rich.text', 'rich.logging', 'psutil', 'click', 'yaml'],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -29,7 +29,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

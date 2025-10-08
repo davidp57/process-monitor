@@ -1,8 +1,0 @@
-# Core dependencies
-psutil>=5.9.0
-rich>=13.0.0
-click>=8.0.0
-pyyaml>=6.0.0
-
-# Build dependencies (optional - only needed for building executable)
-pyinstaller>=6.0.0
