@@ -1,0 +1,5 @@
+.venv/
+build/
+dist/
+*,log
+default-config.yaml
