@@ -8,6 +8,8 @@ A cross-platform process monitoring tool that automatically relaunches applicati
 - ✅ **Automatic relaunching** - Monitors process and restarts when not found
 - ✅ **Beautiful TUI** - Real-time status display with Rich
 - ✅ **Output capture** - Redirect STDOUT/STDERR to TUI or log file
+- ✅ **File copy operations** - Pre-launch and post-process file copying
+- ✅ **Wait for process** - Monitor existing processes without launching
 - ✅ **YAML configuration** - Save and load settings from config files
 - ✅ **Headless mode** - Run as background service without TUI
 - ✅ **Configurable** - Customize check intervals and delays
@@ -94,6 +96,15 @@ capture_output: true
 output_log: "notepad_output.log"
 no_tui: false
 verbose: true
+
+# Optional: File copy operations
+pre_launch_copies:
+  - source: "config.yaml"
+    destination: "backup/config.yaml"
+
+post_process_copies:
+  - source: "output.log"
+    destination: "backup/output.log"
 ```
 
 Then run with the config file:
@@ -118,7 +129,7 @@ The process monitor can load settings from YAML configuration files using the `-
 ```yaml
 # Process to monitor
 process_name: "myapp.exe"           # Required: Process name to monitor
-executable: "/path/to/executable"   # Required: Path to executable to launch
+executable: "/path/to/executable"   # Required: Path to executable to launch (optional if wait_for_process is true)
 
 # Timing settings
 interval: 5.0                       # Check interval in seconds (default: 5.0)
@@ -131,6 +142,22 @@ output_log: "output.log"            # Log file for captured output (optional)
 # Display settings
 no_tui: false                       # Run without TUI (default: false)
 verbose: false                      # Enable verbose logging (default: false)
+
+# Process monitoring mode
+wait_for_process: false             # Wait for process to appear instead of launching (default: false)
+
+# File copy operations (optional)
+pre_launch_copies:                  # Files to copy before launching process
+  - source: "config.yaml"
+    destination: "backup/config.yaml"
+  - source: "data/"
+    destination: "backup/data/"
+
+post_process_copies:                # Files to copy after process ends
+  - source: "output.log"
+    destination: "backup/output.log"
+  - source: "results/"
+    destination: "archive/results/"
 ```
 
 ### Automatic Default Configuration
@@ -147,16 +174,94 @@ When both CLI options and a config file are provided:
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
 | `--process-name` | `-p` | Name of process to monitor (e.g., `notepad.exe`) | Required* |
-| `--executable` | `-e` | Path to executable to launch | Required* |
+| `--executable` | `-e` | Path to executable to launch | Required** |
 | `--interval` | `-i` | Check interval in seconds | 5.0 |
 | `--startup-delay` | `-d` | Delay after launching before resuming checks | 2.0 |
 | `--capture-output` | `-c` | Capture STDOUT/STDERR from process | False |
 | `--output-log` | `-o` | Log file path for captured output | None |
+| `--wait-for-process` | | Wait for process to appear (don't launch) | False |
 | `--no-tui` | | Run without TUI (headless mode) | False |
 | `--verbose` | `-v` | Enable verbose logging | False |
 | `--config` | | YAML configuration file to load | None |
 
 *Required unless provided in config file
+**Required unless `--wait-for-process` is used
+
+## File Copy Operations
+
+The process monitor supports automatic file copy operations before launching and after the process ends. This is useful for:
+
+- Backing up configuration files before starting
+- Archiving logs after process completion
+- Preparing the environment with required files
+- Saving results or output files
+
+### Pre-Launch Copies
+
+Files are copied **before** the process is launched. Useful for:
+- Setting up configuration files
+- Backing up existing data
+- Preparing the working environment
+
+### Post-Process Copies
+
+Files are copied **after** the monitored process ends. Useful for:
+- Archiving log files
+- Backing up results
+- Saving output data
+
+### Example Configuration
+
+```yaml
+process_name: "myapp.exe"
+executable: "C:\\Apps\\myapp.exe"
+
+pre_launch_copies:
+  - source: "config.yaml"
+    destination: "backup/pre-launch-config.yaml"
+  - source: "data/"
+    destination: "backup/data/"
+
+post_process_copies:
+  - source: "output.log"
+    destination: "archive/output.log"
+  - source: "results/"
+    destination: "archive/results/"
+```
+
+Both files and directories are supported. Destination directories are created automatically if they don't exist.
+
+## Wait for Process Mode
+
+Instead of launching a process, you can monitor an existing process by using the `--wait-for-process` flag or setting `wait_for_process: true` in your config file.
+
+### Use Cases
+
+- Monitor processes started by other applications
+- Track processes launched by system services
+- Monitor processes you don't have direct control over
+
+### Example
+
+Monitor an existing notepad instance:
+
+```bash
+python process-monitor.py -p notepad.exe --wait-for-process --no-tui
+```
+
+Or with config file:
+
+```yaml
+process_name: "notepad.exe"
+wait_for_process: true
+interval: 2.0
+
+post_process_copies:
+  - source: "output.log"
+    destination: "backup/output.log"
+```
+
+The monitor will wait for the process to appear, then track it until it ends. Post-process file copies will still execute when the process terminates.
 
 ## Examples
 

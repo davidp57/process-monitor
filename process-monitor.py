@@ -15,9 +15,10 @@ import time
 import logging
 import threading
 import queue
+import shutil
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict
 import click
 import contextlib
 import yaml
@@ -31,7 +32,77 @@ from rich.logging import RichHandler
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import print as rprint
 
-VERSION: str = "1.0.0"
+VERSION: str = "2.0.0"
+
+
+def perform_file_copies(copy_operations: List[Dict[str, str]], logger: logging.Logger, stage: str = "") -> bool:
+    """
+    Perform file copy operations from a list of source/destination pairs.
+    
+    Args:
+        copy_operations: List of dicts with 'source' and 'destination' keys
+        logger: Logger instance for output
+        stage: Description of when copies are happening (e.g., "pre-launch", "post-process")
+    
+    Returns:
+        True if all copies succeeded, False if any failed
+    """
+    if not copy_operations:
+        return True
+    
+    stage_prefix = f"[{stage}] " if stage else ""
+    logger.info(f"{stage_prefix}Starting file copy operations ({len(copy_operations)} operations)")
+    
+    success_count = 0
+    fail_count = 0
+    
+    for idx, operation in enumerate(copy_operations, 1):
+        source = operation.get('source')
+        destination = operation.get('destination')
+        
+        if not source or not destination:
+            logger.error(f"{stage_prefix}Copy operation {idx}: Missing source or destination")
+            fail_count += 1
+            continue
+        
+        try:
+            source_path = Path(source)
+            dest_path = Path(destination)
+            
+            # Check if source exists
+            if not source_path.exists():
+                logger.error(f"{stage_prefix}Copy operation {idx}: Source not found: {source}")
+                fail_count += 1
+                continue
+            
+            # Create destination directory if it doesn't exist
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Perform the copy
+            if source_path.is_file():
+                shutil.copy2(source_path, dest_path)
+                logger.info(f"{stage_prefix}Copy operation {idx}: {source} -> {destination}")
+                success_count += 1
+            elif source_path.is_dir():
+                if dest_path.exists():
+                    shutil.rmtree(dest_path)
+                shutil.copytree(source_path, dest_path)
+                logger.info(f"{stage_prefix}Copy operation {idx}: {source} -> {destination} (directory)")
+                success_count += 1
+            else:
+                logger.error(f"{stage_prefix}Copy operation {idx}: Source is neither file nor directory: {source}")
+                fail_count += 1
+                
+        except PermissionError as e:
+            logger.error(f"{stage_prefix}Copy operation {idx}: Permission denied - {e}")
+            fail_count += 1
+        except Exception as e:
+            logger.error(f"{stage_prefix}Copy operation {idx}: Failed to copy {source} to {destination} - {e}")
+            fail_count += 1
+    
+    logger.info(f"{stage_prefix}File copy operations completed: {success_count} succeeded, {fail_count} failed")
+    return fail_count == 0
+
 
 class ProcessMonitor:
     def __init__(
@@ -43,6 +114,9 @@ class ProcessMonitor:
         capture_output: bool = False,
         output_log: Optional[str] = None,
         working_dir: Optional[str] = None,
+        pre_launch_copies: Optional[List[Dict[str, str]]] = None,
+        post_process_copies: Optional[List[Dict[str, str]]] = None,
+        wait_for_process: bool = False,
     ):
         self.process_name = process_name
         self.executable_path = Path(executable_path)
@@ -51,6 +125,9 @@ class ProcessMonitor:
         self.capture_output = capture_output
         self.output_log = output_log
         self.working_dir = working_dir
+        self.pre_launch_copies = pre_launch_copies or []
+        self.post_process_copies = post_process_copies or []
+        self.wait_for_process = wait_for_process
 
         # Status tracking
         self.running = False
@@ -100,6 +177,11 @@ class ProcessMonitor:
     def launch_process(self):
         """Launch the executable and optionally capture output"""
         try:
+            # Perform pre-launch file copies
+            if self.pre_launch_copies:
+                self.logger.info("Performing pre-launch file copy operations")
+                perform_file_copies(self.pre_launch_copies, self.logger, "pre-launch")
+            
             self.logger.info(f"Launching {self.executable_path}")
 
             # Open log file if specified
@@ -183,18 +265,61 @@ class ProcessMonitor:
         
         return self.output_lines[-max_lines:]
     
+    def wait_for_process_to_start(self, timeout: Optional[float] = None) -> bool:
+        """
+        Wait for the process to appear in the process list.
+        
+        Args:
+            timeout: Maximum time to wait in seconds. None means wait indefinitely.
+        
+        Returns:
+            True if process was found, False if timeout occurred
+        """
+        self.logger.info(f"Waiting for process {self.process_name} to start...")
+        self.process_status = "Waiting for process"
+        
+        start_time = time.time()
+        while self.running:
+            if self.is_process_running():
+                self.logger.info(f"Process {self.process_name} detected!")
+                return True
+            
+            if timeout and (time.time() - start_time) >= timeout:
+                self.logger.warning(f"Timeout waiting for process {self.process_name}")
+                return False
+            
+            time.sleep(self.check_interval)
+        
+        return False
+    
     def monitor_loop(self):
         """Main monitoring loop"""
         self.running = True
         self.logger.info("Starting process monitor")
         
+        # If wait_for_process is enabled, wait for process to appear first
+        if self.wait_for_process:
+            if not self.wait_for_process_to_start():
+                self.logger.error("Failed to detect process, stopping monitor")
+                return
+        
+        # Track if we've already done post-process copies
+        post_copies_done = False
+        
         while self.running:
             self.last_check_time = datetime.now()
             
             if not self.is_process_running():
+                # If process was running and now stopped, do post-process copies
+                if self.process_status == "Running" and self.post_process_copies and not post_copies_done:
+                    self.logger.info("Process ended, performing post-process file copy operations")
+                    perform_file_copies(self.post_process_copies, self.logger, "post-process")
+                    post_copies_done = True
+                
                 self.logger.warning(f"{self.process_name} not found")
                 self.process_status = "Not running - launching"
                 self.launch_process()
+                post_copies_done = False  # Reset for next cycle
             else:
                 self.process_status = "Running"
             
@@ -331,8 +456,8 @@ def save_config(config_file: str, config: dict):
 def get_default_config(process_name: Optional[str] = None, executable: Optional[str] = None,
                       interval: float = 5.0, startup_delay: float = 2.0,
                       capture_output: bool = False, output_log: Optional[str] = None,
-                      working_dir: Optional[str] = None, no_tui: bool = False,
-                      verbose: bool = False) -> dict:
+                      working_dir: Optional[str] = None, wait_for_process: bool = False,
+                      no_tui: bool = False, verbose: bool = False) -> dict:
     """Get default configuration dictionary"""
     config = {
         'process_name': process_name,
@@ -340,6 +465,7 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
         'interval': interval,
         'startup_delay': startup_delay,
         'capture_output': capture_output,
+        'wait_for_process': wait_for_process,
         'no_tui': no_tui,
         'verbose': verbose
     }
@@ -359,10 +485,11 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
 @click.option('--capture-output', '-c', is_flag=True, help='Capture stdout/stderr from the process')
 @click.option('--output-log', '-o', type=click.Path(), help='Log file for captured output')
 @click.option('--working-dir', '-w', type=click.Path(exists=True, file_okay=False, dir_okay=True), help='Working directory for the launched process')
+@click.option('--wait-for-process', is_flag=True, help='Wait for process to appear before monitoring (do not launch)')
 @click.option('--no-tui', is_flag=True, help='Run without TUI (headless mode)')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
 @click.option('--config', type=click.Path(), help='YAML configuration file to load')
-def main(process_name, executable, interval, startup_delay, capture_output, output_log, working_dir, no_tui, verbose, config):
+def main(process_name, executable, interval, startup_delay, capture_output, output_log, working_dir, wait_for_process, no_tui, verbose, config):
     """
     Process Monitor - Monitors a process and relaunches it if not running.
     
@@ -384,6 +511,7 @@ def main(process_name, executable, interval, startup_delay, capture_output, outp
         'capture_output': capture_output or config_data.get('capture_output', False),
         'output_log': output_log or config_data.get('output_log'),
         'working_dir': working_dir or config_data.get('working_dir'),
+        'wait_for_process': wait_for_process or config_data.get('wait_for_process', False),
         'no_tui': no_tui or config_data.get('no_tui', False),
         'verbose': verbose or config_data.get('verbose', False)
     }
@@ -391,13 +519,20 @@ def main(process_name, executable, interval, startup_delay, capture_output, outp
     # Validate required parameters
     if not final_config['process_name']:
         raise click.ClickException("Process name is required (--process-name or in config file)")
-    if not final_config['executable']:
-        raise click.ClickException("Executable path is required (--executable or in config file)")
     
-    # Validate executable exists (only if it's a simple path, not a command with arguments)
-    executable_path = Path(final_config['executable'])
-    if ' ' not in final_config['executable'] and not executable_path.exists():
-        raise click.ClickException(f"Executable not found: {executable_path}")
+    # Executable is only required if not waiting for process
+    if not final_config['wait_for_process']:
+        if not final_config['executable']:
+            raise click.ClickException("Executable path is required (--executable or in config file) unless --wait-for-process is used")
+        
+        # Validate executable exists (only if it's a simple path, not a command with arguments)
+        executable_path = Path(final_config['executable'])
+        if ' ' not in final_config['executable'] and not executable_path.exists():
+            raise click.ClickException(f"Executable not found: {executable_path}")
+    else:
+        # When waiting for process, executable is optional (use empty string if not provided)
+        if not final_config['executable']:
+            final_config['executable'] = ''
     
     # Setup logging with timestamped filename
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -429,6 +564,10 @@ def main(process_name, executable, interval, startup_delay, capture_output, outp
         else:
             output_log_with_timestamp = f"{stem}-{timestamp}{suffix}"
     
+    # Get file copy operations from config
+    pre_launch_copies = config_data.get('pre_launch_copies', [])
+    post_process_copies = config_data.get('post_process_copies', [])
+    
     # Create monitor
     monitor = ProcessMonitor(
         process_name=final_config['process_name'],
@@ -437,7 +576,10 @@ def main(process_name, executable, interval, startup_delay, capture_output, outp
         startup_delay=final_config['startup_delay'],
         capture_output=final_config['capture_output'],
         output_log=output_log_with_timestamp,
-        working_dir=final_config['working_dir']
+        working_dir=final_config['working_dir'],
+        pre_launch_copies=pre_launch_copies,
+        post_process_copies=post_process_copies,
+        wait_for_process=final_config['wait_for_process']
     )
     
     if final_config['no_tui']:
@@ -446,7 +588,10 @@ def main(process_name, executable, interval, startup_delay, capture_output, outp
         
         rprint(f"[bold blue]Process Monitor Started[/bold blue]")
         rprint(f"Monitoring process: [green]{final_config['process_name']}[/green]")
-        rprint(f"Launch path: [yellow]{final_config['executable']}[/yellow]")
+        if final_config['wait_for_process']:
+            rprint(f"Mode: [yellow]Wait for process (no launch)[/yellow]")
+        else:
+            rprint(f"Launch path: [yellow]{final_config['executable']}[/yellow]")
         rprint(f"Check delay: [cyan]{final_config['interval']}[/cyan] seconds")
         rprint(f"Startup delay: [cyan]{final_config['startup_delay']}[/cyan] seconds")
         if final_config['output_log']:
@@ -455,17 +600,23 @@ def main(process_name, executable, interval, startup_delay, capture_output, outp
             rprint(f"Working directory: [magenta]{final_config['working_dir']}[/magenta]")
         rprint("-" * 50)
         
-        # Check if process is already running
-        if not monitor.is_process_running():
-            rprint(f"[yellow]Process {final_config['process_name']} not found. Launching...[/yellow]")
-            time.sleep(final_config['startup_delay'])
-            monitor.launch_process()
-            if monitor.current_process:
-                rprint(f"[green]Process launched successfully with PID: {monitor.current_process.pid}[/green]")
+        # Check if process is already running or wait for it
+        if final_config['wait_for_process']:
+            if not monitor.is_process_running():
+                rprint(f"[yellow]Waiting for process {final_config['process_name']} to start...[/yellow]")
             else:
-                rprint(f"[red]Failed to launch process[/red]")
+                rprint(f"[green]Process {final_config['process_name']} is already running[/green]")
         else:
-            rprint(f"[green]Process {final_config['process_name']} is already running[/green]")
+            if not monitor.is_process_running():
+                rprint(f"[yellow]Process {final_config['process_name']} not found. Launching...[/yellow]")
+                time.sleep(final_config['startup_delay'])
+                monitor.launch_process()
+                if monitor.current_process:
+                    rprint(f"[green]Process launched successfully with PID: {monitor.current_process.pid}[/green]")
+                else:
+                    rprint(f"[red]Failed to launch process[/red]")
+            else:
+                rprint(f"[green]Process {final_config['process_name']} is already running[/green]")
         
         # Start monitoring loop with progress spinner
         try:
