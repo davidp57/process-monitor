@@ -131,6 +131,7 @@ output_log: "output.log"            # Log file for captured output (optional)
 # Display settings
 no_tui: false                       # Run without TUI (default: false)
 verbose: false                      # Enable verbose logging (default: false)
+kill_existing: false                # Kill existing processes before launching (default: false)
 ```
 
 ### Automatic Default Configuration
@@ -154,6 +155,7 @@ When both CLI options and a config file are provided:
 | `--output-log` | `-o` | Log file path for captured output | None |
 | `--no-tui` | | Run without TUI (headless mode) | False |
 | `--verbose` | `-v` | Enable verbose logging | False |
+| `--kill-existing` | | Kill existing processes with same name and executable before launching | False |
 | `--config` | | YAML configuration file to load | None |
 
 *Required unless provided in config file
@@ -265,9 +267,9 @@ The monitor creates two log files:
 
 ## Dependencies
 
-- **psutil** (≥5.9.0) - Cross-platform process utilities
-- **rich** (≥13.0.0) - Terminal UI and formatting
-- **click** (≥8.0.0) - Command-line interface
+- **psutil** (≥7.0.0) - Cross-platform process utilities
+- **rich** (≥14.0.0) - Terminal UI and formatting
+- **typer** (≥0.19.0) - Command-line interface
 - **pyyaml** (≥6.0.0) - YAML configuration file support
 - **pyinstaller** (≥6.0.0) - For building executables (optional)
 

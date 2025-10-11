@@ -11,12 +11,9 @@ import time
 import logging
 import psutil
 import subprocess
-import sys
 import os
-import time
-import logging
-import threading
 import queue
+import shlex
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -31,7 +28,7 @@ from rich.table import Table
 from rich.text import Text
 from rich.logging import RichHandler
 from rich import print as rprint
-from rich.progress import Progress, SpinnerColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 class ProcessMonitor:
     def __init__(
@@ -43,6 +40,7 @@ class ProcessMonitor:
         capture_output: bool = False,
         output_log: Optional[str] = None,
         working_dir: Optional[str] = None,
+        kill_existing: bool = False,
     ):
         self.process_name = process_name
         self.executable_path = Path(executable_path)
@@ -51,6 +49,7 @@ class ProcessMonitor:
         self.capture_output = capture_output
         self.output_log = output_log
         self.working_dir = working_dir
+        self.kill_existing = kill_existing
 
         # Status tracking
         self.running = False
@@ -68,12 +67,21 @@ class ProcessMonitor:
         self.logger = logging.getLogger("ProcessMonitor")
         
     def is_process_running(self) -> bool:
-        """Check if process is running by name"""
-        for proc in psutil.process_iter(['name', 'pid']):
+        """Check if process is running by name and executable path"""
+        for proc in psutil.process_iter(['name', 'pid', 'exe']):
             with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                if str(proc.info['name']).lower() == self.process_name.lower():
+                if (str(proc.info['name']).lower() == self.process_name.lower() and
+                    proc.info['exe'] and Path(proc.info['exe']) == self.executable_path):
                     return True
         return False
+    
+    def kill_existing_processes(self):
+        """Kill existing processes with same name and executable path"""
+        for proc in psutil.process_iter(['name', 'pid', 'exe']):
+            with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                if (str(proc.info['name']).lower() == self.process_name.lower() and
+                    proc.info['exe'] and Path(proc.info['exe']) == self.executable_path):
+                    proc.kill()
     
     def _output_reader_with_log(self, pipe, log_handle, prefix):
         """Read output from subprocess pipe and optionally write to log file"""
@@ -102,6 +110,13 @@ class ProcessMonitor:
         try:
             self.logger.info(f"Launching {self.executable_path}")
 
+            # Kill existing processes if requested
+            if self.kill_existing:
+                self.kill_existing_processes()
+
+            # Prepare command
+            cmd = shlex.split(str(self.executable_path)) if ' ' in str(self.executable_path) else [str(self.executable_path)]
+
             # Open log file if specified
             log_handle = None
             if self.output_log:
@@ -116,11 +131,11 @@ class ProcessMonitor:
             creation_flags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
             # Always redirect stdout/stderr to pipes if we need to capture or log
             if self.capture_output or self.output_log:
-                self.capture_output_from_process(creation_flags, env, log_handle)
+                self.capture_output_from_process(creation_flags, env, log_handle, cmd)
             else:
                 self.current_process = subprocess.Popen(
-                    str(self.executable_path),
-                    shell=True,
+                    cmd,
+                    shell=False,
                     cwd=self.working_dir,
                     env=env,
                     creationflags=creation_flags
@@ -136,12 +151,12 @@ class ProcessMonitor:
             self.logger.error(f"Failed to launch process: {e}")
             self.process_status = f"Launch failed: {e}"
 
-    def capture_output_from_process(self, creation_flags, env, log_handle):
+    def capture_output_from_process(self, creation_flags, env, log_handle, cmd):
         if sys.platform == 'win32':
             creation_flags |= subprocess.CREATE_NO_WINDOW
 
         self.current_process = subprocess.Popen(
-            str(self.executable_path),
+            cmd,
             shell=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -332,7 +347,7 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
                       interval: float = 5.0, startup_delay: float = 2.0,
                       capture_output: bool = False, output_log: Optional[str] = None,
                       working_dir: Optional[str] = None, tui: bool = True,
-                      verbose: bool = False) -> dict:
+                      verbose: bool = False, kill_existing: bool = False) -> dict:
     """Get default configuration dictionary"""
     config = {
         'process_name': process_name,
@@ -341,7 +356,8 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
         'startup_delay': startup_delay,
         'capture_output': capture_output,
         'tui': tui,
-        'verbose': verbose
+        'verbose': verbose,
+        'kill_existing': kill_existing
     }
     # Only include optional fields if they have values
     if output_log:
@@ -365,7 +381,8 @@ def main(
     output_log: Optional[str] = typer.Option(None, help='Log file for captured output'),
     working_dir: Optional[str] = typer.Option(None, help='Working directory for the launched process'),
     tui: Optional[bool] = typer.Option(True, '--tui/--no-tui', help='Use TUI mode'),
-    verbose: bool = typer.Option(False, help='Enable verbose logging')
+    verbose: bool = typer.Option(False, help='Enable verbose logging'),
+    kill_existing: bool = typer.Option(False, help='Kill existing processes with same name and executable before launching')
 ):
     """
     Process Monitor - Monitors processes and performs file operations.
@@ -389,7 +406,8 @@ def main(
         'output_log': output_log or config_data.get('output_log'),
         'working_dir': working_dir or config_data.get('working_dir'),
         'tui': tui if tui is not None else config_data.get('tui', True),
-        'verbose': verbose or config_data.get('verbose', False)
+        'verbose': verbose or config_data.get('verbose', False),
+        'kill_existing': kill_existing or config_data.get('kill_existing', False)
     }
     
     # Validate required parameters
@@ -400,10 +418,18 @@ def main(
         typer.echo("Executable path is required (--executable or in config file)", err=True)
         raise typer.Exit(1)
     
-    # Validate executable exists (only if it's a simple path, not a command with arguments)
-    executable_path = Path(final_config['executable'])
-    if ' ' not in final_config['executable'] and not executable_path.exists():
-        typer.echo(f"Executable not found: {executable_path}", err=True)
+    # Validate interval and startup delay
+    if final_config['interval'] <= 0:
+        typer.echo("Check interval must be positive", err=True)
+        raise typer.Exit(1)
+    if final_config['startup_delay'] < 0:
+        typer.echo("Startup delay must be non-negative", err=True)
+        raise typer.Exit(1)
+    
+    # Validate executable exists (check the command's first part)
+    cmd = shlex.split(final_config['executable'])
+    if not Path(cmd[0]).exists():
+        typer.echo(f"Executable not found: {cmd[0]}", err=True)
         raise typer.Exit(1)
     
     # Setup logging with timestamped filename
@@ -444,7 +470,8 @@ def main(
         startup_delay=final_config['startup_delay'],
         capture_output=final_config['capture_output'],
         output_log=output_log_with_timestamp,
-        working_dir=final_config['working_dir']
+        working_dir=final_config['working_dir'],
+        kill_existing=final_config['kill_existing']
     )
     
     # Run with TUI if requested
