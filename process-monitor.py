@@ -342,6 +342,10 @@ class MonitorTextualApp(App):
             self.output_log.write_line("Output capture disabled")
             self._last_output_len = 1
 
+        # Check if monitor has stopped and exit if so
+        if not self.monitor.running:
+            self.exit()
+
     def action_kill(self) -> None:
         self.monitor.kill_existing_processes()
         self.exit()
