@@ -33,7 +33,9 @@ class ProcessMonitor:
         monitor_process: bool = True,
         lock_file: Optional[str] = None,
         initial_file_copies: Optional[list] = None,
-        final_file_copies: Optional[list] = None
+        final_file_copies: Optional[list] = None,
+        initial_file_cleanup: Optional[list] = None,
+        final_file_cleanup: Optional[list] = None
     ):
         """Initialize the ProcessMonitor with configuration parameters."""
         self.process_name = process_name
@@ -48,6 +50,8 @@ class ProcessMonitor:
         self.lock_file = lock_file
         self.initial_file_copies = initial_file_copies or []
         self.final_file_copies = final_file_copies or []
+        self.initial_file_cleanup = initial_file_cleanup or []
+        self.final_file_cleanup = final_file_cleanup or []
 
         # Status tracking
         self.running = False
@@ -82,6 +86,23 @@ class ProcessMonitor:
                 self.logger.info(f"Copied {source} to {dest}")
             except Exception as e:
                 self.logger.error(f"Failed to copy {source} to {dest}: {e}")
+
+    def perform_file_cleanup(self, cleanup_list):
+        """Perform file cleanup from a list of file paths"""
+        for file_path in cleanup_list:
+            try:
+                path = Path(file_path)
+                if path.exists():
+                    if path.is_file():
+                        path.unlink()
+                        self.logger.info(f"Deleted file {file_path}")
+                    elif path.is_dir():
+                        shutil.rmtree(path)
+                        self.logger.info(f"Deleted directory {file_path}")
+                else:
+                    self.logger.warning(f"File/directory not found for cleanup: {file_path}")
+            except Exception as e:
+                self.logger.error(f"Failed to cleanup {file_path}: {e}")
 
     def kill_existing_processes(self):
         """Kill existing processes with same name"""
@@ -126,7 +147,8 @@ class ProcessMonitor:
             self.process_status = f"Launch failed: {e}"
 
     def _perform_initial_setup(self):
-        """Perform initial file copies and kill existing processes if needed"""
+        """Perform initial file cleanup, copies and kill existing processes if needed"""
+        self.perform_file_cleanup(self.initial_file_cleanup)
         self.perform_file_copies(self.initial_file_copies)
         self.logger.info(f"Launching {self.executable_path}")
         if self.kill_existing:
@@ -267,5 +289,6 @@ class ProcessMonitor:
     def stop(self):
         """Stop monitoring"""
         self.perform_file_copies(self.final_file_copies)
+        self.perform_file_cleanup(self.final_file_cleanup)
         self.running = False
         self.logger.info("Stopping process monitor")

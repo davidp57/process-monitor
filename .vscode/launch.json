@@ -43,6 +43,14 @@
             "program": "${workspaceFolder}/main.py",
             "args": ["--config", "c:\\Users\\David\\Saved Games\\DCS\\Profiles\\DEV\\process-monitor-launch-dcs.yaml", "--startup-delay", "5.0", "--verbose"],
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: process-monitor SimAppPro",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "args": ["--config", "c:\\Users\\David\\Saved Games\\DCS\\Profiles\\simapppro\\process-monitor-simapppro.yaml"],
+            "console": "integratedTerminal"
         }
 
     ]

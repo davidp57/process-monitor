@@ -49,6 +49,8 @@ def load_and_merge_config(config_file: Optional[str], cli_args: dict) -> dict:
         'lock_file': cli_args['lock_file'] if cli_args['lock_file'] is not None else config_data.get('lock_file'),
         'initial_file_copies': config_data.get('initial_file_copies', []),
         'final_file_copies': config_data.get('final_file_copies', []),
+        'initial_file_cleanup': config_data.get('initial_file_cleanup', []),
+        'final_file_cleanup': config_data.get('final_file_cleanup', []),
         'exit_delay': cli_args['exit_delay'] if cli_args['exit_delay'] is not None else config_data.get('exit_delay', 0.0),
         'wait_keypress': cli_args['wait_keypress'] if cli_args['wait_keypress'] is not None else config_data.get('wait_keypress', False),
         'log_cleanup_enabled': cli_args['log_cleanup_enabled'] if cli_args['log_cleanup_enabled'] is not None else config_data.get('log_cleanup_enabled', False),
@@ -79,6 +81,7 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
                         verbose: bool = False, kill_existing: bool = False,
                         monitor_process: bool = True, lock_file: Optional[str] = None,
                         initial_file_copies: Optional[list] = None, final_file_copies: Optional[list] = None,
+                        initial_file_cleanup: Optional[list] = None, final_file_cleanup: Optional[list] = None,
                         exit_delay: float = 0.0, wait_keypress: bool = False,
                         log_cleanup_enabled: bool = False, log_cleanup_keep_count: int = 3) -> dict:
     """Get default configuration dictionary"""
@@ -108,4 +111,8 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
         config['initial_file_copies'] = initial_file_copies
     if final_file_copies:
         config['final_file_copies'] = final_file_copies
+    if initial_file_cleanup:
+        config['initial_file_cleanup'] = initial_file_cleanup
+    if final_file_cleanup:
+        config['final_file_cleanup'] = final_file_cleanup
     return config

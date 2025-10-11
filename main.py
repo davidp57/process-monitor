@@ -94,6 +94,8 @@ def main(
         lock_file=final_config['lock_file'],
         initial_file_copies=final_config['initial_file_copies'],
         final_file_copies=final_config['final_file_copies'],
+        initial_file_cleanup=final_config['initial_file_cleanup'],
+        final_file_cleanup=final_config['final_file_cleanup'],
     )
 
     # Run with TUI if requested

@@ -72,6 +72,20 @@ final_file_copies:
   - source: "/path/to/log/file"
     destination: "/path/to/backup/log/file"
 
+# Optional: List of files/directories to cleanup before launching the process
+# Each item should be a file or directory path to delete
+# Useful for cleaning up temporary files or old logs before startup
+initial_file_cleanup:
+  - "/path/to/temp/file1"
+  - "/path/to/temp/dir1"
+
+# Optional: List of files/directories to cleanup after the process stops
+# Each item should be a file or directory path to delete
+# Useful for cleaning up temporary files or logs after execution
+final_file_cleanup:
+  - "/path/to/temp/file2"
+  - "/path/to/cache/dir"
+
 # Optional: Delay in seconds before exiting the application
 # Default: 0.0
 exit_delay: 0.0
