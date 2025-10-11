@@ -14,6 +14,7 @@ import subprocess
 import os
 import queue
 import shlex
+import ctypes
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -21,14 +22,16 @@ import typer
 import contextlib
 import yaml
 from rich.console import Console
-from rich.live import Live
-from rich.layout import Layout
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 from rich.logging import RichHandler
 from rich import print as rprint
 from rich.progress import Progress, SpinnerColumn, TextColumn
+# Textual TUI
+from textual.app import App, ComposeResult
+from textual.widgets import Header, Footer, Static, Log
+from textual.containers import Vertical
 
 class ProcessMonitor:
     def __init__(
@@ -221,100 +224,80 @@ class ProcessMonitor:
         self.logger.info("Stopping process monitor")
 
 
-class MonitorTUI:
+class MonitorTextualApp(App):
+    """Textual-based TUI for the ProcessMonitor."""
+    BINDINGS = [("q", "quit", "Quit")]
+
     def __init__(self, monitor: ProcessMonitor):
+        super().__init__()
         self.monitor = monitor
-        self.console = Console()
-        self.running = True
-        
-    def create_status_table(self) -> Table:
-        """Create status information table"""
+        self.status_static = Static()
+        self.output_log = Log(highlight=False)
+        self._last_output_len = 0
+
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=True)
+        yield Vertical(
+            Static(Text("Process Monitor", style="bold magenta"), id="title"),
+            self.status_static,
+            Static(Text("Process Output", style="bold blue")),
+            self.output_log,
+            Footer(),
+        )
+
+    def on_mount(self) -> None:
+        # Start monitoring in background thread
+        monitor_thread = threading.Thread(target=self.monitor.monitor_loop, daemon=True)
+        monitor_thread.start()
+        # Periodically refresh UI
+        self.set_interval(0.25, self.refresh_ui)
+
+    def on_shutdown(self) -> None:
+        self.monitor.stop()
+
+    def _create_status_table(self) -> Table:
         table = Table(show_header=False, box=None, padding=(0, 1))
         table.add_column("Key", style="cyan bold", width=20)
         table.add_column("Value", style="white")
-        
+
         table.add_row("Process Name", self.monitor.process_name)
         table.add_row("Executable", str(self.monitor.executable_path))
         table.add_row("Check Interval", f"{self.monitor.check_interval}s")
         table.add_row("Startup Delay", f"{self.monitor.startup_delay}s")
         table.add_row("Launch Count", str(self.monitor.launch_count))
-        
+
         status_color = "green" if self.monitor.process_status == "Running" else "yellow"
         table.add_row("Status", f"[{status_color}]{self.monitor.process_status}[/{status_color}]")
-        
+
         if self.monitor.last_check_time:
             table.add_row("Last Check", self.monitor.last_check_time.strftime("%Y-%m-%d %H:%M:%S"))
-        
+
         return table
-    
-    def create_output_panel(self) -> Panel:
-        """Create output display panel"""
-        if not self.monitor.capture_output:
-            return Panel(
-                Text("Output capture disabled", style="dim italic"),
-                title="Process Output",
-                border_style="blue"
-            )
-        
-        lines = self.monitor.get_output_lines(30)
-        if not lines:
-            content = Text("No output yet...", style="dim italic")
+
+    def refresh_ui(self) -> None:
+        # Update status panel
+        status_table = self._create_status_table()
+        self.status_static.update(Panel(status_table, title="Monitor Status", border_style="green"))
+
+        # Update output log incrementally if enabled
+        if self.monitor.capture_output:
+            lines = self.monitor.get_output_lines(500)
+            current_len = len(lines)
+            if current_len < self._last_output_len:
+                # Buffer trimmed; reset
+                self.output_log.clear()
+                base = 0
+            else:
+                base = self._last_output_len
+            for line in lines[base:]:
+                self.output_log.write_line(line)
+            self._last_output_len = current_len
         else:
-            content = Text("\n".join(lines))
-        
-        return Panel(
-            content,
-            title=f"Process Output (last {len(lines)} lines)",
-            border_style="blue"
-        )
-    
-    def create_layout(self) -> Layout:
-        """Create the main layout"""
-        layout = Layout()
-        layout.split_column(
-            Layout(name="header", size=3),
-            Layout(name="status", size=10),
-            Layout(name="output"),
-            Layout(name="footer", size=3)
-        )
-        
-        layout["header"].update(
-            Panel(
-                Text("Process Monitor", style="bold magenta", justify="center"),
-                border_style="magenta"
-            )
-        )
-        
-        layout["status"].update(
-            Panel(self.create_status_table(), title="Monitor Status", border_style="green")
-        )
-        
-        layout["output"].update(self.create_output_panel())
-        
-        layout["footer"].update(
-            Panel(
-                Text("Press Ctrl+C to stop monitoring", style="dim", justify="center"),
-                border_style="yellow"
-            )
-        )
-        
-        return layout
-    
-    def run(self):
-        """Run the TUI"""
-        # Start monitoring in background thread
-        monitor_thread = threading.Thread(target=self.monitor.monitor_loop, daemon=True)
-        monitor_thread.start()
-        
-        try:
-            with Live(self.create_layout(), console=self.console, refresh_per_second=4) as live:
-                while self.running:
-                    live.update(self.create_layout())
-                    time.sleep(0.25)
-        except KeyboardInterrupt:
-            self.console.print("\n[yellow]Stopping monitor...[/yellow]")
-        finally:
-            self.monitor.stop()
+            # Show disabled message once
+            if self._last_output_len == 0 and not self.monitor.capture_output:
+                self.output_log.clear()
+                self.output_log.write_line("Output capture disabled")
+                self._last_output_len = 1
 
 
 def load_config(config_file: str) -> dict:
@@ -377,7 +360,7 @@ def main(
     executable: str = typer.Option(None, help='Path to executable to launch'),
     interval: float = typer.Option(5.0, help='Check interval in seconds (default: 5.0)'),
     startup_delay: float = typer.Option(2.0, help='Delay after launching before resuming checks (default: 2.0)'),
-    capture_output: bool = typer.Option(False, help='Capture stdout/stderr from the process'),
+    capture_output: bool = typer.Option(True, help='Capture stdout/stderr from the process'),
     output_log: Optional[str] = typer.Option(None, help='Log file for captured output'),
     working_dir: Optional[str] = typer.Option(None, help='Working directory for the launched process'),
     tui: Optional[bool] = typer.Option(True, '--tui/--no-tui', help='Use TUI mode'),
@@ -427,7 +410,7 @@ def main(
         raise typer.Exit(1)
     
     # Validate executable exists (check the command's first part)
-    cmd = shlex.split(final_config['executable'])
+    cmd = shlex.split(final_config['executable'], posix=False)
     if not Path(cmd[0]).exists():
         typer.echo(f"Executable not found: {cmd[0]}", err=True)
         raise typer.Exit(1)
@@ -437,13 +420,14 @@ def main(
     process_monitor_log_file = f'process_monitor-{timestamp}.log'
     
     log_level = logging.DEBUG if final_config['verbose'] else logging.INFO
+    handlers_list = [logging.FileHandler(process_monitor_log_file)]
+    # Avoid attaching a console handler when using Textual TUI to prevent conflicts
+    if not final_config['tui']:
+        handlers_list.insert(0, RichHandler(rich_tracebacks=True))
     logging.basicConfig(
         level=log_level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler() if not final_config['tui'] else RichHandler(rich_tracebacks=True),
-            logging.FileHandler(process_monitor_log_file)
-        ]
+        handlers=handlers_list
     )
     
     # Save current configuration as process-monitor-default-config.yaml
@@ -476,9 +460,9 @@ def main(
     
     # Run with TUI if requested
     if final_config['tui']:
-        # Run with TUI
-        tui = MonitorTUI(monitor_obj)
-        tui.run()
+        # Run with Textual TUI
+        textual_app = MonitorTextualApp(monitor_obj)
+        textual_app.run()
     else:
         # Run in headless mode with rich output (similar to Python reference)
         console = Console()

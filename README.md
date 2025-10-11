@@ -6,7 +6,7 @@ A cross-platform process monitoring tool that automatically relaunches applicati
 
 - ✅ **Cross-platform** - Works on Windows, Linux, and macOS
 - ✅ **Automatic relaunching** - Monitors process and restarts when not found
-- ✅ **Beautiful TUI** - Real-time status display with Rich
+- ✅ **Beautiful TUI** - Real-time status display with Textual (Rich rendering)
 - ✅ **Output capture** - Redirect STDOUT/STDERR to TUI or log file
 - ✅ **YAML configuration** - Save and load settings from config files
 - ✅ **Headless mode** - Run as background service without TUI
@@ -71,6 +71,11 @@ Run without TUI (good for services):
 ```bash
 python process-monitor.py -p myapp.exe -e myapp.exe --no-tui -c -o output.log
 ```
+
+### TUI Controls (Textual)
+
+- Press `q` to quit the TUI
+- Press `Ctrl+C` to interrupt and stop monitoring
 
 ### Custom Intervals
 
@@ -217,7 +222,7 @@ If you prefer to build manually:
 
 ```bash
 pyinstaller --onefile --console --name=process-monitor \
-    --hidden-import=rich --hidden-import=psutil --hidden-import=click \
+    --hidden-import=rich --hidden-import=textual --hidden-import=psutil --hidden-import=click \
     process-monitor.py
 ```
 
@@ -268,7 +273,8 @@ The monitor creates two log files:
 ## Dependencies
 
 - **psutil** (≥7.0.0) - Cross-platform process utilities
-- **rich** (≥14.0.0) - Terminal UI and formatting
+- **rich** (≥14.0.0) - Terminal formatting and headless output
+- **textual** (≥0.57.0) - TUI framework
 - **typer** (≥0.19.0) - Command-line interface
 - **pyyaml** (≥6.0.0) - YAML configuration file support
 - **pyinstaller** (≥6.0.0) - For building executables (optional)
