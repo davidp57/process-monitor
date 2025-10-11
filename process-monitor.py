@@ -707,7 +707,7 @@ def main(
     capture_output: bool = typer.Option(True, help='Capture stdout/stderr from the process'),
     output_log: Optional[str] = typer.Option(None, help='Log file for captured output'),
     working_dir: Optional[str] = typer.Option(None, help='Working directory for the launched process'),
-    tui: Optional[bool] = typer.Option(None, '--tui/--no-tui', help='Use TUI mode'),
+    tui: Optional[bool] = typer.Option(True, '--tui/--no-tui', help='Use TUI mode'),
     verbose: bool = typer.Option(False, help='Enable verbose logging'),
     kill_existing: bool = typer.Option(False, help='Kill existing processes with same name and executable before launching and after exiting'),
     monitor: bool = typer.Option(None, '--monitor/--no-monitor', help='Relaunch missing process automatically (default: enabled)'),
