@@ -5,8 +5,10 @@ Supports TUI display and output capture to logs or TUI window
 Dependencies: See requirements.txt
 Build executable: python build.py
 """
-
-
+import threading
+import sys
+import time
+import logging
 import psutil
 import subprocess
 import sys
@@ -18,7 +20,7 @@ import queue
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
-import click
+import typer
 import contextlib
 import yaml
 from rich.console import Console
@@ -28,10 +30,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 from rich.logging import RichHandler
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import print as rprint
-
-VERSION: str = "1.0.0"
 
 class ProcessMonitor:
     def __init__(
@@ -351,29 +350,43 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
     return config
 
 
-@click.command()
-@click.option('--process-name', '-p', help='Name of the process to monitor (e.g., notepad.exe)')
-@click.option('--executable', '-e', type=click.Path(), help='Path to executable to launch')
-@click.option('--interval', '-i', default=5.0, type=float, help='Check interval in seconds (default: 5.0)')
-@click.option('--startup-delay', '-d', default=2.0, type=float, help='Delay after launching before resuming checks (default: 2.0)')
-@click.option('--capture-output', '-c', is_flag=True, help='Capture stdout/stderr from the process')
-@click.option('--output-log', '-o', type=click.Path(), help='Log file for captured output')
-@click.option('--working-dir', '-w', type=click.Path(exists=True, file_okay=False, dir_okay=True), help='Working directory for the launched process')
-@click.option('--no-tui', is_flag=True, help='Run without TUI (headless mode)')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
-@click.option('--config', type=click.Path(), help='YAML configuration file to load')
-def main(process_name, executable, interval, startup_delay, capture_output, output_log, working_dir, no_tui, verbose, config):
+app = typer.Typer()
+
+config_data = {}
+
+@app.callback()
+def main(
+    config: Optional[str] = typer.Option(None, help='YAML configuration file to load')
+):
     """
-    Process Monitor - Monitors a process and relaunches it if not running.
+    Process Monitor - Monitors processes and performs file operations.
     
     Examples:
-        python process_monitor.py -p notepad.exe -e "C:\\Windows\\System32\\notepad.exe" -c -o output.log
-        python process_monitor.py --config my-config.yaml
+        python process_monitor.py monitor -p notepad.exe -e "C:\\Windows\\System32\\notepad.exe" -c -o output.log
+        python process_monitor.py wait-and-watch --config my-config.yaml
     """
     # Load configuration from file if specified
+    global config_data
     config_data = {}
     if config:
         config_data = load_config(config)
+
+@app.command()
+def monitor(
+    process_name: str = typer.Option(None, help='Name of the process to monitor (e.g., notepad.exe)'),
+    executable: str = typer.Option(None, help='Path to executable to launch'),
+    interval: float = typer.Option(5.0, help='Check interval in seconds (default: 5.0)'),
+    startup_delay: float = typer.Option(2.0, help='Delay after launching before resuming checks (default: 2.0)'),
+    capture_output: bool = typer.Option(False, help='Capture stdout/stderr from the process'),
+    output_log: Optional[str] = typer.Option(None, help='Log file for captured output'),
+    working_dir: Optional[str] = typer.Option(None, help='Working directory for the launched process'),
+    no_tui: bool = typer.Option(False, help='Run without TUI (headless mode)'),
+    verbose: bool = typer.Option(False, help='Enable verbose logging')
+):
+    """
+    Monitor a process and relaunch it if not running.
+    """
+    global config_data
     
     # Merge CLI options with config file (CLI options take precedence)
     final_config = {
@@ -390,14 +403,17 @@ def main(process_name, executable, interval, startup_delay, capture_output, outp
     
     # Validate required parameters
     if not final_config['process_name']:
-        raise click.ClickException("Process name is required (--process-name or in config file)")
+        typer.echo("Process name is required (--process-name or in config file)", err=True)
+        raise typer.Exit(1)
     if not final_config['executable']:
-        raise click.ClickException("Executable path is required (--executable or in config file)")
+        typer.echo("Executable path is required (--executable or in config file)", err=True)
+        raise typer.Exit(1)
     
     # Validate executable exists (only if it's a simple path, not a command with arguments)
     executable_path = Path(final_config['executable'])
     if ' ' not in final_config['executable'] and not executable_path.exists():
-        raise click.ClickException(f"Executable not found: {executable_path}")
+        typer.echo(f"Executable not found: {executable_path}", err=True)
+        raise typer.Exit(1)
     
     # Setup logging with timestamped filename
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -430,7 +446,7 @@ def main(process_name, executable, interval, startup_delay, capture_output, outp
             output_log_with_timestamp = f"{stem}-{timestamp}{suffix}"
     
     # Create monitor
-    monitor = ProcessMonitor(
+    monitor_obj = ProcessMonitor(
         process_name=final_config['process_name'],
         executable_path=final_config['executable'],
         check_interval=final_config['interval'],
@@ -456,12 +472,12 @@ def main(process_name, executable, interval, startup_delay, capture_output, outp
         rprint("-" * 50)
         
         # Check if process is already running
-        if not monitor.is_process_running():
+        if not monitor_obj.is_process_running():
             rprint(f"[yellow]Process {final_config['process_name']} not found. Launching...[/yellow]")
             time.sleep(final_config['startup_delay'])
-            monitor.launch_process()
-            if monitor.current_process:
-                rprint(f"[green]Process launched successfully with PID: {monitor.current_process.pid}[/green]")
+            monitor_obj.launch_process()
+            if monitor_obj.current_process:
+                rprint(f"[green]Process launched successfully with PID: {monitor_obj.current_process.pid}[/green]")
             else:
                 rprint(f"[red]Failed to launch process[/red]")
         else:
@@ -475,35 +491,130 @@ def main(process_name, executable, interval, startup_delay, capture_output, outp
                 console=console,
             ) as progress:
                 task = progress.add_task("Monitoring...", total=None)
-                monitor.running = True
+                monitor_obj.running = True
                 
-                while monitor.running:
+                while monitor_obj.running:
                     progress.update(task, description=f"Monitoring {final_config['process_name']}...")
-                    monitor.last_check_time = datetime.now()
+                    monitor_obj.last_check_time = datetime.now()
                     
-                    if not monitor.is_process_running():
+                    if not monitor_obj.is_process_running():
                         rprint(f"\n[yellow]Process {final_config['process_name']} not found. Launching...[/yellow]")
                         progress.update(task, description=f"Launching {final_config['process_name']}...")
-                        monitor.process_status = "Not running - launching"
-                        monitor.launch_process()
-                        if monitor.current_process:
-                            rprint(f"[green]Process launched successfully with PID: {monitor.current_process.pid}[/green]")
+                        monitor_obj.process_status = "Not running - launching"
+                        monitor_obj.launch_process()
+                        if monitor_obj.current_process:
+                            rprint(f"[green]Process launched successfully with PID: {monitor_obj.current_process.pid}[/green]")
                             progress.update(task, description=f"Waiting for startup delay...")
                         else:
                             rprint(f"[red]Failed to launch process[/red]")
                     else:
-                        monitor.process_status = "Running"
+                        monitor_obj.process_status = "Running"
                         progress.update(task, description=f"Monitoring {final_config['process_name']}... [green]RUNNING[/green]")
                     
                     time.sleep(final_config['interval'])
         except KeyboardInterrupt:
             rprint("\n[bold red]Monitoring stopped by user.[/bold red]")
-            monitor.stop()
+            monitor_obj.stop()
     else:
         # Run with TUI
-        tui = MonitorTUI(monitor)
+        tui = MonitorTUI(monitor_obj)
         tui.run()
+
+@app.command()
+def wait_and_watch(
+    process_name: str = typer.Option(None, help='Name of the process to wait for (e.g., notepad.exe)'),
+    executable: str = typer.Option(None, help='Path to executable to launch initially'),
+    interval: float = typer.Option(5.0, help='Check interval in seconds (default: 5.0)'),
+    verbose: bool = typer.Option(False, help='Enable verbose logging')
+):
+    """
+    Wait and watch: Run file copies, start a process, wait for another process, then run more file copies.
+    """
+    global config_data
+    
+    # Merge CLI options with config file (CLI options take precedence)
+    final_config = {
+        'process_name': process_name or config_data.get('process_name'),
+        'executable': executable or config_data.get('executable'),
+        'interval': interval if interval != 5.0 else config_data.get('interval', 5.0),
+        'verbose': verbose or config_data.get('verbose', False),
+        'initial_file_copies': config_data.get('initial_file_copies', []),
+        'final_file_copies': config_data.get('final_file_copies', [])
+    }
+    
+    # Validate required parameters
+    if not final_config['process_name']:
+        typer.echo("Process name is required (--process-name or in config file)", err=True)
+        raise typer.Exit(1)
+    if not final_config['executable']:
+        typer.echo("Executable path is required (--executable or in config file)", err=True)
+        raise typer.Exit(1)
+    
+    # Validate executable exists
+    executable_path = Path(final_config['executable'])
+    if ' ' not in final_config['executable'] and not executable_path.exists():
+        typer.echo(f"Executable not found: {executable_path}", err=True)
+        raise typer.Exit(1)
+    
+    # Setup logging
+    log_level = logging.DEBUG if final_config['verbose'] else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    logger = logging.getLogger("WaitAndWatch")
+    
+    # Run initial file copies
+    perform_file_copies(final_config['initial_file_copies'], logger)
+    
+    # Start the initial process
+    logger.info(f"Starting process: {final_config['executable']}")
+    try:
+        subprocess.Popen(str(executable_path), shell=True)
+    except Exception as e:
+        logger.error(f"Failed to start process: {e}")
+        return
+    
+    # Wait for the target process to start
+    logger.info(f"Waiting for process {final_config['process_name']} to start...")
+    while not is_process_running(final_config['process_name']):
+        time.sleep(final_config['interval'])
+    logger.info(f"Process {final_config['process_name']} has started.")
+    
+    # Wait for the target process to stop
+    logger.info(f"Waiting for process {final_config['process_name']} to stop...")
+    while is_process_running(final_config['process_name']):
+        time.sleep(final_config['interval'])
+    logger.info(f"Process {final_config['process_name']} has stopped.")
+    
+    # Run final file copies
+    perform_file_copies(final_config['final_file_copies'], logger)
+    
+    logger.info("Wait-and-watch completed.")
+
+
+def perform_file_copies(file_copies, logger):
+    """Perform file copy operations"""
+    import shutil
+    for copy_op in file_copies:
+        src = copy_op.get('source')
+        dest = copy_op.get('destination')
+        if src and dest:
+            try:
+                shutil.copy2(src, dest)
+                logger.info(f"Copied {src} to {dest}")
+            except Exception as e:
+                logger.error(f"Failed to copy {src} to {dest}: {e}")
+
+def is_process_running(process_name):
+    """Check if process is running by name"""
+    for proc in psutil.process_iter(['name', 'pid']):
+        with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            if str(proc.info['name']).lower() == process_name.lower():
+                return True
+    return False
 
 
 if __name__ == '__main__':
-    main()
+    app()
