@@ -45,6 +45,7 @@ class ProcessMonitor:
         output_log: Optional[str] = None,
         working_dir: Optional[str] = None,
         kill_existing: bool = False,
+        monitor_process: bool = True
     ):
         self.process_name = process_name
         self.executable_path = Path(executable_path)
@@ -54,6 +55,7 @@ class ProcessMonitor:
         self.output_log = output_log
         self.working_dir = working_dir
         self.kill_existing = kill_existing
+        self.monitor_process = monitor_process
 
         # Status tracking
         self.running = False
@@ -210,8 +212,11 @@ class ProcessMonitor:
             
             if not self.is_process_running():
                 self.logger.warning(f"{self.process_name} not found")
-                self.process_status = "Not running - launching"
-                self.launch_process()
+                if self.monitor_process:
+                    self.process_status = "Not running - launching"
+                    self.launch_process()
+                else:
+                    self.process_status = "Not running - monitoring disabled"
             else:
                 self.process_status = "Running"
             
@@ -341,7 +346,8 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
                       interval: float = 5.0, startup_delay: float = 2.0,
                       capture_output: bool = False, output_log: Optional[str] = None,
                       working_dir: Optional[str] = None, tui: bool = True,
-                      verbose: bool = False, kill_existing: bool = False) -> dict:
+                      verbose: bool = False, kill_existing: bool = False, 
+                      monitor_process: bool = True) -> dict:
     """Get default configuration dictionary"""
     config = {
         'process_name': process_name,
@@ -351,7 +357,8 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
         'capture_output': capture_output,
         'tui': tui,
         'verbose': verbose,
-        'kill_existing': kill_existing
+        'kill_existing': kill_existing,
+        'monitor_process': monitor_process,
     }
     # Only include optional fields if they have values
     if output_log:
@@ -376,7 +383,8 @@ def main(
     working_dir: Optional[str] = typer.Option(None, help='Working directory for the launched process'),
     tui: Optional[bool] = typer.Option(True, '--tui/--no-tui', help='Use TUI mode'),
     verbose: bool = typer.Option(False, help='Enable verbose logging'),
-    kill_existing: bool = typer.Option(False, help='Kill existing processes with same name and executable before launching and after exiting')
+    kill_existing: bool = typer.Option(False, help='Kill existing processes with same name and executable before launching and after exiting'),
+    monitor: bool = typer.Option(True, '--monitor/--no-monitor', help='Relaunch missing process automatically (default: enabled)'),
 ):
     """
     Process Monitor - Monitors processes and performs file operations.
@@ -397,7 +405,8 @@ def main(
         'working_dir': working_dir or config_data.get('working_dir'),
         'tui': tui if tui is not None else config_data.get('tui', True),
         'verbose': verbose or config_data.get('verbose', False),
-        'kill_existing': kill_existing or config_data.get('kill_existing', False)
+        'kill_existing': kill_existing or config_data.get('kill_existing', False),
+        'monitor_process': monitor if monitor is not None else config_data.get('monitor_process', True),
     }
 
     # Validate required parameters
@@ -462,7 +471,8 @@ def main(
         capture_output=final_config['capture_output'],
         output_log=output_log_with_timestamp,
         working_dir=final_config['working_dir'],
-        kill_existing=final_config['kill_existing']
+        kill_existing=final_config['kill_existing'],
+        monitor_process=final_config['monitor_process'],
     )
 
     # Run with TUI if requested
@@ -491,7 +501,10 @@ def main(
         rprint("-" * 50)
 
         # Check if process is already running
-        if not monitor_obj.is_process_running():
+        if monitor_obj.is_process_running():
+            rprint(f"[green]Process {final_config['process_name']} is already running[/green]")
+
+        elif final_config['monitor_process']:
             rprint(f"[yellow]Process {final_config['process_name']} not found. Launching...[/yellow]")
             time.sleep(final_config['startup_delay'])
             monitor_obj.launch_process()
@@ -500,15 +513,14 @@ def main(
             else:
                 rprint("[red]Failed to launch process[/red]")
         else:
-            rprint(f"[green]Process {final_config['process_name']} is already running[/green]")
-
+            rprint(f"[yellow]Process {final_config['process_name']} not found. Monitoring disabled; not launching.[/yellow]")
         # Start monitoring loop with progress spinner
         try:
             with Progress(
-                                        SpinnerColumn(),
-                                        TextColumn("[progress.description]{task.description}"),
-                                        console=console,
-                                    ) as progress:
+                                                    SpinnerColumn(),
+                                                    TextColumn("[progress.description]{task.description}"),
+                                                    console=console,
+                                                ) as progress:
                 task = progress.add_task("Monitoring...", total=None)
                 monitor_obj.running = True
 
@@ -516,7 +528,11 @@ def main(
                     progress.update(task, description=f"Monitoring {final_config['process_name']}...")
                     monitor_obj.last_check_time = datetime.now()
 
-                    if not monitor_obj.is_process_running():
+                    if monitor_obj.is_process_running():
+                        monitor_obj.process_status = "Running"
+                        progress.update(task, description=f"Monitoring {final_config['process_name']}... [green]RUNNING[/green]")
+
+                    elif final_config['monitor_process']:
                         rprint(f"\n[yellow]Process {final_config['process_name']} not found. Launching...[/yellow]")
                         progress.update(task, description=f"Launching {final_config['process_name']}...")
                         monitor_obj.process_status = "Not running - launching"
@@ -527,9 +543,8 @@ def main(
                         else:
                             rprint("[red]Failed to launch process[/red]")
                     else:
-                        monitor_obj.process_status = "Running"
-                        progress.update(task, description=f"Monitoring {final_config['process_name']}... [green]RUNNING[/green]")
-
+                        monitor_obj.process_status = "Not running - monitoring disabled"
+                        progress.update(task, description=f"Monitoring {final_config['process_name']}... [yellow]NOT RUNNING (monitoring disabled)[/yellow]")
                     time.sleep(final_config['interval'])
         except KeyboardInterrupt:
             rprint("\n[bold red]Monitoring stopped by user.[/bold red]")
