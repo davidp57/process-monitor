@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from config import get_default_config, load_and_merge_config, validate_config
-from logging_utils import setup_logging
+from logging_utils import setup_logging, cleanup_old_logs
 from process_monitor import ProcessMonitor
 from run_modes import run_headless_mode, run_tui_mode
 
@@ -29,6 +29,8 @@ def main(
     lock_file: Optional[str] = typer.Option(None, help='Path to lock file to wait for after launching the process'),
     exit_delay: Optional[float] = typer.Option(None, help='Delay in seconds before exiting the app'),
     wait_keypress: Optional[bool] = typer.Option(None, help='Wait for keypress before exiting'),
+    log_cleanup: Optional[bool] = typer.Option(None, '--log-cleanup/--no-log-cleanup', help='Enable automatic cleanup of old log files on startup'),
+    log_cleanup_keep_count: Optional[int] = typer.Option(None, help='Number of recent log files to keep when cleanup is enabled (default: 3)'),
 ):
     """
     Process Monitor - Monitors processes and performs file operations.
@@ -52,12 +54,18 @@ def main(
         'lock_file': lock_file,
         'exit_delay': exit_delay,
         'wait_keypress': wait_keypress,
+        'log_cleanup_enabled': log_cleanup,
+        'log_cleanup_keep_count': log_cleanup_keep_count,
     }
     final_config = load_and_merge_config(config, cli_args)
     validate_config(final_config)
 
     # Setup logging
     process_monitor_log_file = setup_logging(final_config['verbose'], final_config['tui'])
+
+    # Clean up old log files if enabled
+    if final_config['log_cleanup_enabled']:
+        cleanup_old_logs(final_config['output_log'], final_config['log_cleanup_keep_count'])
 
     # Add timestamp to output log filename if specified
     output_log_with_timestamp = None

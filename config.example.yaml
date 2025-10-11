@@ -80,3 +80,13 @@ exit_delay: 0.0
 # Useful for keeping the terminal window open to see final output
 # Default: false
 wait_keypress: false
+
+# Optional: Enable automatic cleanup of old log files on startup
+# When enabled, keeps only the most recent log files
+# Default: false
+log_cleanup_enabled: false
+
+# Optional: Number of recent log files to keep when cleanup is enabled
+# Applies to both process monitor logs and process output logs
+# Default: 3
+log_cleanup_keep_count: 3

@@ -51,6 +51,8 @@ def load_and_merge_config(config_file: Optional[str], cli_args: dict) -> dict:
         'final_file_copies': config_data.get('final_file_copies', []),
         'exit_delay': cli_args['exit_delay'] if cli_args['exit_delay'] is not None else config_data.get('exit_delay', 0.0),
         'wait_keypress': cli_args['wait_keypress'] if cli_args['wait_keypress'] is not None else config_data.get('wait_keypress', False),
+        'log_cleanup_enabled': cli_args['log_cleanup_enabled'] if cli_args['log_cleanup_enabled'] is not None else config_data.get('log_cleanup_enabled', False),
+        'log_cleanup_keep_count': cli_args['log_cleanup_keep_count'] if cli_args['log_cleanup_keep_count'] is not None else config_data.get('log_cleanup_keep_count', 3),
     }
 
 
@@ -71,13 +73,14 @@ def validate_config(config: dict):
 
 
 def get_default_config(process_name: Optional[str] = None, executable: Optional[str] = None,
-                       interval: float = 0.5, startup_delay: float = 2.0,
-                       capture_output: bool = False, output_log: Optional[str] = None,
-                       working_dir: Optional[str] = None, tui: bool = True,
-                       verbose: bool = False, kill_existing: bool = False,
-                       monitor_process: bool = True, lock_file: Optional[str] = None,
-                       initial_file_copies: Optional[list] = None, final_file_copies: Optional[list] = None,
-                       exit_delay: float = 0.0, wait_keypress: bool = False) -> dict:
+                        interval: float = 0.5, startup_delay: float = 2.0,
+                        capture_output: bool = False, output_log: Optional[str] = None,
+                        working_dir: Optional[str] = None, tui: bool = True,
+                        verbose: bool = False, kill_existing: bool = False,
+                        monitor_process: bool = True, lock_file: Optional[str] = None,
+                        initial_file_copies: Optional[list] = None, final_file_copies: Optional[list] = None,
+                        exit_delay: float = 0.0, wait_keypress: bool = False,
+                        log_cleanup_enabled: bool = False, log_cleanup_keep_count: int = 3) -> dict:
     """Get default configuration dictionary"""
     config = {
         'process_name': process_name,
@@ -91,6 +94,8 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
         'monitor_process': monitor_process,
         'exit_delay': exit_delay,
         'wait_keypress': wait_keypress,
+        'log_cleanup_enabled': log_cleanup_enabled,
+        'log_cleanup_keep_count': log_cleanup_keep_count,
     }
     # Only include optional fields if they have values
     if output_log:
