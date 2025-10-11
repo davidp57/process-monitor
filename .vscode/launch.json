@@ -5,7 +5,23 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current File",
+            "name": "Python Debugger: process-monitor NOTEPAD",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/process-monitor.py",
+            "args": ["--tui", "--process-name", "notepad.exe", "--executable", "C:\\Windows\\System32\\notepad.exe"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: process-monitor NOTEPAD --kill-existing",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/process-monitor.py",
+            "args": ["--tui", "--process-name", "notepad.exe", "--executable", "C:\\Windows\\System32\\notepad.exe", "--kill-existing"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: process-monitor NOTEPAD --kill-existing --no-monitor",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/process-monitor.py",

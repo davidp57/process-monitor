@@ -39,7 +39,7 @@ class ProcessMonitor:
         self,
         process_name: str,
         executable_path: str,
-        check_interval: float = 5.0,
+        check_interval: float = 0.5,
         startup_delay: float = 0,
         capture_output: bool = False,
         output_log: Optional[str] = None,
@@ -217,6 +217,7 @@ class ProcessMonitor:
                     self.launch_process()
                 else:
                     self.process_status = "Not running - monitoring disabled"
+                    self.running = False
             else:
                 self.process_status = "Running"
             
@@ -343,7 +344,7 @@ def save_config(config_file: str, config: dict):
 
 
 def get_default_config(process_name: Optional[str] = None, executable: Optional[str] = None,
-                      interval: float = 5.0, startup_delay: float = 2.0,
+                       interval: float = 0.5, startup_delay: float = 2.0,
                       capture_output: bool = False, output_log: Optional[str] = None,
                       working_dir: Optional[str] = None, tui: bool = True,
                       verbose: bool = False, kill_existing: bool = False, 
@@ -376,7 +377,7 @@ def main(
     config: Optional[str] = typer.Option(None, help='YAML configuration file to load'),
     process_name: str = typer.Option(None, help='Name of the process to monitor (e.g., notepad.exe)'),
     executable: str = typer.Option(None, help='Path to executable to launch'),
-    interval: float = typer.Option(5.0, help='Check interval in seconds (default: 5.0)'),
+    interval: float = typer.Option(0.5, help='Check interval in seconds (default: 0.5)'),
     startup_delay: float = typer.Option(2.0, help='Delay after launching before resuming checks (default: 2.0)'),
     capture_output: bool = typer.Option(True, help='Capture stdout/stderr from the process'),
     output_log: Optional[str] = typer.Option(None, help='Log file for captured output'),
@@ -398,7 +399,7 @@ def main(
     final_config = {
         'process_name': process_name or config_data.get('process_name'),
         'executable': executable or config_data.get('executable'),
-        'interval': interval if interval != 5.0 else config_data.get('interval', 5.0),
+        'interval': interval if interval != 0.5 else config_data.get('interval', 0.5),
         'startup_delay': startup_delay if startup_delay != 2.0 else config_data.get('startup_delay', 2.0),
         'capture_output': capture_output or config_data.get('capture_output', False),
         'output_log': output_log or config_data.get('output_log'),
@@ -504,7 +505,7 @@ def main(
         if monitor_obj.is_process_running():
             rprint(f"[green]Process {final_config['process_name']} is already running[/green]")
 
-        elif final_config['monitor_process']:
+        else:
             rprint(f"[yellow]Process {final_config['process_name']} not found. Launching...[/yellow]")
             time.sleep(final_config['startup_delay'])
             monitor_obj.launch_process()
@@ -512,9 +513,7 @@ def main(
                 rprint(f"[green]Process launched successfully with PID: {monitor_obj.current_process.pid}[/green]")
             else:
                 rprint("[red]Failed to launch process[/red]")
-        else:
-            rprint(f"[yellow]Process {final_config['process_name']} not found. Monitoring disabled; not launching.[/yellow]")
-        # Start monitoring loop with progress spinner
+        # Still start monitoring loop with progress spinner
         try:
             with Progress(
                                                     SpinnerColumn(),
@@ -545,6 +544,7 @@ def main(
                     else:
                         monitor_obj.process_status = "Not running - monitoring disabled"
                         progress.update(task, description=f"Monitoring {final_config['process_name']}... [yellow]NOT RUNNING (monitoring disabled)[/yellow]")
+                        monitor_obj.running = False
                     time.sleep(final_config['interval'])
         except KeyboardInterrupt:
             rprint("\n[bold red]Monitoring stopped by user.[/bold red]")
