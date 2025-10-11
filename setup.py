@@ -11,7 +11,7 @@ build_options = {
 }
 
 executables = [
-    Executable('process-monitor.py', base=base, target_name='process-monitor.exe')
+    Executable('main.py', base=base, target_name='process-monitor.exe')
 ]
 
 setup(
