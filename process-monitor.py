@@ -469,7 +469,12 @@ def main(
     if final_config['tui']:
         # Run with Textual TUI
         textual_app = MonitorTextualApp(monitor_obj)
-        textual_app.run()
+        try:
+            textual_app.run()
+        finally:
+            # Ensure cleanup even if Textual's on_shutdown isn't triggered
+            monitor_obj.stop()
+            textual_app.handle_exit()
     else:
         # Run in headless mode with rich output (similar to Python reference)
         console = Console()
