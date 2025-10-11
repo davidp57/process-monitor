@@ -35,6 +35,16 @@ from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer, Static, Log
 from textual.containers import Vertical
 
+class TUIHandler(logging.Handler):
+    def __init__(self, queue):
+        super().__init__()
+        self.queue = queue
+
+    def emit(self, record):
+        msg = self.format(record)
+        with contextlib.suppress(queue.Full):
+            self.queue.put_nowait(msg)
+
 class ProcessMonitor:
     def __init__(
         self,
@@ -218,7 +228,7 @@ class ProcessMonitor:
                     self.output_lines.pop(0)
             except queue.Empty:
                 break
-        
+
         return self.output_lines[-max_lines:]
     
     def monitor_loop(self):
@@ -265,12 +275,21 @@ class MonitorTextualApp(App):
     """Textual-based TUI for the ProcessMonitor."""
     BINDINGS = [("q", "quit", "Quit"),("k", "kill", "Kill and quit")]
 
-    def __init__(self, monitor: ProcessMonitor):
+    def __init__(self, monitor: ProcessMonitor, log_queue: queue.Queue, exit_delay: float, wait_keypress: bool):
         super().__init__()
         self.monitor = monitor
+        self.log_queue = log_queue
+        self.exit_delay = exit_delay
+        self.wait_keypress = wait_keypress
+        self.log_lines = []
+        self.max_log_lines = 500
+        self._last_log_len = 0
         self.status_static = Static()
         self.output_log = Log(highlight=False)
+        self.script_log = Log(highlight=False)
+        self.exit_static = Static()
         self._last_output_len = 0
+        self.exiting = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -279,6 +298,9 @@ class MonitorTextualApp(App):
             self.status_static,
             Static(Text("Process Output", style="bold blue")),
             self.output_log,
+            Static(Text("Script Logs", style="bold green")),
+            self.script_log,
+            self.exit_static,
             Footer(),
         )
 
@@ -319,6 +341,19 @@ class MonitorTextualApp(App):
 
         return table
 
+    def get_log_lines(self, max_lines: int = 100):
+        """Get recent log lines for display"""
+        while not self.log_queue.empty():
+            try:
+                line = self.log_queue.get_nowait()
+                self.log_lines.append(line)
+                if len(self.log_lines) > self.max_log_lines:
+                    self.log_lines.pop(0)
+            except queue.Empty:
+                break
+
+        return self.log_lines[-max_lines:]
+
     def refresh_ui(self) -> None:
         # Update status panel
         status_table = self._create_status_table()
@@ -342,8 +377,35 @@ class MonitorTextualApp(App):
             self.output_log.write_line("Output capture disabled")
             self._last_output_len = 1
 
+        # Update script log incrementally
+        log_lines = self.get_log_lines(500)
+        current_log_len = len(log_lines)
+        if current_log_len < self._last_log_len:
+            # Buffer trimmed; reset
+            self.script_log.clear()
+            base = 0
+        else:
+            base = self._last_log_len
+        for line in log_lines[base:]:
+            self.script_log.write_line(line)
+        self._last_log_len = current_log_len
+
         # Check if monitor has stopped and exit if so
-        if not self.monitor.running:
+        if not self.monitor.running and not self.exiting:
+            self.exiting = True
+            if self.wait_keypress:
+                self.exit_static.update("Press 'q' to exit")
+            elif self.exit_delay > 0:
+                self.exit_static.update(f"Exiting in {self.exit_delay} seconds")
+                self.set_timer(self.exit_delay, self.exit)
+            else:
+                self.exit()
+
+    def action_quit(self) -> None:
+        if self.exiting:
+            self.exit()
+        else:
+            self.monitor.kill_existing_processes()
             self.exit()
 
     def action_kill(self) -> None:
@@ -381,12 +443,13 @@ def save_config(config_file: str, config: dict):
 
 
 def get_default_config(process_name: Optional[str] = None, executable: Optional[str] = None,
-                      interval: float = 0.5, startup_delay: float = 2.0,
-                      capture_output: bool = False, output_log: Optional[str] = None,
-                      working_dir: Optional[str] = None, tui: bool = True,
-                      verbose: bool = False, kill_existing: bool = False,
-                      monitor_process: bool = True, lock_file: Optional[str] = None,
-                      initial_file_copies: Optional[list] = None, final_file_copies: Optional[list] = None) -> dict:
+                       interval: float = 0.5, startup_delay: float = 2.0,
+                       capture_output: bool = False, output_log: Optional[str] = None,
+                       working_dir: Optional[str] = None, tui: bool = True,
+                       verbose: bool = False, kill_existing: bool = False,
+                       monitor_process: bool = True, lock_file: Optional[str] = None,
+                       initial_file_copies: Optional[list] = None, final_file_copies: Optional[list] = None,
+                       exit_delay: float = 0.0, wait_keypress: bool = False) -> dict:
     """Get default configuration dictionary"""
     config = {
         'process_name': process_name,
@@ -398,6 +461,8 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
         'verbose': verbose,
         'kill_existing': kill_existing,
         'monitor_process': monitor_process,
+        'exit_delay': exit_delay,
+        'wait_keypress': wait_keypress,
     }
     # Only include optional fields if they have values
     if output_log:
@@ -431,6 +496,8 @@ def main(
     kill_existing: bool = typer.Option(False, help='Kill existing processes with same name and executable before launching and after exiting'),
     monitor: bool = typer.Option(None, '--monitor/--no-monitor', help='Relaunch missing process automatically (default: enabled)'),
     lock_file: Optional[str] = typer.Option(None, help='Path to lock file to wait for after launching the process'),
+    exit_delay: float = typer.Option(0.0, help='Delay in seconds before exiting the app'),
+    wait_keypress: bool = typer.Option(False, help='Wait for keypress before exiting'),
 ):
     """
     Process Monitor - Monitors processes and performs file operations.
@@ -456,6 +523,8 @@ def main(
         'lock_file': lock_file or config_data.get('lock_file'),
         'initial_file_copies': config_data.get('initial_file_copies', []),
         'final_file_copies': config_data.get('final_file_copies', []),
+        'exit_delay': exit_delay if exit_delay != 0.0 else config_data.get('exit_delay', 0.0),
+        'wait_keypress': wait_keypress or config_data.get('wait_keypress', False),
     }
 
     # Validate required parameters
@@ -524,8 +593,12 @@ def main(
 
     # Run with TUI if requested
     if final_config['tui']:
+        # Set up log queue and handler for TUI
+        log_queue = queue.Queue(maxsize=1000)
+        tui_handler = TUIHandler(log_queue)
+        logging.getLogger("ProcessMonitor").addHandler(tui_handler)
         # Run with Textual TUI
-        textual_app = MonitorTextualApp(monitor_obj)
+        textual_app = MonitorTextualApp(monitor_obj, log_queue, final_config['exit_delay'], final_config['wait_keypress'])
         try:
             textual_app.run()
         finally:
@@ -598,6 +671,13 @@ def main(
         except KeyboardInterrupt:
             rprint("\n[bold red]Monitoring stopped by user.[/bold red]")
             monitor_obj.stop()
+
+        # Apply exit delay and keypress wait
+        if final_config['exit_delay'] > 0:
+            rprint(f"[yellow]Waiting {final_config['exit_delay']} seconds before exiting...[/yellow]")
+            time.sleep(final_config['exit_delay'])
+        if final_config['wait_keypress']:
+            input("Press any key to exit...")
 
 
 if __name__ == '__main__':

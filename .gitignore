@@ -4,3 +4,4 @@ dist/
 *,log
 *.log
 process-monitor-*.yaml
+__pycache__/*
