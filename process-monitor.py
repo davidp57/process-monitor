@@ -44,6 +44,8 @@ OUTPUT_QUEUE_SIZE = 1000
 LOG_QUEUE_SIZE = 1000
 
 class TUIHandler(logging.Handler):
+    """Logging handler that queues log messages for TUI display."""
+
     def __init__(self, queue):
         super().__init__()
         self.log_queue = queue
@@ -54,6 +56,8 @@ class TUIHandler(logging.Handler):
             self.log_queue.put_nowait(msg)
 
 class ProcessMonitor:
+    """Monitors a process and relaunches it if not running, with support for TUI and output capture."""
+
     def __init__(
         self,
         process_name: str,
@@ -69,6 +73,7 @@ class ProcessMonitor:
         initial_file_copies: Optional[list] = None,
         final_file_copies: Optional[list] = None
     ):
+        """Initialize the ProcessMonitor with configuration parameters."""
         self.process_name = process_name
         self.executable_path = Path(executable_path)
         self.check_interval = check_interval
@@ -310,6 +315,7 @@ class MonitorTextualApp(App):
     BINDINGS = [("q", "quit", "Quit"),("k", "kill", "Kill and quit")]
 
     def __init__(self, monitor: ProcessMonitor, log_queue: queue.Queue, exit_delay: float, wait_keypress: bool):
+        """Initialize the Textual TUI app with monitor and configuration."""
         super().__init__()
         self.monitor = monitor
         self.log_queue = log_queue
@@ -326,6 +332,7 @@ class MonitorTextualApp(App):
         self.exiting = False
 
     def compose(self) -> ComposeResult:
+        """Compose the TUI layout with header, status, logs, and footer."""
         yield Header(show_clock=True)
         yield Vertical(
             Static(Text("Process Monitor", style="bold magenta"), id="title"),
@@ -339,6 +346,7 @@ class MonitorTextualApp(App):
         )
 
     def on_mount(self) -> None:
+        """Set up signal handlers, start monitor thread, and schedule UI refresh."""
         # Register signal handlers after app starts
         signal.signal(signal.SIGINT, self.handle_signal)
         signal.signal(signal.SIGTERM, self.handle_signal)
@@ -352,10 +360,12 @@ class MonitorTextualApp(App):
         self.exit() 
 
     def on_shutdown(self) -> None:
+        """Handle app shutdown by cleaning up monitor and exit logic."""
         self.handle_exit()
         self.monitor.stop()
 
     def _create_status_table(self) -> Table:
+        """Create a status table displaying monitor information."""
         table = Table(show_header=False, box=None, padding=(0, 1))
         table.add_column("Key", style="cyan bold", width=20)
         table.add_column("Value", style="white")
@@ -389,6 +399,7 @@ class MonitorTextualApp(App):
         return self.log_lines[-max_lines:]
 
     def refresh_ui(self) -> None:
+        """Refresh all UI components with current monitor state."""
         self._update_status_panel()
         self._update_output_log()
         self._update_script_log()
@@ -447,6 +458,7 @@ class MonitorTextualApp(App):
                 self.exit()
 
     def action_quit(self) -> None:
+        """Handle quit action: exit if already exiting, otherwise kill processes and exit."""
         if self.exiting:
             self.exit()
         else:
@@ -454,10 +466,12 @@ class MonitorTextualApp(App):
             self.exit()
 
     def action_kill(self) -> None:
+        """Kill existing processes and exit the application."""
         self.monitor.kill_existing_processes()
         self.exit()
 
     def handle_exit(self) -> None:
+        """Kill existing processes if configured to do so on exit."""
         if self.monitor.kill_existing:
             self.monitor.kill_existing_processes()
 
