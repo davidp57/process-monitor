@@ -31,6 +31,7 @@ from rich.table import Table
 from rich.text import Text
 from rich.logging import RichHandler
 from rich import print as rprint
+from rich.progress import Progress, SpinnerColumn
 
 class ProcessMonitor:
     def __init__(
@@ -330,7 +331,7 @@ def save_config(config_file: str, config: dict):
 def get_default_config(process_name: Optional[str] = None, executable: Optional[str] = None,
                       interval: float = 5.0, startup_delay: float = 2.0,
                       capture_output: bool = False, output_log: Optional[str] = None,
-                      working_dir: Optional[str] = None, no_tui: bool = False,
+                      working_dir: Optional[str] = None, tui: bool = True,
                       verbose: bool = False) -> dict:
     """Get default configuration dictionary"""
     config = {
@@ -339,7 +340,7 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
         'interval': interval,
         'startup_delay': startup_delay,
         'capture_output': capture_output,
-        'no_tui': no_tui,
+        'tui': tui,
         'verbose': verbose
     }
     # Only include optional fields if they have values
@@ -352,27 +353,10 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
 
 app = typer.Typer()
 
-config_data = {}
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
-    config: Optional[str] = typer.Option(None, help='YAML configuration file to load')
-):
-    """
-    Process Monitor - Monitors processes and performs file operations.
-    
-    Examples:
-        python process_monitor.py monitor -p notepad.exe -e "C:\\Windows\\System32\\notepad.exe" -c -o output.log
-        python process_monitor.py wait-and-watch --config my-config.yaml
-    """
-    # Load configuration from file if specified
-    global config_data
-    config_data = {}
-    if config:
-        config_data = load_config(config)
-
-@app.command()
-def monitor(
+    config: Optional[str] = typer.Option(None, help='YAML configuration file to load'),
     process_name: str = typer.Option(None, help='Name of the process to monitor (e.g., notepad.exe)'),
     executable: str = typer.Option(None, help='Path to executable to launch'),
     interval: float = typer.Option(5.0, help='Check interval in seconds (default: 5.0)'),
@@ -380,14 +364,21 @@ def monitor(
     capture_output: bool = typer.Option(False, help='Capture stdout/stderr from the process'),
     output_log: Optional[str] = typer.Option(None, help='Log file for captured output'),
     working_dir: Optional[str] = typer.Option(None, help='Working directory for the launched process'),
-    no_tui: bool = typer.Option(False, help='Run without TUI (headless mode)'),
+    tui: Optional[bool] = typer.Option(True, '--tui/--no-tui', help='Use TUI mode'),
     verbose: bool = typer.Option(False, help='Enable verbose logging')
 ):
     """
-    Monitor a process and relaunch it if not running.
+    Process Monitor - Monitors processes and performs file operations.
+
+    Examples:
+        python process_monitor.py -p notepad.exe -e "C:\\Windows\\System32\\notepad.exe" -c -o output.log
     """
-    global config_data
-    
+
+    # Load configuration from file if specified
+    config_data = {}
+    if config:
+        config_data = load_config(config)
+
     # Merge CLI options with config file (CLI options take precedence)
     final_config = {
         'process_name': process_name or config_data.get('process_name'),
@@ -397,7 +388,7 @@ def monitor(
         'capture_output': capture_output or config_data.get('capture_output', False),
         'output_log': output_log or config_data.get('output_log'),
         'working_dir': working_dir or config_data.get('working_dir'),
-        'no_tui': no_tui or config_data.get('no_tui', False),
+        'tui': tui if tui is not None else config_data.get('tui', True),
         'verbose': verbose or config_data.get('verbose', False)
     }
     
@@ -424,7 +415,7 @@ def monitor(
         level=log_level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.StreamHandler() if final_config['no_tui'] else RichHandler(rich_tracebacks=True),
+            logging.StreamHandler() if not final_config['tui'] else RichHandler(rich_tracebacks=True),
             logging.FileHandler(process_monitor_log_file)
         ]
     )
@@ -456,7 +447,12 @@ def monitor(
         working_dir=final_config['working_dir']
     )
     
-    if final_config['no_tui']:
+    # Run with TUI if requested
+    if final_config['tui']:
+        # Run with TUI
+        tui = MonitorTUI(monitor_obj)
+        tui.run()
+    else:
         # Run in headless mode with rich output (similar to Python reference)
         console = Console()
         
@@ -515,105 +511,6 @@ def monitor(
         except KeyboardInterrupt:
             rprint("\n[bold red]Monitoring stopped by user.[/bold red]")
             monitor_obj.stop()
-    else:
-        # Run with TUI
-        tui = MonitorTUI(monitor_obj)
-        tui.run()
-
-@app.command()
-def wait_and_watch(
-    process_name: str = typer.Option(None, help='Name of the process to wait for (e.g., notepad.exe)'),
-    executable: str = typer.Option(None, help='Path to executable to launch initially'),
-    interval: float = typer.Option(5.0, help='Check interval in seconds (default: 5.0)'),
-    verbose: bool = typer.Option(False, help='Enable verbose logging')
-):
-    """
-    Wait and watch: Run file copies, start a process, wait for another process, then run more file copies.
-    """
-    global config_data
-    
-    # Merge CLI options with config file (CLI options take precedence)
-    final_config = {
-        'process_name': process_name or config_data.get('process_name'),
-        'executable': executable or config_data.get('executable'),
-        'interval': interval if interval != 5.0 else config_data.get('interval', 5.0),
-        'verbose': verbose or config_data.get('verbose', False),
-        'initial_file_copies': config_data.get('initial_file_copies', []),
-        'final_file_copies': config_data.get('final_file_copies', [])
-    }
-    
-    # Validate required parameters
-    if not final_config['process_name']:
-        typer.echo("Process name is required (--process-name or in config file)", err=True)
-        raise typer.Exit(1)
-    if not final_config['executable']:
-        typer.echo("Executable path is required (--executable or in config file)", err=True)
-        raise typer.Exit(1)
-    
-    # Validate executable exists
-    executable_path = Path(final_config['executable'])
-    if ' ' not in final_config['executable'] and not executable_path.exists():
-        typer.echo(f"Executable not found: {executable_path}", err=True)
-        raise typer.Exit(1)
-    
-    # Setup logging
-    log_level = logging.DEBUG if final_config['verbose'] else logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
-    logger = logging.getLogger("WaitAndWatch")
-    
-    # Run initial file copies
-    perform_file_copies(final_config['initial_file_copies'], logger)
-    
-    # Start the initial process
-    logger.info(f"Starting process: {final_config['executable']}")
-    try:
-        subprocess.Popen(str(executable_path), shell=True)
-    except Exception as e:
-        logger.error(f"Failed to start process: {e}")
-        return
-    
-    # Wait for the target process to start
-    logger.info(f"Waiting for process {final_config['process_name']} to start...")
-    while not is_process_running(final_config['process_name']):
-        time.sleep(final_config['interval'])
-    logger.info(f"Process {final_config['process_name']} has started.")
-    
-    # Wait for the target process to stop
-    logger.info(f"Waiting for process {final_config['process_name']} to stop...")
-    while is_process_running(final_config['process_name']):
-        time.sleep(final_config['interval'])
-    logger.info(f"Process {final_config['process_name']} has stopped.")
-    
-    # Run final file copies
-    perform_file_copies(final_config['final_file_copies'], logger)
-    
-    logger.info("Wait-and-watch completed.")
-
-
-def perform_file_copies(file_copies, logger):
-    """Perform file copy operations"""
-    import shutil
-    for copy_op in file_copies:
-        src = copy_op.get('source')
-        dest = copy_op.get('destination')
-        if src and dest:
-            try:
-                shutil.copy2(src, dest)
-                logger.info(f"Copied {src} to {dest}")
-            except Exception as e:
-                logger.error(f"Failed to copy {src} to {dest}: {e}")
-
-def is_process_running(process_name):
-    """Check if process is running by name"""
-    for proc in psutil.process_iter(['name', 'pid']):
-        with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            if str(proc.info['name']).lower() == process_name.lower():
-                return True
-    return False
 
 
 if __name__ == '__main__':

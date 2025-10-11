@@ -1,9 +1,0 @@
-# Sample configuration for Process Monitor
-process_name: "notepad.exe"
-executable: "C:\\Windows\\System32\\notepad.exe"
-interval: 3.0
-startup_delay: 1.0
-capture_output: true
-output_log: "notepad_output.log"
-no_tui: false
-verbose: true
