@@ -13,6 +13,7 @@ import logging
 import psutil
 import subprocess
 import os
+import shutil
 import queue
 import shlex
 import ctypes
@@ -46,7 +47,9 @@ class ProcessMonitor:
         working_dir: Optional[str] = None,
         kill_existing: bool = False,
         monitor_process: bool = True,
-        lock_file: Optional[str] = None
+        lock_file: Optional[str] = None,
+        initial_file_copies: Optional[list] = None,
+        final_file_copies: Optional[list] = None
     ):
         self.process_name = process_name
         self.executable_path = Path(executable_path)
@@ -58,6 +61,8 @@ class ProcessMonitor:
         self.kill_existing = kill_existing
         self.monitor_process = monitor_process
         self.lock_file = lock_file
+        self.initial_file_copies = initial_file_copies or []
+        self.final_file_copies = final_file_copies or []
 
         # Status tracking
         self.running = False
@@ -81,7 +86,18 @@ class ProcessMonitor:
                 if str(proc.info['name']).lower() == self.process_name.lower():
                     return True
         return False
-    
+
+    def perform_file_copies(self, copies_list):
+        """Perform file copies from a list of source-destination pairs"""
+        for copy in copies_list:
+            source = copy['source']
+            dest = copy['destination']
+            try:
+                shutil.copy(source, dest)
+                self.logger.info(f"Copied {source} to {dest}")
+            except Exception as e:
+                self.logger.error(f"Failed to copy {source} to {dest}: {e}")
+
     def kill_existing_processes(self):
         """Kill existing processes with same name and executable path"""
         for proc in psutil.process_iter(['name', 'pid', 'exe']):
@@ -114,6 +130,7 @@ class ProcessMonitor:
     def launch_process(self):
         """Launch the executable and optionally capture output"""
         try:
+            self.perform_file_copies(self.initial_file_copies)
             self.logger.info(f"Launching {self.executable_path}")
 
             # Kill existing processes if requested
@@ -239,6 +256,7 @@ class ProcessMonitor:
 
     def stop(self):
         """Stop monitoring"""
+        self.perform_file_copies(self.final_file_copies)
         self.running = False
         self.logger.info("Stopping process monitor")
 
@@ -359,11 +377,12 @@ def save_config(config_file: str, config: dict):
 
 
 def get_default_config(process_name: Optional[str] = None, executable: Optional[str] = None,
-                       interval: float = 0.5, startup_delay: float = 2.0,
+                      interval: float = 0.5, startup_delay: float = 2.0,
                       capture_output: bool = False, output_log: Optional[str] = None,
                       working_dir: Optional[str] = None, tui: bool = True,
                       verbose: bool = False, kill_existing: bool = False,
-                      monitor_process: bool = True, lock_file: Optional[str] = None) -> dict:
+                      monitor_process: bool = True, lock_file: Optional[str] = None,
+                      initial_file_copies: Optional[list] = None, final_file_copies: Optional[list] = None) -> dict:
     """Get default configuration dictionary"""
     config = {
         'process_name': process_name,
@@ -383,6 +402,10 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
         config['working_dir'] = working_dir
     if lock_file:
         config['lock_file'] = lock_file
+    if initial_file_copies:
+        config['initial_file_copies'] = initial_file_copies
+    if final_file_copies:
+        config['final_file_copies'] = final_file_copies
     return config
 
 
@@ -391,7 +414,7 @@ app = typer.Typer()
 
 @app.callback(invoke_without_command=True)
 def main(
-    config: Optional[str] = typer.Option(None, help='YAML configuration file to load'),
+    config: Optional[str] = typer.Option(None, help='YAML configuration file to load and save final config to'),
     process_name: str = typer.Option(None, help='Name of the process to monitor (e.g., notepad.exe)'),
     executable: str = typer.Option(None, help='Path to executable to launch'),
     interval: float = typer.Option(0.5, help='Check interval in seconds (default: 0.5)'),
@@ -427,6 +450,8 @@ def main(
         'kill_existing': kill_existing or config_data.get('kill_existing', False),
         'monitor_process': monitor if monitor is not None else config_data.get('monitor_process', True),
         'lock_file': lock_file or config_data.get('lock_file'),
+        'initial_file_copies': config_data.get('initial_file_copies', []),
+        'final_file_copies': config_data.get('final_file_copies', []),
     }
 
     # Validate required parameters
@@ -460,9 +485,6 @@ def main(
         handlers=handlers_list
     )
 
-    # Save current configuration as process-monitor-default-config.yaml
-    save_config('process-monitor-default-config.yaml', get_default_config(**final_config))
-
     # Add timestamp to output log filename if specified
     output_log_with_timestamp = None
     if final_config['output_log']:
@@ -488,7 +510,13 @@ def main(
         kill_existing=final_config['kill_existing'],
         monitor_process=final_config['monitor_process'],
         lock_file=final_config['lock_file'],
+        initial_file_copies=final_config['initial_file_copies'],
+        final_file_copies=final_config['final_file_copies'],
     )
+
+    # Save configuration if config file was specified
+    if config:
+        save_config(config, get_default_config(**final_config))
 
     # Run with TUI if requested
     if final_config['tui']:
@@ -561,6 +589,8 @@ def main(
                         progress.update(task, description=f"Monitoring {final_config['process_name']}... [yellow]NOT RUNNING (monitoring disabled)[/yellow]")
                         monitor_obj.running = False
                     time.sleep(final_config['interval'])
+            # Stop monitoring after loop exits naturally
+            monitor_obj.stop()
         except KeyboardInterrupt:
             rprint("\n[bold red]Monitoring stopped by user.[/bold red]")
             monitor_obj.stop()
