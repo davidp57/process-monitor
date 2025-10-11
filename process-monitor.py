@@ -45,7 +45,8 @@ class ProcessMonitor:
         output_log: Optional[str] = None,
         working_dir: Optional[str] = None,
         kill_existing: bool = False,
-        monitor_process: bool = True
+        monitor_process: bool = True,
+        lock_file: Optional[str] = None
     ):
         self.process_name = process_name
         self.executable_path = Path(executable_path)
@@ -56,6 +57,7 @@ class ProcessMonitor:
         self.working_dir = working_dir
         self.kill_existing = kill_existing
         self.monitor_process = monitor_process
+        self.lock_file = lock_file
 
         # Status tracking
         self.running = False
@@ -119,7 +121,7 @@ class ProcessMonitor:
                 self.kill_existing_processes()
 
             # Prepare command
-            cmd = shlex.split(str(self.executable_path)) if ' ' in str(self.executable_path) else [str(self.executable_path)]
+            cmd = str(self.executable_path)
 
             # Open log file if specified
             log_handle = None
@@ -205,6 +207,7 @@ class ProcessMonitor:
     def monitor_loop(self):
         """Main monitoring loop"""
         self.running = True
+        self.already_done_first_launch = False
         self.logger.info("Starting process monitor")
         
         while self.running:
@@ -212,17 +215,28 @@ class ProcessMonitor:
             
             if not self.is_process_running():
                 self.logger.warning(f"{self.process_name} not found")
-                if self.monitor_process:
+                if self.monitor_process or not self.already_done_first_launch:
                     self.process_status = "Not running - launching"
                     self.launch_process()
+                    self.wait_for_lock_file()
+                    self.already_done_first_launch = True
                 else:
                     self.process_status = "Not running - monitoring disabled"
                     self.running = False
+                    self.stop()
             else:
                 self.process_status = "Running"
             
             time.sleep(self.check_interval)
     
+    def wait_for_lock_file(self):
+        """Wait for the lock file to be created if specified"""
+        if self.lock_file:
+            self.logger.info(f"Waiting for lock file: {self.lock_file}")
+            while not Path(self.lock_file).exists():
+                time.sleep(0.1)
+            self.logger.info(f"Lock file found: {self.lock_file}")
+
     def stop(self):
         """Stop monitoring"""
         self.running = False
@@ -277,6 +291,7 @@ class MonitorTextualApp(App):
         table.add_row("Check Interval", f"{self.monitor.check_interval}s")
         table.add_row("Startup Delay", f"{self.monitor.startup_delay}s")
         table.add_row("Launch Count", str(self.monitor.launch_count))
+        table.add_row("Lock File", self.monitor.lock_file or "None")
 
         status_color = "green" if self.monitor.process_status == "Running" else "yellow"
         table.add_row("Status", f"[{status_color}]{self.monitor.process_status}[/{status_color}]")
@@ -347,8 +362,8 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
                        interval: float = 0.5, startup_delay: float = 2.0,
                       capture_output: bool = False, output_log: Optional[str] = None,
                       working_dir: Optional[str] = None, tui: bool = True,
-                      verbose: bool = False, kill_existing: bool = False, 
-                      monitor_process: bool = True) -> dict:
+                      verbose: bool = False, kill_existing: bool = False,
+                      monitor_process: bool = True, lock_file: Optional[str] = None) -> dict:
     """Get default configuration dictionary"""
     config = {
         'process_name': process_name,
@@ -366,6 +381,8 @@ def get_default_config(process_name: Optional[str] = None, executable: Optional[
         config['output_log'] = output_log
     if working_dir:
         config['working_dir'] = working_dir
+    if lock_file:
+        config['lock_file'] = lock_file
     return config
 
 
@@ -382,10 +399,11 @@ def main(
     capture_output: bool = typer.Option(True, help='Capture stdout/stderr from the process'),
     output_log: Optional[str] = typer.Option(None, help='Log file for captured output'),
     working_dir: Optional[str] = typer.Option(None, help='Working directory for the launched process'),
-    tui: Optional[bool] = typer.Option(True, '--tui/--no-tui', help='Use TUI mode'),
+    tui: Optional[bool] = typer.Option(None, '--tui/--no-tui', help='Use TUI mode'),
     verbose: bool = typer.Option(False, help='Enable verbose logging'),
     kill_existing: bool = typer.Option(False, help='Kill existing processes with same name and executable before launching and after exiting'),
-    monitor: bool = typer.Option(True, '--monitor/--no-monitor', help='Relaunch missing process automatically (default: enabled)'),
+    monitor: bool = typer.Option(None, '--monitor/--no-monitor', help='Relaunch missing process automatically (default: enabled)'),
+    lock_file: Optional[str] = typer.Option(None, help='Path to lock file to wait for after launching the process'),
 ):
     """
     Process Monitor - Monitors processes and performs file operations.
@@ -408,6 +426,7 @@ def main(
         'verbose': verbose or config_data.get('verbose', False),
         'kill_existing': kill_existing or config_data.get('kill_existing', False),
         'monitor_process': monitor if monitor is not None else config_data.get('monitor_process', True),
+        'lock_file': lock_file or config_data.get('lock_file'),
     }
 
     # Validate required parameters
@@ -424,12 +443,6 @@ def main(
         raise typer.Exit(1)
     if final_config['startup_delay'] < 0:
         typer.echo("Startup delay must be non-negative", err=True)
-        raise typer.Exit(1)
-
-    # Validate executable exists (check the command's first part)
-    cmd = shlex.split(final_config['executable'], posix=False)
-    if not Path(cmd[0]).exists():
-        typer.echo(f"Executable not found: {cmd[0]}", err=True)
         raise typer.Exit(1)
 
     # Setup logging with timestamped filename
@@ -474,6 +487,7 @@ def main(
         working_dir=final_config['working_dir'],
         kill_existing=final_config['kill_existing'],
         monitor_process=final_config['monitor_process'],
+        lock_file=final_config['lock_file'],
     )
 
     # Run with TUI if requested
@@ -509,6 +523,7 @@ def main(
             rprint(f"[yellow]Process {final_config['process_name']} not found. Launching...[/yellow]")
             time.sleep(final_config['startup_delay'])
             monitor_obj.launch_process()
+            monitor_obj.wait_for_lock_file()
             if monitor_obj.current_process:
                 rprint(f"[green]Process launched successfully with PID: {monitor_obj.current_process.pid}[/green]")
             else:

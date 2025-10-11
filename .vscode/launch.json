@@ -27,6 +27,15 @@
             "program": "${workspaceFolder}/process-monitor.py",
             "args": ["--tui", "--process-name", "notepad.exe", "--executable", "C:\\Windows\\System32\\notepad.exe", "--kill-existing", "--no-monitor"],
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: process-monitor DCS",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/process-monitor.py",
+            "args": ["--config", "c:\\Users\\David\\Saved Games\\DCS\\Profiles\\DEV\\process-monitor-launch-dcs.yaml"],
+            "console": "integratedTerminal"
         }
+
     ]
 }

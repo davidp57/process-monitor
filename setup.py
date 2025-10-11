@@ -1,17 +1,22 @@
 from cx_Freeze import setup, Executable
+import sys
 
-# Dependencies are automatically detected, but it might need
-# fine tuning.
-build_options = {'packages': [], 'excludes': []}
+# Set base to Win32GUI to suppress console window
+base = None
 
-base = 'console'
+build_options = {
+    'packages': [],
+    'excludes': ['tkinter', 'unittest', 'email', 'http', 'xml', 'pyinstaller', 'cx_Freeze', 'setuptools', 'wheel']
+}
 
 executables = [
-    Executable('process-monitor.py', base=base)
+    Executable('process-monitor.py', base=base, target_name='process-monitor.exe')
 ]
 
-setup(name='process-monitor',
-      version = '1.0',
-      description = 'Monitor and relaunch a process',
-      options = {'build_exe': build_options},
-      executables = executables)
+setup(
+    name='process-monitor',
+    version='1.0',
+    description='Monitor and relaunch a process',
+    options={'build_exe': build_options},
+    executables=executables
+)
