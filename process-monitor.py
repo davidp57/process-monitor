@@ -6,11 +6,9 @@ Dependencies: See requirements.txt
 Build executable: python build.py
 """
 import contextlib
-import ctypes
 import logging
 import os
 import queue
-import shlex
 import shutil
 import signal
 import subprocess
@@ -38,6 +36,7 @@ from textual.containers import Vertical
 from textual.widgets import Footer, Header, Log, Static
 
 # Constants
+VERSION = "1.0.0"
 MAX_OUTPUT_LINES = 500
 MAX_LOG_LINES = 500
 OUTPUT_QUEUE_SIZE = 1000
@@ -312,6 +311,7 @@ class ProcessMonitor:
 
 class MonitorTextualApp(App):
     """Textual-based TUI for the ProcessMonitor."""
+    TITLE = f"Process Monitor {VERSION}"
     BINDINGS = [("q", "quit", "Quit"),("k", "kill", "Kill and quit")]
 
     def __init__(self, monitor: ProcessMonitor, log_queue: queue.Queue, exit_delay: float, wait_keypress: bool):
