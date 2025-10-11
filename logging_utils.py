@@ -1,5 +1,4 @@
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -45,20 +44,24 @@ def cleanup_old_logs(output_log_base: Optional[str], keep_count: int = 3):
 
     # Clean up output logs if base path is provided
     if output_log_base:
-        output_path = Path(output_log_base)
-        output_dir = output_path.parent
-        stem = output_path.stem
-        suffix = output_path.suffix
+        _do_cleanup_old_logs(output_log_base, keep_count)
 
-        # Find all files matching stem-*-timestamp*suffix pattern
-        pattern = f"{stem}-*{suffix}"
-        output_logs = list(output_dir.glob(pattern))
-        if len(output_logs) > keep_count:
-            # Sort by modification time, newest first
-            output_logs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-            for old_log in output_logs[keep_count:]:
-                try:
-                    old_log.unlink()
-                    logging.info(f"Cleaned up old output log: {old_log}")
-                except Exception as e:
-                    logging.warning(f"Failed to delete old output log {old_log}: {e}")
+
+def _do_cleanup_old_logs(output_log_base, keep_count):
+    output_path = Path(output_log_base)
+    output_dir = output_path.parent
+    stem = output_path.stem
+    suffix = output_path.suffix
+
+    # Find all files matching stem-*-timestamp*suffix pattern
+    pattern = f"{stem}-*{suffix}"
+    output_logs = list(output_dir.glob(pattern))
+    if len(output_logs) > keep_count:
+        # Sort by modification time, newest first
+        output_logs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+        for old_log in output_logs[keep_count:]:
+            try:
+                old_log.unlink()
+                logging.info(f"Cleaned up old output log: {old_log}")
+            except Exception as e:
+                logging.warning(f"Failed to delete old output log {old_log}: {e}")

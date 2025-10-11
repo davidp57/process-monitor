@@ -3,10 +3,7 @@ import logging
 import queue
 import signal
 import threading
-import time
-from datetime import datetime
 
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -196,7 +193,7 @@ class MonitorTextualApp(App):
     def action_kill(self) -> None:
         """Kill existing processes and exit the application."""
         self.monitor.kill_existing_processes()
-        self.exit()
+        self.action_quit()
 
     def handle_exit(self) -> None:
         """Kill existing processes if configured to do so on exit."""

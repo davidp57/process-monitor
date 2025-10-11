@@ -1,5 +1,4 @@
 from cx_Freeze import setup, Executable
-import sys
 from constants import VERSION
 
 # Set base to Win32GUI to suppress console window
