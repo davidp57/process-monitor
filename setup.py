@@ -1,5 +1,6 @@
 from cx_Freeze import setup, Executable
 import sys
+from constants import VERSION
 
 # Set base to Win32GUI to suppress console window
 base = None
@@ -15,7 +16,7 @@ executables = [
 
 setup(
     name='process-monitor',
-    version='1.0',
+    version=VERSION,
     description='Monitor and relaunch a process',
     options={'build_exe': build_options},
     executables=executables
