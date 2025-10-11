@@ -9,7 +9,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/process-monitor.py",
-            "args": ["--tui", "--process-name", "notepad", "--executable", "C:\\Windows\\System32\\notepad.exe"],
+            "args": ["--tui", "--process-name", "notepad.exe", "--executable", "C:\\Windows\\System32\\notepad.exe", "--kill-existing"],
             "console": "integratedTerminal"
         }
     ]

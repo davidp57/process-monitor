@@ -5,6 +5,7 @@ Supports TUI display and output capture to logs or TUI window
 Dependencies: See requirements.txt
 Build executable: python build.py
 """
+import signal
 import threading
 import sys
 import time
@@ -73,8 +74,7 @@ class ProcessMonitor:
         """Check if process is running by name and executable path"""
         for proc in psutil.process_iter(['name', 'pid', 'exe']):
             with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                if (str(proc.info['name']).lower() == self.process_name.lower() and
-                    proc.info['exe'] and Path(proc.info['exe']) == self.executable_path):
+                if str(proc.info['name']).lower() == self.process_name.lower():
                     return True
         return False
     
@@ -82,8 +82,7 @@ class ProcessMonitor:
         """Kill existing processes with same name and executable path"""
         for proc in psutil.process_iter(['name', 'pid', 'exe']):
             with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                if (str(proc.info['name']).lower() == self.process_name.lower() and
-                    proc.info['exe'] and Path(proc.info['exe']) == self.executable_path):
+                if str(proc.info['name']).lower() == self.process_name.lower():
                     proc.kill()
     
     def _output_reader_with_log(self, pipe, log_handle, prefix):
@@ -226,7 +225,7 @@ class ProcessMonitor:
 
 class MonitorTextualApp(App):
     """Textual-based TUI for the ProcessMonitor."""
-    BINDINGS = [("q", "quit", "Quit")]
+    BINDINGS = [("q", "quit", "Quit"),("k", "kill", "Kill and quit")]
 
     def __init__(self, monitor: ProcessMonitor):
         super().__init__()
@@ -246,13 +245,20 @@ class MonitorTextualApp(App):
         )
 
     def on_mount(self) -> None:
-        # Start monitoring in background thread
+        # Register signal handlers after app starts
+        signal.signal(signal.SIGINT, self.handle_signal)
+        signal.signal(signal.SIGTERM, self.handle_signal)
         monitor_thread = threading.Thread(target=self.monitor.monitor_loop, daemon=True)
         monitor_thread.start()
         # Periodically refresh UI
         self.set_interval(0.25, self.refresh_ui)
+    
+    def handle_signal(self, signum, frame):
+        """Handle Ctrl+C and kill signals"""
+        self.exit() 
 
     def on_shutdown(self) -> None:
+        self.handle_exit()
         self.monitor.stop()
 
     def _create_status_table(self) -> Table:
@@ -292,13 +298,18 @@ class MonitorTextualApp(App):
             for line in lines[base:]:
                 self.output_log.write_line(line)
             self._last_output_len = current_len
-        else:
-            # Show disabled message once
-            if self._last_output_len == 0 and not self.monitor.capture_output:
-                self.output_log.clear()
-                self.output_log.write_line("Output capture disabled")
-                self._last_output_len = 1
+        elif self._last_output_len == 0:
+            self.output_log.clear()
+            self.output_log.write_line("Output capture disabled")
+            self._last_output_len = 1
 
+    def action_kill(self) -> None:
+        self.monitor.kill_existing_processes()
+        self.exit()
+
+    def handle_exit(self) -> None:
+        if self.monitor.kill_existing:
+            self.monitor.kill_existing_processes()
 
 def load_config(config_file: str) -> dict:
     """Load configuration from YAML file"""
@@ -365,7 +376,7 @@ def main(
     working_dir: Optional[str] = typer.Option(None, help='Working directory for the launched process'),
     tui: Optional[bool] = typer.Option(True, '--tui/--no-tui', help='Use TUI mode'),
     verbose: bool = typer.Option(False, help='Enable verbose logging'),
-    kill_existing: bool = typer.Option(False, help='Kill existing processes with same name and executable before launching')
+    kill_existing: bool = typer.Option(False, help='Kill existing processes with same name and executable before launching and after exiting')
 ):
     """
     Process Monitor - Monitors processes and performs file operations.
@@ -374,11 +385,7 @@ def main(
         python process_monitor.py -p notepad.exe -e "C:\\Windows\\System32\\notepad.exe" -c -o output.log
     """
 
-    # Load configuration from file if specified
-    config_data = {}
-    if config:
-        config_data = load_config(config)
-
+    config_data = load_config(config) if config else {}
     # Merge CLI options with config file (CLI options take precedence)
     final_config = {
         'process_name': process_name or config_data.get('process_name'),
@@ -392,7 +399,7 @@ def main(
         'verbose': verbose or config_data.get('verbose', False),
         'kill_existing': kill_existing or config_data.get('kill_existing', False)
     }
-    
+
     # Validate required parameters
     if not final_config['process_name']:
         typer.echo("Process name is required (--process-name or in config file)", err=True)
@@ -400,7 +407,7 @@ def main(
     if not final_config['executable']:
         typer.echo("Executable path is required (--executable or in config file)", err=True)
         raise typer.Exit(1)
-    
+
     # Validate interval and startup delay
     if final_config['interval'] <= 0:
         typer.echo("Check interval must be positive", err=True)
@@ -408,17 +415,17 @@ def main(
     if final_config['startup_delay'] < 0:
         typer.echo("Startup delay must be non-negative", err=True)
         raise typer.Exit(1)
-    
+
     # Validate executable exists (check the command's first part)
     cmd = shlex.split(final_config['executable'], posix=False)
     if not Path(cmd[0]).exists():
         typer.echo(f"Executable not found: {cmd[0]}", err=True)
         raise typer.Exit(1)
-    
+
     # Setup logging with timestamped filename
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     process_monitor_log_file = f'process_monitor-{timestamp}.log'
-    
+
     log_level = logging.DEBUG if final_config['verbose'] else logging.INFO
     handlers_list = [logging.FileHandler(process_monitor_log_file)]
     # Avoid attaching a console handler when using Textual TUI to prevent conflicts
@@ -429,10 +436,10 @@ def main(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=handlers_list
     )
-    
+
     # Save current configuration as process-monitor-default-config.yaml
     save_config('process-monitor-default-config.yaml', get_default_config(**final_config))
-    
+
     # Add timestamp to output log filename if specified
     output_log_with_timestamp = None
     if final_config['output_log']:
@@ -445,7 +452,7 @@ def main(
             output_log_with_timestamp = str(path_obj.parent / f"{stem}-{timestamp}{suffix}")
         else:
             output_log_with_timestamp = f"{stem}-{timestamp}{suffix}"
-    
+
     # Create monitor
     monitor_obj = ProcessMonitor(
         process_name=final_config['process_name'],
@@ -457,7 +464,7 @@ def main(
         working_dir=final_config['working_dir'],
         kill_existing=final_config['kill_existing']
     )
-    
+
     # Run with TUI if requested
     if final_config['tui']:
         # Run with Textual TUI
@@ -466,8 +473,8 @@ def main(
     else:
         # Run in headless mode with rich output (similar to Python reference)
         console = Console()
-        
-        rprint(f"[bold blue]Process Monitor Started[/bold blue]")
+
+        rprint("[bold blue]Process Monitor Started[/bold blue]")
         rprint(f"Monitoring process: [green]{final_config['process_name']}[/green]")
         rprint(f"Launch path: [yellow]{final_config['executable']}[/yellow]")
         rprint(f"Check delay: [cyan]{final_config['interval']}[/cyan] seconds")
@@ -477,7 +484,7 @@ def main(
         if final_config['working_dir']:
             rprint(f"Working directory: [magenta]{final_config['working_dir']}[/magenta]")
         rprint("-" * 50)
-        
+
         # Check if process is already running
         if not monitor_obj.is_process_running():
             rprint(f"[yellow]Process {final_config['process_name']} not found. Launching...[/yellow]")
@@ -486,24 +493,24 @@ def main(
             if monitor_obj.current_process:
                 rprint(f"[green]Process launched successfully with PID: {monitor_obj.current_process.pid}[/green]")
             else:
-                rprint(f"[red]Failed to launch process[/red]")
+                rprint("[red]Failed to launch process[/red]")
         else:
             rprint(f"[green]Process {final_config['process_name']} is already running[/green]")
-        
+
         # Start monitoring loop with progress spinner
         try:
             with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-            ) as progress:
+                                        SpinnerColumn(),
+                                        TextColumn("[progress.description]{task.description}"),
+                                        console=console,
+                                    ) as progress:
                 task = progress.add_task("Monitoring...", total=None)
                 monitor_obj.running = True
-                
+
                 while monitor_obj.running:
                     progress.update(task, description=f"Monitoring {final_config['process_name']}...")
                     monitor_obj.last_check_time = datetime.now()
-                    
+
                     if not monitor_obj.is_process_running():
                         rprint(f"\n[yellow]Process {final_config['process_name']} not found. Launching...[/yellow]")
                         progress.update(task, description=f"Launching {final_config['process_name']}...")
@@ -511,13 +518,13 @@ def main(
                         monitor_obj.launch_process()
                         if monitor_obj.current_process:
                             rprint(f"[green]Process launched successfully with PID: {monitor_obj.current_process.pid}[/green]")
-                            progress.update(task, description=f"Waiting for startup delay...")
+                            progress.update(task, description="Waiting for startup delay...")
                         else:
-                            rprint(f"[red]Failed to launch process[/red]")
+                            rprint("[red]Failed to launch process[/red]")
                     else:
                         monitor_obj.process_status = "Running"
                         progress.update(task, description=f"Monitoring {final_config['process_name']}... [green]RUNNING[/green]")
-                    
+
                     time.sleep(final_config['interval'])
         except KeyboardInterrupt:
             rprint("\n[bold red]Monitoring stopped by user.[/bold red]")
