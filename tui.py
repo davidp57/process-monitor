@@ -44,7 +44,7 @@ class MonitorTextualApp(App):
         self.monitor = monitor
         self.log_queue = log_queue
         self.exit_delay = exit_delay
-        self.wait_keypress = wait_keypress
+        # wait_keypress is not used in TUI mode
         self.log_lines = []
         self.max_log_lines = MAX_LOG_LINES
         self._last_log_len = 0
@@ -173,9 +173,7 @@ class MonitorTextualApp(App):
         """Handle exit logic when monitor has stopped"""
         if not self.monitor.running and not self.exiting:
             self.exiting = True
-            if self.wait_keypress:
-                self.exit_static.update("Press 'q' to exit")
-            elif self.exit_delay > 0:
+            if self.exit_delay > 0:
                 self.exit_static.update(f"Exiting in {self.exit_delay} seconds")
                 self.set_timer(self.exit_delay, self.exit)
             else:
@@ -187,7 +185,13 @@ class MonitorTextualApp(App):
             self.exit()
         else:
             self.monitor.kill_existing_processes()
-            self.exit()
+            self.monitor.stop()
+            self.exiting = True
+            if self.exit_delay > 0:
+                self.exit_static.update(f"Exiting in {self.exit_delay} seconds")
+                self.set_timer(self.exit_delay, self.exit)
+            else:
+                self.exit()
 
     def action_kill(self) -> None:
         """Kill existing processes and exit the application."""
