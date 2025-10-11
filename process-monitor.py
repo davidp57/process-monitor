@@ -699,7 +699,7 @@ app = typer.Typer()
 
 @app.callback(invoke_without_command=True)
 def main(
-    config: Optional[str] = typer.Option(None, help='YAML configuration file to load and save final config to'),
+    config: Optional[str] = typer.Option(None, help='YAML configuration file to load'),
     process_name: str = typer.Option(None, help='Name of the process to monitor (e.g., notepad.exe)'),
     executable: str = typer.Option(None, help='Path to executable to launch'),
     interval: float = typer.Option(0.5, help='Check interval in seconds (default: 0.5)'),
@@ -772,10 +772,6 @@ def main(
         initial_file_copies=final_config['initial_file_copies'],
         final_file_copies=final_config['final_file_copies'],
     )
-
-    # Save configuration if config file was specified
-    if config:
-        save_config(config, get_default_config(**final_config))
 
     # Run with TUI if requested
     if final_config['tui']:

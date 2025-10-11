@@ -8,7 +8,7 @@
             "name": "Python Debugger: process-monitor NOTEPAD",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/process-monitor.py",
+            "program": "${workspaceFolder}/main.py",
             "args": ["--tui", "--process-name", "notepad.exe", "--executable", "C:\\Windows\\System32\\notepad.exe"],
             "console": "integratedTerminal"
         },
@@ -16,7 +16,7 @@
             "name": "Python Debugger: process-monitor NOTEPAD --kill-existing",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/process-monitor.py",
+            "program": "${workspaceFolder}/main.py",
             "args": ["--tui", "--process-name", "notepad.exe", "--executable", "C:\\Windows\\System32\\notepad.exe", "--kill-existing"],
             "console": "integratedTerminal"
         },
@@ -24,7 +24,7 @@
             "name": "Python Debugger: process-monitor NOTEPAD --kill-existing --no-monitor",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/process-monitor.py",
+            "program": "${workspaceFolder}/main.py",
             "args": ["--tui", "--process-name", "notepad.exe", "--executable", "C:\\Windows\\System32\\notepad.exe", "--kill-existing", "--no-monitor"],
             "console": "integratedTerminal"
         },
@@ -32,8 +32,16 @@
             "name": "Python Debugger: process-monitor DCS",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/process-monitor.py",
+            "program": "${workspaceFolder}/main.py",
             "args": ["--config", "c:\\Users\\David\\Saved Games\\DCS\\Profiles\\DEV\\process-monitor-launch-dcs.yaml"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: process-monitor DCS with options",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "args": ["--config", "c:\\Users\\David\\Saved Games\\DCS\\Profiles\\DEV\\process-monitor-launch-dcs.yaml", "--startup-delay", "5.0", "--verbose"],
             "console": "integratedTerminal"
         }
 

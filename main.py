@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from config import get_default_config, load_and_merge_config, save_config, validate_config
+from config import get_default_config, load_and_merge_config, validate_config
 from logging_utils import setup_logging
 from process_monitor import ProcessMonitor
 from run_modes import run_headless_mode, run_tui_mode
@@ -14,21 +14,21 @@ app = typer.Typer()
 
 @app.callback(invoke_without_command=True)
 def main(
-    config: Optional[str] = typer.Option(None, help='YAML configuration file to load and save final config to'),
-    process_name: str = typer.Option(None, help='Name of the process to monitor (e.g., notepad.exe)'),
-    executable: str = typer.Option(None, help='Path to executable to launch'),
-    interval: float = typer.Option(0.5, help='Check interval in seconds (default: 0.5)'),
-    startup_delay: float = typer.Option(2.0, help='Delay after launching before resuming checks (default: 2.0)'),
-    capture_output: bool = typer.Option(True, help='Capture stdout/stderr from the process'),
+    config: Optional[str] = typer.Option(None, help='YAML configuration file to load'),
+    process_name: Optional[str] = typer.Option(None, help='Name of the process to monitor (e.g., notepad.exe)'),
+    executable: Optional[str] = typer.Option(None, help='Path to executable to launch'),
+    interval: Optional[float] = typer.Option(None, help='Check interval in seconds (default: 0.5)'),
+    startup_delay: Optional[float] = typer.Option(None, help='Delay after launching before resuming checks (default: 2.0)'),
+    capture_output: Optional[bool] = typer.Option(None, help='Capture stdout/stderr from the process'),
     output_log: Optional[str] = typer.Option(None, help='Log file for captured output'),
     working_dir: Optional[str] = typer.Option(None, help='Working directory for the launched process'),
-    tui: Optional[bool] = typer.Option(True, '--tui/--no-tui', help='Use TUI mode'),
-    verbose: bool = typer.Option(False, help='Enable verbose logging'),
-    kill_existing: bool = typer.Option(False, help='Kill existing processes with same name and executable before launching and after exiting'),
-    monitor: bool = typer.Option(None, '--monitor/--no-monitor', help='Relaunch missing process automatically (default: enabled)'),
+    tui: Optional[bool] = typer.Option(None, '--tui/--no-tui', help='Use TUI mode'),
+    verbose: Optional[bool] = typer.Option(None, help='Enable verbose logging'),
+    kill_existing: Optional[bool] = typer.Option(None, help='Kill existing processes with same name and executable before launching and after exiting'),
+    monitor: Optional[bool] = typer.Option(None, '--monitor/--no-monitor', help='Relaunch missing process automatically (default: enabled)'),
     lock_file: Optional[str] = typer.Option(None, help='Path to lock file to wait for after launching the process'),
-    exit_delay: float = typer.Option(0.0, help='Delay in seconds before exiting the app'),
-    wait_keypress: bool = typer.Option(False, help='Wait for keypress before exiting'),
+    exit_delay: Optional[float] = typer.Option(None, help='Delay in seconds before exiting the app'),
+    wait_keypress: Optional[bool] = typer.Option(None, help='Wait for keypress before exiting'),
 ):
     """
     Process Monitor - Monitors processes and performs file operations.
@@ -87,10 +87,6 @@ def main(
         initial_file_copies=final_config['initial_file_copies'],
         final_file_copies=final_config['final_file_copies'],
     )
-
-    # Save configuration if config file was specified
-    if config:
-        save_config(config, get_default_config(**final_config))
 
     # Run with TUI if requested
     if final_config['tui']:

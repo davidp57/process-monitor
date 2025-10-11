@@ -139,9 +139,9 @@ verbose: false                      # Enable verbose logging (default: false)
 kill_existing: false                # Kill existing processes before launching (default: false)
 ```
 
-### Automatic Default Configuration
+### Configuration Example
 
-Every time the process monitor runs, it automatically saves the current configuration (merged from CLI options and config file) to `process-monitor-default-config.yaml` for easy reuse.
+A comprehensive configuration example is provided in `config.example.yaml`. Copy this file to `config.yaml` and modify the values for your specific use case.
 
 ### Configuration Priority
 

@@ -32,25 +32,25 @@ def save_config(config_file: str, config: dict):
 
 
 def load_and_merge_config(config_file: Optional[str], cli_args: dict) -> dict:
-    """Load config from file and merge with CLI args, CLI takes precedence"""
+    """Load config from file and merge with CLI args, config takes precedence when CLI not provided"""
     config_data = load_config(config_file) if config_file else {}
     return {
-        'process_name': cli_args.get('process_name') or config_data.get('process_name'),
-        'executable': cli_args.get('executable') or config_data.get('executable'),
-        'interval': cli_args.get('interval', config_data.get('interval', 0.5)),
-        'startup_delay': cli_args.get('startup_delay', config_data.get('startup_delay', 2.0)),
-        'capture_output': cli_args.get('capture_output', config_data.get('capture_output', False)),
-        'output_log': cli_args.get('output_log') or config_data.get('output_log'),
-        'working_dir': cli_args.get('working_dir') or config_data.get('working_dir'),
-        'tui': cli_args.get('tui', config_data.get('tui', True)),
-        'verbose': cli_args.get('verbose', config_data.get('verbose', False)),
-        'kill_existing': cli_args.get('kill_existing', config_data.get('kill_existing', False)),
-        'monitor_process': cli_args.get('monitor', config_data.get('monitor_process', True)),
-        'lock_file': cli_args.get('lock_file') or config_data.get('lock_file'),
+        'process_name': cli_args['process_name'] if cli_args['process_name'] is not None else config_data.get('process_name'),
+        'executable': cli_args['executable'] if cli_args['executable'] is not None else config_data.get('executable'),
+        'interval': cli_args['interval'] if cli_args['interval'] is not None else config_data.get('interval', 0.5),
+        'startup_delay': cli_args['startup_delay'] if cli_args['startup_delay'] is not None else config_data.get('startup_delay', 2.0),
+        'capture_output': cli_args['capture_output'] if cli_args['capture_output'] is not None else config_data.get('capture_output', False),
+        'output_log': cli_args['output_log'] if cli_args['output_log'] is not None else config_data.get('output_log'),
+        'working_dir': cli_args['working_dir'] if cli_args['working_dir'] is not None else config_data.get('working_dir'),
+        'tui': cli_args['tui'] if cli_args['tui'] is not None else config_data.get('tui', True),
+        'verbose': cli_args['verbose'] if cli_args['verbose'] is not None else config_data.get('verbose', False),
+        'kill_existing': cli_args['kill_existing'] if cli_args['kill_existing'] is not None else config_data.get('kill_existing', False),
+        'monitor_process': cli_args['monitor'] if cli_args['monitor'] is not None else config_data.get('monitor_process', True),
+        'lock_file': cli_args['lock_file'] if cli_args['lock_file'] is not None else config_data.get('lock_file'),
         'initial_file_copies': config_data.get('initial_file_copies', []),
         'final_file_copies': config_data.get('final_file_copies', []),
-        'exit_delay': cli_args.get('exit_delay', config_data.get('exit_delay', 0.0)),
-        'wait_keypress': cli_args.get('wait_keypress', config_data.get('wait_keypress', False)),
+        'exit_delay': cli_args['exit_delay'] if cli_args['exit_delay'] is not None else config_data.get('exit_delay', 0.0),
+        'wait_keypress': cli_args['wait_keypress'] if cli_args['wait_keypress'] is not None else config_data.get('wait_keypress', False),
     }
 
 
