@@ -1,4 +1,4 @@
-# Process Monitor v1.3.0
+# Process Monitor v1.4.0
 
 A cross-platform process monitoring tool that automatically relaunches applications when they stop running. Features a beautiful terminal UI, output capture, file operations, and comprehensive configuration options.
 
@@ -116,6 +116,7 @@ python main.py --process-name myapp.exe --executable myapp.exe --no-tui --captur
 
 - Press `q` to quit the TUI
 - Press `k` to kill existing processes and quit
+- Press `p` to toggle pause/unpause the monitored process
 - Press `Ctrl+C` to interrupt and stop monitoring
 
 ### Custom Intervals

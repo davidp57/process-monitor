@@ -33,7 +33,7 @@ class TUIHandler(logging.Handler):
 class MonitorTextualApp(App):
     """Textual-based TUI for the ProcessMonitor."""
     TITLE = f"Process Monitor {VERSION}"
-    BINDINGS = [("q", "quit", "Quit"),("k", "kill", "Kill and quit")]
+    BINDINGS = [("q", "quit", "Quit"),("k", "kill", "Kill and quit"), ("p", "toggle_pause", "Toggle pause")]
 
     def __init__(self, monitor: ProcessMonitor, log_queue: queue.Queue, exit_delay: float, wait_keypress: bool):
         """Initialize the Textual TUI app with monitor and configuration."""
@@ -99,6 +99,8 @@ class MonitorTextualApp(App):
         table.add_row("Lock File", self.monitor.lock_file or "None")
 
         status_color = "green" if self.monitor.process_status == "Running" else "yellow"
+        if self.monitor.process_status == "Paused":
+            status_color = "orange_red1"
         table.add_row("Status", f"[{status_color}]{self.monitor.process_status}[/{status_color}]")
 
         if self.monitor.last_check_time:
@@ -194,6 +196,16 @@ class MonitorTextualApp(App):
         """Kill existing processes and exit the application."""
         self.monitor.kill_existing_processes()
         self.action_quit()
+
+    def action_toggle_pause(self) -> None:
+        """Toggle pause/unpause the running process."""
+        if not self.monitor.is_process_running():
+            self.logger.warning("Cannot pause/unpause: process is not running")
+            return
+        if self.monitor.paused:
+            self.monitor.unpause_process()
+        else:
+            self.monitor.pause_process()
 
     def handle_exit(self) -> None:
         """Kill existing processes if configured to do so on exit."""

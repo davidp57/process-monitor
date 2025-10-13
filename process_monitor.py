@@ -58,6 +58,7 @@ class ProcessMonitor:
         self.process_status = "Not started"
         self.launch_count = 0
         self.current_process = None
+        self.paused = False
 
         # Output capture
         self.output_queue = queue.Queue(maxsize=OUTPUT_QUEUE_SIZE)
@@ -67,13 +68,43 @@ class ProcessMonitor:
         # Logging setup
         self.logger = logging.getLogger("ProcessMonitor")
 
-    def is_process_running(self) -> bool:
-        """Check if process is running by name"""
+    def get_process(self) -> Optional[psutil.Process]:
+        """Get the running process by name"""
         for proc in psutil.process_iter(['name', 'pid']):
             with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 if str(proc.info['name']).lower() == self.process_name.lower():
-                    return True
-        return False
+                    return proc
+        return None
+
+    def is_process_running(self) -> bool:
+        """Check if process is running by name"""
+        return self.get_process() is not None
+
+    def pause_process(self):
+        """Pause the running process"""
+        if proc := self.get_process():
+            try:
+                proc.suspend()
+                self.process_status = "Paused"
+                self.paused = True
+                self.logger.info(f"Paused process {self.process_name}")
+            except Exception as e:
+                self.logger.error(f"Failed to pause process: {e}")
+        else:
+            self.logger.warning("No running process to pause")
+
+    def unpause_process(self):
+        """Unpause the running process"""
+        if proc := self.get_process():
+            try:
+                proc.resume()
+                self.process_status = "Running"
+                self.paused = False
+                self.logger.info(f"Unpaused process {self.process_name}")
+            except Exception as e:
+                self.logger.error(f"Failed to unpause process: {e}")
+        else:
+            self.logger.warning("No running process to unpause")
 
     def perform_file_copies(self, copies_list):
         """Perform file copies from a list of source-destination pairs"""
@@ -255,6 +286,9 @@ class ProcessMonitor:
 
     def _check_and_handle_process_status(self):
         """Check process status and handle launching or stopping"""
+        if self.paused:
+            self.process_status = "Paused"
+            return
         if not self.is_process_running():
             self.logger.warning(f"{self.process_name} not found")
             if self.monitor_process or not self.first_launch_attempted:

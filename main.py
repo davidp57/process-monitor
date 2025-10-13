@@ -61,7 +61,7 @@ def main(
     validate_config(final_config)
 
     # Setup logging
-    process_monitor_log_file = setup_logging(final_config['verbose'], final_config['tui'])
+    setup_logging(final_config['verbose'], final_config['tui'])
 
     # Clean up old log files if enabled
     if final_config['log_cleanup_enabled']:
