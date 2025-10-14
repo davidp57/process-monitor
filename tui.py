@@ -33,7 +33,7 @@ class TUIHandler(logging.Handler):
 class MonitorTextualApp(App):
     """Textual-based TUI for the ProcessMonitor."""
     TITLE = f"Process Monitor {VERSION}"
-    BINDINGS = [("q", "quit", "Quit"),("k", "kill", "Kill and quit"), ("p", "toggle_pause", "Toggle pause")]
+    BINDINGS = [("q", "quit", "Quit"),("k", "kill", "Kill and quit"), ("p", "toggle_pause", "Toggle pause"), ("r", "restart", "Restart process")]
 
     def __init__(self, monitor: ProcessMonitor, log_queue: queue.Queue, exit_delay: float, wait_keypress: bool):
         """Initialize the Textual TUI app with monitor and configuration."""
@@ -206,6 +206,10 @@ class MonitorTextualApp(App):
             self.monitor.unpause_process()
         else:
             self.monitor.pause_process()
+
+    def action_restart(self) -> None:
+        """Restart the monitored process."""
+        self.monitor.kill_existing_processes()
 
     def handle_exit(self) -> None:
         """Kill existing processes if configured to do so on exit."""
