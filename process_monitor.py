@@ -141,6 +141,13 @@ class ProcessMonitor:
                 if str(proc.info['name']).lower() == self.process_name.lower():
                     proc.kill()
 
+    def restart_process(self):
+        """Restart the process by killing existing ones and launching a new one"""
+        self.logger.info(f"Restarting process {self.process_name}")
+        self.kill_existing_processes()
+        self.launch_process()
+        self.wait_for_lock_file()
+
     def _output_reader_with_log(self, pipe, log_handle, prefix):
         """Read output from subprocess pipe and optionally write to log file"""
         try:

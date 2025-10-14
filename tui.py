@@ -209,7 +209,7 @@ class MonitorTextualApp(App):
 
     def action_restart(self) -> None:
         """Restart the monitored process."""
-        self.monitor.kill_existing_processes()
+        self.monitor.restart_process()
 
     def handle_exit(self) -> None:
         """Kill existing processes if configured to do so on exit."""
