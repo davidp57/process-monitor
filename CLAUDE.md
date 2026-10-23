@@ -9,7 +9,11 @@
 
 - **Communication**: the language the user writes in.
 - **Code, comments, commit messages, PR descriptions, `CLAUDE.md`, `docs/`, `CONTEXT.md`, ADRs**: English.
-- **User-facing text in French**: the program's messages, `README.md`, `RELEASE_NOTES.md`. The user is French; these are what he reads.
+- **User-facing text in French and English**:
+  - **Messages** (console, terminal interface, notification icon, message boxes, config errors): never a literal in the code. Add the key to both `internal/i18n/locales/fr.json` and `en.json` and call `i18n.T` (or `i18n.Errorf`, which keeps `%w`). The `internal/i18n` tests fail on a key missing in one language, on different format verbs, on a key used but not defined or defined but not used, and on an accented literal left in the code. Tests that check a message's text run in French (`lang_test.go`).
+  - **Documentation site** (`doc/`, MkDocs): every page ships as `page.md` (French, the default) **and** `page.en.md`, and goes into the `mkdocs.yml` `nav` (with its `nav_translations` entry for a section title). Any section linked from another page carries an explicit English anchor, identical in both languages: `## Garde-fous {#guards}` / `## Guards {#guards}`. Never write a version number by hand in a page.
+  - **`README.md`**: short, English then French in the same file, pointing to the site. **`RELEASE_NOTES.md`**: French.
+  - **Command examples are PowerShell**, the Windows default: `.\pm.exe`, never `pm.exe` (PowerShell does not search the current folder), and `$env:VAR`, never `%VAR%` (which PowerShell passes through untouched).
 
 ---
 
@@ -18,7 +22,7 @@
 - **Surgical changes**: never touch adjacent code, comments or formatting unrelated to the request.
 - **Simplicity**: the minimum code that solves the problem; no speculative options.
 - **No assumptions**: an ambiguous or contradictory instruction → stop and ask.
-- **Testing never touches the user's desktop.** Tests and manual checks run copies of the test binary, hidden, never a GUI program on David's session; a process is killed by the PID you started, never by name. Ask before anything that opens a window or stops a program he did not start through you.
+- **Testing never touches the user's desktop.** Tests and manual checks run copies of the test binary, hidden, never a GUI program on David's session; a process is killed by the PID you started, never by name. Ask before anything that opens a window or stops a program David did not start through you.
 
 ---
 
@@ -29,6 +33,14 @@ gofmt -l .            # must print nothing
 go vet ./...
 go test -race ./...   # needs cgo: gcc on PATH
 ```
+
+After touching `doc/` or `mkdocs.yml`, also (in a Python venv with `pip install -r requirements-docs.txt`):
+
+```bash
+mkdocs build --strict  # broken links or anchors, pages out of the nav
+```
+
+The CI `docs` job runs it and checks every page has both languages.
 
 Resolve errors rather than silencing them. `-race` is not optional: `internal/proc` and `internal/session` are concurrent by nature.
 
@@ -58,7 +70,7 @@ Resolve errors rather than silencing them. `-race` is not optional: `internal/pr
 1. **Analyse** the request; when starting on an issue, restate it in 1–3 sentences (what, and what "done" means) before any tool call.
 2. **Track it**: if no issue covers the work, create one (`docs/agents/issue-tracker.md`).
 3. **Branch** from `main`.
-4. **Implement**: test first, code, docs (`README.md` when behaviour or config changes).
+4. **Implement**: test first, code, docs (the site's pages in both languages when behaviour or config changes; `README.md` only when its short overview changes).
 5. **Quality gate** (§3).
 6. **`CHANGELOG.md`**: one entry under `[Unreleased]`, appended at the **end** of its section. Do not create a version heading and do not touch the version (§8).
 7. **Manual check needed?** Stop and wait for David's go.
