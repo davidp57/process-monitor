@@ -1,57 +1,29 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: process-monitor NOTEPAD",
-            "type": "debugpy",
+            "name": "pm check — exemple profils",
+            "type": "go",
             "request": "launch",
-            "program": "${workspaceFolder}/main.py",
-            "args": ["--tui", "--process-name", "notepad.exe", "--executable", "C:\\Windows\\System32\\notepad.exe"],
+            "program": "${workspaceFolder}/cmd/pm",
+            "args": ["check", "${workspaceFolder}/examples/profiles.yaml", "--profile", "DEV"],
             "console": "integratedTerminal"
         },
         {
-            "name": "Python Debugger: process-monitor NOTEPAD --kill-existing",
-            "type": "debugpy",
+            "name": "pm run — DCS DEV",
+            "type": "go",
             "request": "launch",
-            "program": "${workspaceFolder}/main.py",
-            "args": ["--tui", "--process-name", "notepad.exe", "--executable", "C:\\Windows\\System32\\notepad.exe", "--kill-existing"],
+            "program": "${workspaceFolder}/cmd/pm",
+            "args": ["run", "c:\\Users\\David\\Saved Games\\DCS\\Profiles\\pm-dcs.yaml", "--profile", "DEV"],
             "console": "integratedTerminal"
         },
         {
-            "name": "Python Debugger: process-monitor NOTEPAD --kill-existing --no-monitor",
-            "type": "debugpy",
+            "name": "pm watch — SimAppPro",
+            "type": "go",
             "request": "launch",
-            "program": "${workspaceFolder}/main.py",
-            "args": ["--tui", "--process-name", "notepad.exe", "--executable", "C:\\Windows\\System32\\notepad.exe", "--kill-existing", "--no-monitor"],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Python Debugger: process-monitor DCS",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/main.py",
-            "args": ["--config", "c:\\Users\\David\\Saved Games\\DCS\\Profiles\\DEV\\process-monitor-launch-dcs.yaml"],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Python Debugger: process-monitor DCS with options",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/main.py",
-            "args": ["--config", "c:\\Users\\David\\Saved Games\\DCS\\Profiles\\DEV\\process-monitor-launch-dcs.yaml", "--startup-delay", "5.0", "--verbose"],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Python Debugger: process-monitor SimAppPro",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/main.py",
-            "args": ["--config", "c:\\Users\\David\\Saved Games\\DCS\\Profiles\\simapppro\\process-monitor-simapppro.yaml"],
+            "program": "${workspaceFolder}/cmd/pm",
+            "args": ["watch", "c:\\Users\\David\\Saved Games\\DCS\\Profiles\\simapppro\\pm-simapppro.yaml"],
             "console": "integratedTerminal"
         }
-
     ]
 }

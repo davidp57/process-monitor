@@ -1,457 +1,210 @@
-# Process Monitor v1.4.0
+# pm — lancer un programme et l'encadrer
 
-A cross-platform process monitoring tool that automatically relaunches applications when they stop running. Features a beautiful terminal UI, output capture, file operations, and comprehensive configuration options.
+`pm` est un exécutable Windows unique, sans dépendance, qui fait deux choses :
 
-## Table of Contents
+- **`pm run`** : des actions avant le lancement d'un programme, puis d'autres après sa fermeture (copier des fichiers de profil, nettoyer, lancer une commande).
+- **`pm watch`** : garder un programme en vie (watchdog), avec une interface en terminal pour le mettre en pause, le relancer ou l'arrêter.
 
-- [Features](#features)
+Les deux partagent la même config YAML et le même moteur de lancement.
+
+La version 2 est une réécriture complète en Go de l'ancien `process-monitor` en Python (1.x, dans l'historique git).
+Le format de config a changé : voir [Migration depuis la 1.x](#migration-depuis-la-1x).
+
+## Sommaire
+
 - [Installation](#installation)
-  - [Option 1: Run from Source](#option-1-run-from-source)
-  - [Option 2: Build Standalone Executable](#option-2-build-standalone-executable)
-- [Usage](#usage)
-  - [Basic Usage](#basic-usage)
-  - [With Output Capture (TUI)](#with-output-capture-tui)
-  - [With Output Capture (Log File)](#with-output-capture-log-file)
-  - [Headless Mode](#headless-mode)
-  - [TUI Controls (Textual)](#tui-controls-textual)
-  - [Custom Intervals](#custom-intervals)
-  - [Using Configuration Files](#using-configuration-files)
-- [YAML Configuration](#yaml-configuration)
-  - [Configuration Format](#configuration-format)
-  - [File Operations Syntax](#file-operations-syntax)
-  - [Configuration Example](#configuration-example)
-  - [Configuration Priority](#configuration-priority)
-- [Examples](#examples)
-  - [Windows](#windows)
-  - [Linux/macOS](#linuxmacos)
-- [Building Executable](#building-executable)
-  - [Manual cx_Freeze Build](#manual-cx_freeze-build)
-- [Running as a Service](#running-as-a-service)
-  - [Windows (using NSSM)](#windows-using-nssm)
-  - [Linux (using systemd)](#linux-using-systemd)
-- [Logging](#logging)
-  - [Log Cleanup](#log-cleanup)
-- [Dependencies](#dependencies)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
-- [Contributing](#contributing)
-
-## Features
-
-- ✅ **Cross-platform** - Works on Windows, Linux, and macOS
-- ✅ **Automatic relaunching** - Monitors process and restarts when not found (configurable)
-- ✅ **Beautiful TUI** - Real-time status display with Textual framework
-- ✅ **Output capture** - Redirect STDOUT/STDERR to TUI or log file with timestamps
-- ✅ **YAML configuration** - Save and load settings from config files
-- ✅ **Headless mode** - Run as background service with rich progress display
-- ✅ **File operations** - Perform file copies and cleanup before/after process execution
-- ✅ **Lock file support** - Wait for lock files after process launch
-- ✅ **Working directory** - Set custom working directory for launched processes
-- ✅ **Process management** - Kill existing processes, disable monitoring, exit controls
-- ✅ **Log management** - Automatic cleanup of old log files
-- ✅ **Configurable** - Extensive customization via CLI or YAML
-- ✅ **Standalone executable** - Build with cx_Freeze
+- [Utilisation](#utilisation)
+- [Comment pm suit un programme](#comment-pm-suit-un-programme)
+- [Configuration](#configuration)
+- [Garde-fous](#garde-fous)
+- [Journaux](#journaux)
+- [Migration depuis la 1.x](#migration-depuis-la-1x)
+- [Développement](#développement)
 
 ## Installation
 
-### Option 1: Run from Source
+Il faut Go 1.27 ou plus récent (`scoop install go`).
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the monitor
-python main.py --process-name notepad.exe --executable "C:\Windows\System32\notepad.exe"
+go build -o dist/pm.exe ./cmd/pm
 ```
 
-### Option 2: Build Standalone Executable
+`dist/pm.exe` se copie où l'on veut : il n'a besoin de rien d'autre.
 
-```bash
-# Install all dependencies including cx_Freeze
-pip install -r requirements.txt
-pip install cx_Freeze
+## Utilisation
 
-# Build the executable
-python setup.py build
-
-# Run the executable (Windows example)
-build/exe.win-amd64-3.12/process-monitor.exe --process-name notepad.exe --executable notepad.exe
+```
+pm run   <config.yaml> [--profile NOM]
+pm watch <config.yaml> [--profile NOM] [--no-tui]
+pm check <config.yaml> [--profile NOM]
+pm version
 ```
 
-## Usage
+`pm check` ne lance rien : il valide la config et affiche ce qui sera copié, supprimé ou exécuté, en signalant les fichiers source absents.
+À passer après chaque modification de config.
 
-### Basic Usage
+### pm run
 
-Monitor a process and relaunch if not found:
+Déroulé : verrou de session → actions *avant* → lancement → attente de la fin → actions *après*.
 
-```bash
-python main.py --process-name notepad.exe --executable "C:\Windows\System32\notepad.exe"
-```
+La console affiche chaque étape.
+Si une action *avant* échoue, rien n'est lancé.
+Si une action *après* échoue, les suivantes sont quand même exécutées, et la fenêtre reste ouverte (`exit.wait_key: on-error`, le défaut) pour qu'on voie l'erreur.
 
-### With Output Capture (TUI)
+**Ctrl+C** ne coupe pas tout de suite : un second Ctrl+C dans les 5 secondes détache pm, et le programme continue sans lui.
+Les actions *après* ne sont alors pas exécutées, et le journal le dit.
+Fermer la fenêtre de la console a le même effet, sans confirmation possible : **ne pas fermer la fenêtre de pm pendant la session**.
 
-Capture and display STDOUT/STDERR in the TUI:
+### pm watch
 
-```bash
-python main.py --process-name myapp.exe --executable "C:\path\to\myapp.exe" --capture-output
-```
+Relance le programme à chaque arrêt, selon `watch.restart`.
+Un arrêt moins de 10 secondes après le lancement compte comme un plantage en boucle : le premier attend `watch.delay`, chaque suivant double le délai, jusqu'à `watch.max_delay`.
+`watch.max_restarts` ne compte que les relances automatiques, pas celles demandées avec `r`.
+Les actions *avant* et *après* encadrent la session entière, pas chaque relance.
 
-### With Output Capture (Log File)
+Touches de l'interface :
 
-Capture output to a log file with timestamp:
+| Touche | Effet |
+|---|---|
+| `p` | met en pause / reprend le programme (tous ses process) |
+| `r` | arrête et relance le programme |
+| `k` | arrête le programme, exécute les actions *après*, quitte |
+| `q` deux fois | détache : pm quitte, le programme continue, les actions *après* ne sont **pas** exécutées |
+| flèches, PgUp/PgDn | font défiler le journal |
 
-```bash
-python main.py --process-name myapp.exe --executable myapp.exe --capture-output --output-log output.log
-```
+`--no-tui` remplace l'interface par un journal en texte simple, par exemple pour un lancement en service.
 
-### Headless Mode
+## Comment pm suit un programme
 
-Run without TUI (good for services):
+Le programme est lancé dans un **Job Object** Windows : tous les process qu'il crée y restent rattachés.
+Sans `track`, la session se termine quand le dernier process du groupe s'est arrêté.
 
-```bash
-python main.py --process-name myapp.exe --executable myapp.exe --no-tui --capture-output --output-log output.log
-```
+Beaucoup de programmes passent par un lanceur : `dcs_updater.exe` démarre `dcs.exe` puis se ferme.
+`track: dcs.exe` dit à pm de suivre ce process-là, par son handle, et non le lanceur :
 
-### TUI Controls (Textual)
+- pm le trouve dans le groupe dès sa création ;
+- s'il a quitté le groupe, pm le cherche par son nom parmi les process créés après le lancement ;
+- quand il s'arrête, pm attend encore 3 secondes, au cas où il passerait la main à un autre process du même nom (le Notepad de Windows 11 fait ainsi) ;
+- la session ne se termine que lorsque **plus aucun process du groupe** ne tourne : si le lanceur est encore là (pour relancer le jeu après une mise à jour, par exemple), pm l'attend et le signale dans le journal ;
+- s'il n'apparaît pas dans les 10 secondes qui suivent la fin de tout le reste, la session se termine en erreur.
 
-- Press `q` to quit the TUI
-- Press `k` to kill existing processes and quit
-- Press `p` to toggle pause/unpause the monitored process
-- Press `Ctrl+C` to interrupt and stop monitoring
+## Configuration
 
-### Custom Intervals
-
-Set custom check interval (0.5s) and startup delay (2s):
-
-```bash
-python main.py --process-name myapp.exe --executable myapp.exe --interval 0.5 --startup-delay 2.0
-```
-
-### Using Configuration Files
-
-Create a YAML configuration file with your settings:
-
-**config.yaml:**
-```yaml
-process_name: "notepad.exe"
-executable: "C:\\Windows\\System32\\notepad.exe"
-interval: 0.5
-startup_delay: 2.0
-capture_output: true
-output_log: "notepad_output.log"
-tui: true
-verbose: true
-kill_existing: false
-monitor_process: true
-```
-
-Then run with the config file:
-
-```bash
-python main.py --config config.yaml
-```
-
-**CLI options override config file values:**
-
-```bash
-# Use config file but override the interval
-python main.py --config config.yaml --interval 1.0
-```
-
-## YAML Configuration
-
-The process monitor can load settings from YAML configuration files using the `--config` option. This makes it easy to save and reuse monitoring configurations.
-
-### Configuration Format
+Les exemples complets sont dans [`examples/`](examples/).
 
 ```yaml
-# Required settings
-process_name: "myapp.exe"           # Process name to monitor
-executable: "/path/to/executable"   # Path to executable to launch
+name: dcs                       # nom de la session et du verrou ; défaut : nom du fichier
+vars:                           # variables, utilisables partout sous la forme ${nom}
+  saved: ${env:USERPROFILE}\Saved Games\DCS
+  prof: ${saved}\Profiles\${profile}
 
-# Timing settings
-interval: 0.5                       # Check interval in seconds (default: 0.5)
-startup_delay: 2.0                  # Delay after launching before resuming checks (default: 2.0)
+command: C:\jeux\DCS World\bin\dcs_updater.exe
+args: []
+workdir: ${prof}
+env: { CLE: valeur }            # ajoutées à l'environnement de pm
+track: dcs.exe                  # process à suivre à la place du programme lancé
+if_running: abort               # abort (défaut) ou kill, voir Garde-fous
+capture: false                  # sortie du programme dans le journal (et pas de fenêtre console)
+ready: { file: '${saved}\dcs.lock', timeout: 3m }
+backup: true                    # garde un .bak de chaque fichier écrasé (défaut)
 
-# Output settings
-capture_output: false               # Capture stdout/stderr (default: false)
-output_log: "output.log"            # Log file for captured output (optional)
+hooks:
+  sync:                         # "profil <-> live" : copié avant, recopié après
+    - ${prof}\options.lua <-> ${saved}\Config\options.lua
+  before:
+    - copy: { from: a.txt, to: b.txt }
+    - delete: ${prof}\cache     # fichier ou dossier ; absent = rien à faire
+    - exec: [cmd, /c, echo, ok]
+  after: []
 
-# Environment settings
-working_dir: "/path/to/work/dir"     # Working directory for process (optional)
+profiles:                       # pm run ... --profile DEV
+  DEV:
+    vars: { autre: valeur }     # remplace ou ajoute des variables
+    hooks:                      # s'ajoutent aux hooks communs
+      sync: [ '${prof}\joy.lua <-> ${saved}\Input\joy.lua' ]
+  VR: {}
 
-# UI settings
-tui: true                           # Use TUI mode (default: true)
-
-# Logging settings
-verbose: false                      # Enable verbose logging (default: false)
-
-# Process management
-kill_existing: false                # Kill existing processes before launching (default: false)
-monitor_process: true               # Auto-relaunch when not found (default: true)
-
-# Synchronization
-lock_file: "/path/to/lock"           # Wait for lock file after launch (optional)
-
-# File operations
-initial_file_copies:                # Files to copy before launch
-  - source: "/path/to/src"
-    destination: "/path/to/dst"
-final_file_copies:                  # Files to copy after stop
-  - source: "/path/to/src"
-    destination: "/path/to/dst"
-initial_file_cleanup:               # Files to delete before launch
-  - "/path/to/file"
-final_file_cleanup:                 # Files to delete after stop
-  - "/path/to/file"
-
-# Exit behavior
-exit_delay: 0.0                     # Delay before exiting (default: 0.0)
-wait_keypress: false                # Wait for keypress before exit (default: false)
-
-# Log management
-log_cleanup_enabled: false          # Enable automatic log cleanup (default: false)
-log_cleanup_keep_count: 3           # Number of recent logs to keep (default: 3)
+log: { dir: '${config_dir}\logs', keep: 5 }
+watch: { restart: always, delay: 2s, max_delay: 1m, max_restarts: 0 }
+exit: { delay: 0s, wait_key: on-error }   # never | on-error | always
 ```
 
-### File Operations Syntax
+Points à connaître :
 
-File operations use source-destination pairs for copies and simple paths for cleanup:
+- **Variables** : `${nom}` lit `vars`, qui peuvent se référencer entre elles. Sont aussi disponibles `${profile}`, `${name}`, `${config_dir}` (dossier du fichier de config) et `${env:NOM}`. Une variable inconnue est une erreur.
+- **Clés inconnues** : une faute de frappe dans une clé est une erreur, jamais une option ignorée.
+- **Chemins** : entre apostrophes `'...'` YAML ne transforme pas les `\`. Entre guillemets `"..."`, il faut les doubler.
+- **Chemins relatifs** : résolus depuis le dossier du fichier de config (sauf `command`, qu'un nom seul fait chercher dans le `PATH`).
+- **`track`** : un nom de process seul, extension comprise (`dcs.exe`).
+- **`sync`** : un même fichier live ne peut être la cible que d'une seule ligne.
+- **Ordre** : avant = `sync` (aller) puis `before` ; après = `sync` (retour) puis `after`.
+- **Copies** : écrites dans un fichier temporaire puis renommées, donc jamais à moitié écrites. L'ancien fichier est gardé en `.bak`.
+- **ready** : pm supprime l'ancien fichier avant le lancement (un reste de crash le ferait croire prêt), puis signale quand il réapparaît, ou qu'il n'est pas apparu dans le délai. C'est une information : la fin de session dépend du process suivi, pas de ce fichier.
 
-```yaml
-# Copy operations
-initial_file_copies:
-  - source: "/path/to/config.template"
-    destination: "/path/to/config.ini"
-  - source: "/path/to/data.db"
-    destination: "/path/to/backup/data.db"
+## Garde-fous
 
-final_file_copies:
-  - source: "/path/to/log.txt"
-    destination: "/path/to/archive/log.txt"
+- **Verrous** : une session prend un verrou à son `name`, et un par fichier live de ses lignes `sync`. Deux sessions de même nom, ou deux configs différentes qui écrivent le même fichier live, ne peuvent donc pas tourner ensemble. Le second lancement est refusé avant toute copie, avec le profil de la session en cours. Windows libère les verrous à la sortie de pm, même après un crash : ils ne restent jamais bloqués.
+- **Programme déjà lancé hors de pm** (`if_running`), vérifié sur le process suivi **et** sur le lanceur :
+  - `abort` (défaut) : refus, rien n'est copié ni lancé. C'est ce qui protège un profil d'être écrasé par les réglages d'un autre.
+  - `kill` : les instances existantes sont arrêtées avant le lancement.
+- **Dernier filet** : si, au moment des actions de fin, le process suivi tourne encore sans être suivi, les actions de fin ne sont pas exécutées et la session finit en erreur. Mieux vaut une copie retour manquée, signalée, qu'un profil écrasé pendant que le jeu tourne.
+- **Arrêt** : `k` arrête les process du groupe et le process suivi. Si celui-ci avait quitté le groupe, c'est le process de ce nom créé après le lancement que pm a adopté.
 
-# Cleanup operations
-initial_file_cleanup:
-  - "/tmp/old_config.ini"
-  - "/tmp/cache/"
+## Journaux
 
-final_file_cleanup:
-  - "/tmp/session_data"
-```
+Chaque session écrit `<name>[-<profil>]-<date>-<heure>.log` dans `log.dir` : étapes de pm, copies, sortie du programme si `capture`.
+Seuls les `log.keep` plus récents sont gardés.
 
-### Configuration Example
+## Migration depuis la 1.x
 
-A comprehensive configuration example is provided in `config.example.yaml`. Copy this file to `config.yaml` and modify the values for your specific use case.
+| 1.x | 2.x |
+|---|---|
+| `process-monitor.exe --config x.yaml` | `pm run x.yaml` (lancer une fois) ou `pm watch x.yaml` (relancer) |
+| `process_name` | `track` (ou rien si c'est le programme lancé) |
+| `executable` | `command` |
+| `working_dir` | `workdir` |
+| `monitor_process: false` / `true` | `pm run` / `pm watch` |
+| `kill_existing: true` | `if_running: kill` |
+| `lock_file` | `ready.file`, avec un délai |
+| `initial_file_copies` + `final_file_copies` en miroir | une ligne `sync` par fichier |
+| `initial_file_cleanup` / `final_file_cleanup` | `hooks.before` / `hooks.after` avec `delete` |
+| `capture_output` + `output_log` | `capture` + `log` |
+| `log_cleanup_*` | `log.keep` |
+| `exit_delay`, `wait_keypress` | `exit.delay`, `exit.wait_key` |
+| `interval`, `startup_delay` | supprimés : pm ne sonde plus, il attend la fin du process |
+| `tui`, `verbose` | `pm watch` a l'interface, `pm run` la console ; tout va au journal |
 
-### Configuration Priority
+Comportements changés :
 
-When both CLI options and a config file are provided:
-1. CLI options take precedence over config file values
-2. Config file values are used when CLI options are not specified
-3. Built-in defaults are used when neither CLI nor config specify a value
+- `q` ne tue plus le programme : il détache, après confirmation. `k` arrête.
+- Les actions de fin s'exécutent une seule fois (la 1.x les jouait jusqu'à trois fois).
+- Un programme déjà lancé n'est plus « adopté » : pm refuse (ou l'arrête avec `if_running: kill`).
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--config` | YAML configuration file to load | None |
-| `--process-name` | Name of process to monitor | Required* |
-| `--executable` | Path to executable to launch | Required* |
-| `--interval` | Check interval in seconds | 0.5 |
-| `--startup-delay` | Delay after launching before resuming checks | 2.0 |
-| `--capture-output` | Capture STDOUT/STDERR from process | False |
-| `--output-log` | Log file path for captured output | None |
-| `--working-dir` | Working directory for the launched process | None |
-| `--tui` / `--no-tui` | Use TUI mode | True |
-| `--verbose` | Enable verbose logging | False |
-| `--kill-existing` | Kill existing processes with same name before launching | False |
-| `--monitor` / `--no-monitor` | Auto-relaunch missing process | True |
-| `--lock-file` | Path to lock file to wait for after launching | None |
-| `--exit-delay` | Delay in seconds before exiting | 0.0 |
-| `--wait-keypress` | Wait for keypress before exiting | False |
-| `--log-cleanup` / `--no-log-cleanup` | Enable automatic cleanup of old log files | False |
-| `--log-cleanup-keep-count` | Number of recent log files to keep | 3 |
-
-*Required unless provided in config file
-
-## Examples
-
-### Windows
-
-Monitor Notepad:
+## Développement
 
 ```bash
-python main.py --process-name notepad.exe --executable "C:\Windows\System32\notepad.exe"
+go vet ./...
+go test ./...
 ```
 
-Monitor custom application with output capture:
+Les tests de `internal/proc` et `internal/session` lancent de vrais process : des copies du binaire de test, sans fenêtre.
+Ils couvrent le passage de main d'un lanceur à son programme, un programme qui quitte le Job Object, et deux process de même nom.
 
-```bash
-python main.py --process-name myserver.exe --executable "C:\Apps\myserver.exe" --capture-output --output-log server.log
-```
+Organisation :
 
-Monitor with file operations:
+| Paquet | Rôle |
+|---|---|
+| `cmd/pm` | ligne de commande, console de `pm run` |
+| `internal/config` | lecture, profils, variables, validation |
+| `internal/hooks` | copies, suppressions, commandes, `sync` |
+| `internal/proc` | lancement en Job Object, suivi du process, pause, arrêt |
+| `internal/session` | verrou, enchaînement avant / lancement / relances / après |
+| `internal/lock` | verrou de session |
+| `internal/logx` | journal fichier + écran |
+| `internal/tui` | interface de `pm watch` |
 
-```bash
-python main.py --config config.yaml
-```
+Windows uniquement : `internal/proc` et `internal/lock` reposent sur l'API Windows.
 
-### Linux/macOS
+## Licence
 
-Monitor Firefox:
-
-```bash
-python main.py --process-name firefox --executable /usr/bin/firefox
-```
-
-Monitor custom application:
-
-```bash
-python main.py --process-name myapp --executable /opt/myapp/myapp --capture-output --output-log output.log
-```
-
-Monitor with working directory and lock file:
-
-```bash
-python main.py --process-name myapp --executable /opt/myapp/myapp --working-dir /opt/myapp --lock-file /tmp/myapp.lock
-```
-
-## Building Executable
-
-The `setup.py` script simplifies creating a standalone executable using cx_Freeze:
-
-```bash
-# Make sure cx_Freeze is installed
-pip install cx_Freeze
-
-# Run the build script
-python setup.py build
-```
-
-The script will create an executable in `build/exe.<platform>-<python_version>/process-monitor` (or `.exe` on Windows).
-
-### Manual cx_Freeze Build
-
-If you prefer to modify the build:
-
-```python
-# setup.py contents
-from cx_Freeze import setup, Executable
-
-build_options = {
-    'packages': [],
-    'excludes': ['tkinter', 'unittest', 'email', 'http', 'xml', 'pyinstaller', 'cx_Freeze', 'setuptools', 'wheel']
-}
-
-executables = [
-    Executable('main.py', base=None, target_name='process-monitor.exe')
-]
-
-setup(
-    name='process-monitor',
-    version='1.3.0',
-    description='Monitor and relaunch a process',
-    options={'build_exe': build_options},
-    executables=executables
-)
-```
-
-## Running as a Service
-
-### Windows (using NSSM)
-
-```bash
-# Download NSSM from https://nssm.cc/
-nssm install ProcessMonitor "C:\path\to\process-monitor.exe" --process-name myapp.exe --executable myapp.exe --no-tui --capture-output --output-log output.log
-nssm start ProcessMonitor
-```
-
-### Linux (using systemd)
-
-Create `/etc/systemd/system/process-monitor.service`:
-
-```ini
-[Unit]
-Description=Process Monitor
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/process-monitor --process-name myapp --executable /opt/myapp/myapp --no-tui --capture-output --output-log /var/log/myapp.log
-Restart=always
-User=youruser
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Then:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable process-monitor
-sudo systemctl start process-monitor
-```
-
-## Logging
-
-The monitor creates timestamped log files:
-
-- `process_monitor-YYYYMMDDHHMMSS.log` - Monitor's own activity log
-- Custom output log (if `--output-log` specified) - Captured process STDOUT/STDERR with timestamps
-
-### Log Cleanup
-
-Enable automatic cleanup of old logs:
-
-```bash
-python main.py --log-cleanup --log-cleanup-keep-count 5 --config config.yaml
-```
-
-This keeps only the 5 most recent log files of each type.
-
-## Dependencies
-
-- **psutil** (≥7.0.0) - Cross-platform process utilities
-- **PyYAML** (≥6.0.0) - YAML configuration file support
-- **rich** (≥14.0.0) - Terminal formatting and headless output
-- **typer** (≥0.19.0) - Command-line interface
-- **textual** (≥0.57.0) - TUI framework
-- **cx_Freeze** (optional) - For building executables
-
-## Troubleshooting
-
-### Process not detected
-
-Make sure the process name matches exactly (including `.exe` on Windows). Use Task Manager or `ps aux` to verify the exact process name.
-
-### Executable won't run
-
-Make sure you're using the full path to the executable, or the executable is in your PATH.
-
-### Output not captured
-
-Some applications redirect their output in ways that can't be captured. Try with a simple application first to verify functionality.
-
-### Permission errors
-
-On Linux/macOS, you may need to make files executable:
-
-```bash
-chmod +x build/exe.linux-x86_64-3.12/process-monitor
-chmod +x /path/to/your/app
-```
-
-### File operations fail
-
-Ensure the user running the monitor has permissions to read/write/delete the specified files and directories.
-
-### Lock file not found
-
-The monitor will wait indefinitely for the lock file. Ensure your application creates the lock file during startup.
-
-## License
-
-MIT License - Feel free to use and modify as needed.
-
-## Contributing
-
-Contributions welcome! Please feel free to submit issues or pull requests.
+MIT

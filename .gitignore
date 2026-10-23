@@ -1,7 +1,3 @@
-.venv/
-build/
 dist/
-*,log
 *.log
-process-monitor-*.yaml
-__pycache__/*
+logs/
