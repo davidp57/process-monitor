@@ -24,7 +24,7 @@ A pull request adds its entry at the **end** of `[Unreleased]` and never touches
 - **Guards against overwriting a profile**: a session lock per name and per live file, a refusal when the game or its launcher already runs outside pm (`if_running: abort`, or `kill`), live files put back when a before step fails, and no copy-back while the game runs unfollowed.
 - **`kill_on_exit`**: processes stopped once the followed one has exited.
 - **`hooks.timeout`** on exec actions; atomic copies with a `.bak` of the overwritten file.
-- **Notification-area icon** (`--tray`, or `ui: tray` in the config): `pm run` and `pm watch` without a console window. The icon's colour and tooltip follow the session; its menu opens the log, stops, detaches (with a confirmation that says what it costs at that moment) and, in `watch`, pauses and restarts. A failed session ends with a Windows message box (#4).
+- **Notification-area icon** (`--tray`, or `ui: tray` in the config): `pm run` and `pm watch` without a console window. The icon's colour and tooltip follow the session; its menu opens the log, stops, detaches (with a confirmation that says what it costs at that moment) and, in `watch`, pauses and restarts. A failed session ends with a Windows message box (#4). A custom image (`--icon`, `icon:`, per profile too; `.png` or `.ico`) gets a state dot in its corner. Exec actions no longer open console windows.
 
 ### Fixed
 

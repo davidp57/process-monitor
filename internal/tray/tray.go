@@ -2,32 +2,59 @@ package tray
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"image"
 	"sync"
 	"time"
 
 	"fyne.io/systray"
 	"golang.org/x/sys/windows"
 
+	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/logx"
 	"github.com/davidp57/process-monitor/internal/session"
 )
 
 // Run shows the session as a notification-area icon until it ends. It must
-// be called from the main goroutine. A failing session ends with a message
-// box: there is no console left to show the error.
-func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool) error {
+// be called from the main goroutine. base is the custom image (see
+// LoadImage), with a state dot drawn over it; nil shows a coloured disc.
+// A failing session ends with a message box: there is no console left.
+func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool, base image.Image) error {
 	cfg := s.Config()
+	icons := map[Color][]byte{}
+	for _, c := range []Color{Green, Orange, Grey, Red} {
+		if base != nil {
+			icons[c] = Badged(base, c)
+		} else {
+			icons[c] = Icon(c)
+		}
+	}
 	var (
 		mu     sync.Mutex
 		runErr error
+		done   bool
 	)
-	result := func() error {
+	result := func() (error, bool) {
 		mu.Lock()
 		defer mu.Unlock()
-		return runErr
+		return runErr, done
 	}
-	failed := func() bool { return result() != nil || log.Errors() > 0 }
+	// failed judges the outcome once the session has ended: an error other
+	// than the user's own cancellation, or, for pm run, a program that
+	// exited non-zero. Errors logged along the way and recovered from (a
+	// watch restart) do not count.
+	failed := func() bool {
+		err, ended := result()
+		switch {
+		case !ended:
+			return false
+		case err != nil:
+			return !errors.Is(err, session.ErrCancelled)
+		default:
+			return !watch && s.State().ExitCode != 0
+		}
+	}
 
 	onReady := func() {
 		systray.SetTitle("pm")
@@ -52,7 +79,7 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool) 
 		show := func() {
 			v := ViewOf(cfg.Name, cfg.Profile, s.State(), watch, failed())
 			if v.Color != last.Color || last.Tooltip == "" {
-				systray.SetIcon(Icon(v.Color))
+				systray.SetIcon(icons[v.Color])
 			}
 			systray.SetTooltip(v.Tooltip)
 			status.SetTitle(v.Status)
@@ -74,7 +101,7 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool) 
 				log.Errorf("session terminée en erreur : %v", err)
 			}
 			mu.Lock()
-			runErr = err
+			runErr, done = err, true
 			mu.Unlock()
 			close(ended)
 		}()
@@ -97,20 +124,33 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool) 
 				case <-stop.ClickedCh:
 					s.Kill()
 				case <-detach.ClickedCh:
-					if ask(cfg.Name, DetachQuestion(s.State().Status)) {
-						s.Detach()
+					// The box stays open as long as the user likes; if the
+					// session moved on meanwhile, the answer was to another
+					// question: ask again.
+					for asked := s.State().Status; ask(cfg.Name, DetachQuestion(asked)); asked = s.State().Status {
+						if s.State().Status == asked {
+							s.Detach()
+							break
+						}
 					}
 				case <-ended:
 					show()
-					if failed() {
-						msg := "La session s'est terminée en erreur."
-						if err := result(); err != nil {
+					err, _ := result()
+					switch {
+					case failed():
+						msg := fmt.Sprintf("Le programme s'est terminé avec le code %d.", s.State().ExitCode)
+						if err != nil {
 							msg = err.Error()
 						}
 						if log.Path != "" {
 							msg += "\n\nJournal : " + log.Path
 						}
 						alert(cfg.Name, msg)
+					case err != nil: // cancelled by the user: nothing to report
+					case cfg.Exit.WaitKey == config.WaitKeyAlways:
+						inform(cfg.Name, "Session terminée.")
+					default:
+						time.Sleep(cfg.Exit.Delay.D()) // the final state stays visible meanwhile
 					}
 					systray.Quit()
 					return
@@ -119,7 +159,8 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool) 
 		}()
 	}
 	systray.Run(onReady, func() {})
-	return result()
+	err, _ := result()
+	return err
 }
 
 func enable(m *systray.MenuItem, on bool) {
@@ -140,12 +181,13 @@ func clicked(m *systray.MenuItem) <-chan struct{} {
 }
 
 const (
-	mbYesNo         = 0x00000004
-	mbIconError     = 0x00000010
-	mbIconQuestion  = 0x00000020
-	mbSetForeground = 0x00010000
-	mbTopMost       = 0x00040000
-	idYes           = 6
+	mbYesNo           = 0x00000004
+	mbIconError       = 0x00000010
+	mbIconQuestion    = 0x00000020
+	mbIconInformation = 0x00000040
+	mbSetForeground   = 0x00010000
+	mbTopMost         = 0x00040000
+	idYes             = 6
 )
 
 func box(title, text string, flags uint32) int32 {
@@ -158,6 +200,13 @@ func box(title, text string, flags uint32) int32 {
 func ask(title, question string) bool {
 	return box(title, question, mbYesNo|mbIconQuestion) == idYes
 }
+
+func inform(title, text string) {
+	box(title, text, mbIconInformation)
+}
+
+// Alert shows an error in a message box, for when pm has no console.
+func Alert(title, text string) { alert(title, text) }
 
 func alert(title, text string) {
 	box(title, text, mbIconError)

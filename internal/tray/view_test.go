@@ -2,6 +2,7 @@ package tray
 
 import (
 	"encoding/binary"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -28,7 +29,8 @@ func TestViewFollowsTheSession(t *testing.T) {
 		{"running watch", session.State{Status: session.Running, PID: 42}, true, false, Green, "pid 42", true, false, true, true, true},
 		{"paused", session.State{Status: session.Paused, PID: 42}, true, false, Grey, "en pause", false, true, true, true, true},
 		{"restarting", session.State{Status: session.Restarting, Restarts: 2}, true, false, Orange, "relance", false, false, true, true, true},
-		{"stopping", session.State{Status: session.Stopping}, false, false, Orange, "actions de fin", false, false, false, false, false},
+		{"stopping", session.State{Status: session.Stopping}, false, false, Orange, "actions de fin", false, false, false, true, false},
+		{"failed before launch", session.State{Status: session.Starting}, false, true, Red, "en erreur", false, false, false, true, true},
 		{"finished ok", session.State{Status: session.Finished}, false, false, Green, "terminé", false, false, false, false, false},
 		{"finished failed", session.State{Status: session.Finished}, false, true, Red, "terminé", false, false, false, false, false},
 	}
@@ -49,12 +51,14 @@ func TestViewFollowsTheSession(t *testing.T) {
 }
 
 func TestRestartCountdownInStatus(t *testing.T) {
-	v := ViewOf("x", "", session.State{Status: session.Restarting, NextStart: time.Now().Add(4 * time.Second)}, true, false)
-	if !strings.Contains(v.Status, "dans 4s") && !strings.Contains(v.Status, "dans 3s") {
-		t.Errorf("statut %q", v.Status)
-	}
-	if strings.Contains(v.Tooltip, " / ") {
-		t.Errorf("pas de profil, pas de séparateur : %q", v.Tooltip)
+	for _, secs := range []int{4, 37} { // two deadlines: a fixed text cannot pass both
+		v := ViewOf("x", "", session.State{Status: session.Restarting, NextStart: time.Now().Add(time.Duration(secs)*time.Second + 300*time.Millisecond)}, true, false)
+		if want := fmt.Sprintf("dans %ds", secs); !strings.Contains(v.Status, want) {
+			t.Errorf("statut %q, attendu %q", v.Status, want)
+		}
+		if strings.Contains(v.Tooltip, " / ") {
+			t.Errorf("pas de profil, pas de séparateur : %q", v.Tooltip)
+		}
 	}
 }
 
@@ -93,9 +97,14 @@ func TestIconIsAValidIcoWithTheColor(t *testing.T) {
 		if corner := px(0, 0); corner[3] != 0 {
 			t.Errorf("%v : le coin devrait être transparent, %v", c, corner)
 		}
-		r, g, b := rgb(c)
-		if center := px(iconSize/2, iconSize/2); center != [4]byte{b, g, r, 255} {
-			t.Errorf("%v : centre %v, attendu BGRA %v", c, center, [4]byte{b, g, r, 255})
+		want := map[Color][4]byte{ // BGRA, written out: not derived from rgb()
+			Green:  {0x43, 0xa0, 0x2e, 255},
+			Orange: {0x00, 0x8a, 0xe0, 255},
+			Grey:   {0x8a, 0x8a, 0x8a, 255},
+			Red:    {0x2c, 0x2c, 0xd0, 255},
+		}[c]
+		if center := px(iconSize/2, iconSize/2); center != want {
+			t.Errorf("%v : centre %v, attendu BGRA %v", c, center, want)
 		}
 	}
 }

@@ -130,6 +130,25 @@ func TestGuards(t *testing.T) {
 	}
 }
 
+func TestIconPerProfile(t *testing.T) {
+	p := write(t, "command: a.exe\nicon: Icons\\default.ico\nprofiles:\n  DEV: {icon: 'Icons\\dcs-${profile}.png'}\n  VR: {}\n")
+	dir := filepath.Dir(p)
+	dev, err := Load(p, "DEV")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dev.Icon != filepath.Join(dir, "Icons", "dcs-DEV.png") {
+		t.Errorf("DEV : %q", dev.Icon)
+	}
+	vr, err := Load(p, "VR")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if vr.Icon != filepath.Join(dir, "Icons", "default.ico") {
+		t.Errorf("VR : %q", vr.Icon)
+	}
+}
+
 func TestNamesAndPrograms(t *testing.T) {
 	p := write(t, "name: ${who}-game\nvars: {who: dav}\ncommand: tools\\app\nhooks: {before: [{exec: [bin\\x.cmd, arg]}, {exec: [cmd, /c, ok]}]}\n")
 	c, err := Load(p, "")

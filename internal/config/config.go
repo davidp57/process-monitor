@@ -32,7 +32,9 @@ type Config struct {
 	IfRunning  string   `yaml:"if_running"`
 	Capture    bool     `yaml:"capture"`
 	// UI is how a session shows itself: "console" (default) or "tray".
-	UI       string             `yaml:"ui"`
+	UI string `yaml:"ui"`
+	// Icon is the .ico or .png shown in the notification area (tray only).
+	Icon     string             `yaml:"icon"`
 	Ready    *Ready             `yaml:"ready"`
 	Hooks    Hooks              `yaml:"hooks"`
 	Backup   *bool              `yaml:"backup"`
@@ -98,9 +100,10 @@ type Exit struct {
 	WaitKey string   `yaml:"wait_key"`
 }
 
-// Profile overrides vars and appends hooks.
+// Profile overrides vars and the icon, and appends hooks.
 type Profile struct {
 	Vars  map[string]string `yaml:"vars"`
+	Icon  string            `yaml:"icon"`
 	Hooks Hooks             `yaml:"hooks"`
 }
 
@@ -191,6 +194,9 @@ func (c *Config) applyProfile(name string) error {
 	c.Hooks.Before = append(c.Hooks.Before, p.Hooks.Before...)
 	c.Hooks.After = append(c.Hooks.After, p.Hooks.After...)
 	c.Hooks.Sync = append(c.Hooks.Sync, p.Hooks.Sync...)
+	if p.Icon != "" {
+		c.Icon = p.Icon
+	}
 	c.Profile = name
 	return nil
 }

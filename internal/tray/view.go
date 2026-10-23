@@ -33,7 +33,7 @@ type View struct {
 }
 
 // ViewOf maps a session state to the icon. watch enables the pause and
-// restart entries; failed turns a finished session red.
+// restart entries; failed (the session ended in error) turns it red.
 func ViewOf(name, profile string, st session.State, watch, failed bool) View {
 	v := View{Color: Orange}
 	active := st.Status == session.Running || st.Status == session.Paused || st.Status == session.Restarting
@@ -62,7 +62,7 @@ func ViewOf(name, profile string, st session.State, watch, failed bool) View {
 	default:
 		v.Status = string(st.Status)
 	}
-	if failed && st.Status == session.Finished {
+	if failed { // whatever the state the session stopped in
 		v.Color = Red
 		v.Status += " en erreur"
 	}
@@ -73,8 +73,9 @@ func ViewOf(name, profile string, st session.State, watch, failed bool) View {
 	v.CanPause = watch && st.Status == session.Running
 	v.CanResume = watch && st.Status == session.Paused
 	v.CanRestart = watch && active
-	v.CanStop = active || st.Status == session.Starting
-	v.CanDetach = v.CanStop
+	v.CanDetach = active || st.Status == session.Starting
+	// While stopping, a stop may be retried: Windows can refuse the first.
+	v.CanStop = v.CanDetach || st.Status == session.Stopping
 
 	title := "pm — " + name
 	if profile != "" {

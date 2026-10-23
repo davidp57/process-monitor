@@ -7,8 +7,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -28,6 +30,7 @@ const usage = `pm %s — lance un programme et l'encadre.
   pm watch <config.yaml> [--profile NOM] [--tray|--no-tui]  garde le programme en vie (relance), actions avant/après la session
 
   --tray : une icône dans la zone de notification à la place de la fenêtre console (ou ui: tray dans la config)
+  --icon FICHIER : l'image de cette icône, .ico (32 bits ou PNG) ou .png ; ou icon: dans la config
   pm check <config.yaml> [--profile NOM]            valide la config et affiche ce qui sera fait
   pm version
 `
@@ -39,6 +42,7 @@ func main() {
 type args struct {
 	cmd, path, profile string
 	noTUI, tray        bool
+	icon               string
 }
 
 // parse accepts flags before or after the config path.
@@ -63,6 +67,12 @@ func parse(argv []string) (args, error) {
 			a.noTUI = true
 		case arg == "--tray":
 			a.tray = true
+		case arg == "--icon":
+			if i+1 >= len(rest) {
+				return a, fmt.Errorf("%s attend un fichier .ico ou .png", arg)
+			}
+			i++
+			a.icon = rest[i]
 		case strings.HasPrefix(arg, "-"):
 			return a, fmt.Errorf("option inconnue %s", arg)
 		case a.path == "":
@@ -119,6 +129,10 @@ func run(argv []string) int {
 	}
 	log, err := logx.New(cfg.Log.Dir, prefix, cfg.Log.Keep, sink)
 	if err != nil {
+		if !console {
+			tray.Alert(cfg.Name, fmt.Sprintf("Journal impossible à créer, rien n'a été lancé : %v", err))
+			return 1
+		}
 		fmt.Fprintln(os.Stderr, "journal :", err)
 		pressKey()
 		return 1
@@ -143,7 +157,11 @@ func run(argv []string) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if useTray {
-		err = tray.Run(ctx, s, log, a.cmd == "watch")
+		if console {
+			// Started from a terminal: Ctrl+C and closing it still need the guard.
+			go interrupts(log, cancel, func() session.Status { return s.State().Status })
+		}
+		err = tray.Run(ctx, s, log, a.cmd == "watch", trayImage(a, cfg, log))
 		return finalCode(a, s, err, log)
 	}
 	go interrupts(log, cancel, func() session.Status { return s.State().Status })
@@ -161,6 +179,25 @@ func run(argv []string) int {
 	}
 	finish(cfg, err != nil || log.Errors() > 0)
 	return finalCode(a, s, err, log)
+}
+
+// trayImage loads the icon image: --icon, else the config's icon. A file
+// that cannot be read is logged and the default disc is used: a missing
+// picture must not stop a game from starting.
+func trayImage(a args, cfg *config.Config, log *logx.Logger) image.Image {
+	path := cfg.Icon
+	if a.icon != "" {
+		path, _ = filepath.Abs(a.icon)
+	}
+	if path == "" {
+		return nil
+	}
+	img, err := tray.LoadImage(path)
+	if err != nil {
+		log.Warnf("icône non utilisée : %v", err)
+		return nil
+	}
+	return img
 }
 
 // finalCode is pm's exit code: 1 when pm failed, the program's own code for

@@ -89,11 +89,14 @@ Touches de l'interface :
 `--tray`, ou `ui: tray` dans la config, remplace la fenêtre par une icône dans la zone de notification, pour `pm run` comme pour `pm watch`.
 Lancé depuis un raccourci, pm rend sa fenêtre console dès le démarrage (elle apparaît une fraction de seconde) ; lancé depuis un terminal, il continue d'y écrire.
 
-- **Couleur** : verte quand le programme tourne, orange pendant les copies, l'attente du lanceur ou avant une relance, grise en pause, rouge après une erreur. L'infobulle donne la session, le profil et l'état.
+- **Couleur** : verte quand le programme tourne, orange pendant les copies (au début et à la fin) ou avant une relance, grise en pause, rouge après une erreur. L'infobulle donne la session, le profil et l'état.
 - **Menu** : ouvrir le journal ; arrêter et finir (actions *après* exécutées) ; détacher, après une confirmation qui dit ce que ça coûte selon le moment (annuler au démarrage, terminer pendant le délai de relance, sinon laisser le programme sans copie retour). En `watch` : pause, reprise, relance.
 - **À la fin** : si la session a échoué, une fenêtre Windows dit ce qui a échoué et où est le journal ; sinon l'icône disparaît.
 
-Il n'y a plus de fenêtre à fermer par mégarde : on ne quitte que par le menu.
+- **Image** : `--icon FICHIER`, ou `icon:` dans la config, ou par profil dans `profiles:`, remplace le disque par ton image (`.png`, ou `.ico` en 32 bits ou PNG intégré) ; une petite pastille de la couleur de l'état est posée en bas à droite. Une image illisible est signalée dans le journal, et pm garde le disque.
+- **Sans fenêtres parasites** : les commandes `exec` ne s'ouvrent pas dans une fenêtre console, ni le programme lancé quand pm n'a plus de console.
+
+Lancé depuis un raccourci, il n'y a plus de fenêtre à fermer par mégarde : on ne quitte que par le menu. Lancé depuis un terminal, le double Ctrl+C reste la seule façon de couper pm, comme en mode console.
 
 ## Comment pm suit un programme
 
@@ -129,6 +132,7 @@ kill_on_exit: [SR-ClientRadio.exe]  # arrêtés quand le process suivi s'est ter
 if_running: abort               # abort (défaut) ou kill, voir Garde-fous
 capture: false                  # sortie du programme dans le journal (et pas de fenêtre console)
 ui: console                     # console (défaut) ou tray : une icône de notification, comme --tray
+icon: Icons\dcs.ico             # image de l'icône de notification ; aussi par profil
 ready: { file: '${saved}\dcs.lock', timeout: 3m }
 backup: true                    # garde un .bak de chaque fichier écrasé (défaut)
 

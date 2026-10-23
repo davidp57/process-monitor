@@ -20,6 +20,7 @@ var (
 	ntdll            = windows.NewLazySystemDLL("ntdll.dll")
 	ntSuspendProcess = ntdll.NewProc("NtSuspendProcess")
 	ntResumeProcess  = ntdll.NewProc("NtResumeProcess")
+	getConsoleWindow = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetConsoleWindow")
 )
 
 const (
@@ -93,6 +94,11 @@ func Start(spec Spec) (Process, error) {
 	cmd.Dir = spec.Dir
 	cmd.Env = spec.Env
 	flags := uint32(windows.CREATE_SUSPENDED | windows.CREATE_NEW_PROCESS_GROUP)
+	if r, _, _ := getConsoleWindow.Call(); r == 0 {
+		// pm has no console (pm --tray): a console program would get a new
+		// window of its own.
+		flags |= windows.CREATE_NO_WINDOW
+	}
 	var readers []*os.File
 	fail := func(err error) (Process, error) {
 		for _, r := range readers {

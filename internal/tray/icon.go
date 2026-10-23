@@ -3,9 +3,14 @@ package tray
 import (
 	"bytes"
 	"encoding/binary"
+	"image"
+	"image/color"
 )
 
-const iconSize = 32
+const (
+	iconSize  = 32
+	dotRadius = 6 // the state dot drawn over a custom image
+)
 
 func rgb(c Color) (r, g, b byte) {
 	switch c {
@@ -20,24 +25,53 @@ func rgb(c Color) (r, g, b byte) {
 	}
 }
 
-// Icon draws a filled disc of the given colour with a dark rim, as a
-// 32×32 32-bit ICO file (the format the notification area takes).
-func Icon(c Color) []byte {
-	r, g, b := rgb(c)
-	pixels := make([]byte, 0, iconSize*iconSize*4)
-	center := float64(iconSize-1) / 2
-	for row := iconSize - 1; row >= 0; row-- { // BMP rows go bottom-up
-		for col := 0; col < iconSize; col++ {
-			dx, dy := float64(col)-center, float64(row)-center
-			d2 := dx*dx + dy*dy
-			switch {
-			case d2 > 15*15:
-				pixels = append(pixels, 0, 0, 0, 0)
-			case d2 > 13*13:
-				pixels = append(pixels, b/2, g/2, r/2, 255)
-			default:
-				pixels = append(pixels, b, g, r, 255)
+// disc paints a filled disc of colour c with a darker rim onto img,
+// centred on (cx, cy): inside radius r the colour, up to r+2 the rim.
+func disc(img *image.RGBA, cx, cy, r float64, c Color) {
+	red, green, blue := rgb(c)
+	for y := 0; y < iconSize; y++ {
+		for x := 0; x < iconSize; x++ {
+			dx, dy := float64(x)-cx, float64(y)-cy
+			switch d2 := dx*dx + dy*dy; {
+			case d2 <= r*r:
+				img.SetRGBA(x, y, color.RGBA{red, green, blue, 255})
+			case d2 <= (r+2)*(r+2):
+				img.SetRGBA(x, y, color.RGBA{red / 2, green / 2, blue / 2, 255})
 			}
+		}
+	}
+}
+
+// Icon draws the default icon: a disc of the state's colour, as a 32×32
+// 32-bit ICO file (the format the notification area takes).
+func Icon(c Color) []byte {
+	img := image.NewRGBA(image.Rect(0, 0, iconSize, iconSize))
+	center := float64(iconSize-1) / 2
+	disc(img, center, center, 13, c)
+	return encodeICO(img)
+}
+
+// Badged draws a custom image with a small dot of the state's colour in its
+// bottom-right corner. base must be iconSize×iconSize (see LoadImage).
+func Badged(base image.Image, c Color) []byte {
+	img := image.NewRGBA(image.Rect(0, 0, iconSize, iconSize))
+	for y := 0; y < iconSize; y++ {
+		for x := 0; x < iconSize; x++ {
+			img.Set(x, y, base.At(base.Bounds().Min.X+x, base.Bounds().Min.Y+y))
+		}
+	}
+	at := float64(iconSize - dotRadius - 1)
+	disc(img, at, at, dotRadius, c)
+	return encodeICO(img)
+}
+
+// encodeICO writes img as a one-image ICO holding a 32-bit BMP.
+func encodeICO(img *image.RGBA) []byte {
+	pixels := make([]byte, 0, iconSize*iconSize*4)
+	for y := iconSize - 1; y >= 0; y-- { // BMP rows go bottom-up
+		for x := 0; x < iconSize; x++ {
+			c := img.RGBAAt(x, y)
+			pixels = append(pixels, c.B, c.G, c.R, c.A)
 		}
 	}
 	mask := make([]byte, iconSize*iconSize/8) // AND mask unused: the alpha channel decides
