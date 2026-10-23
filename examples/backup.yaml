@@ -1,0 +1,20 @@
+# Sauvegarder avant de lancer : pm run backup.yaml
+#
+# Avant le lancement, une archive datée du dossier de sauvegardes ; à la
+# fermeture, on ne garde que les 10 plus récentes.
+
+name: jeu-sauvegarde
+lang: fr
+
+vars:
+  saves: ${env:USERPROFILE}\Documents\MonJeu\Saves
+  archives: ${env:USERPROFILE}\Documents\MonJeu\Archives
+
+command: C:\Jeux\MonJeu\MonJeu.exe
+
+hooks:
+  before:
+    - exec: [powershell, -NoProfile, -Command, 'New-Item -ItemType Directory -Force ''${archives}'' | Out-Null; Compress-Archive -Path ''${saves}\*'' -DestinationPath (''${archives}\saves-'' + (Get-Date -Format yyyyMMdd-HHmmss) + ''.zip'')']
+  after:
+    - exec: [powershell, -NoProfile, -Command, 'Get-ChildItem ''${archives}\saves-*.zip'' | Sort-Object Name -Descending | Select-Object -Skip 10 | Remove-Item']
+  timeout: 5m

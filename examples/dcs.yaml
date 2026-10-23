@@ -1,11 +1,11 @@
-# pm run profiles.yaml --profile DEV
+# DCS World par profils : pm run dcs.yaml --profile DEV
 #
-# Un jeu, plusieurs jeux de réglages. Avant le lancement, les fichiers du
-# profil sont copiés dans le jeu ; après sa fermeture, ils sont recopiés dans
-# le profil. Tous les profils partagent la même session : impossible d'en
-# lancer un second tant que le premier tourne.
+# Avant le lancement, les fichiers du profil sont copiés dans DCS ; après la
+# fermeture du jeu, ils sont recopiés dans le profil. Refus net si DCS tourne
+# déjà, ou si un autre profil est en cours.
 
 name: dcs
+lang: fr
 
 vars:
   saved: ${env:USERPROFILE}\Saved Games\DCS
@@ -13,11 +13,14 @@ vars:
 
 command: C:\jeux\DCS World\bin\dcs_updater.exe
 workdir: ${prof}
-# Le lanceur passe la main au jeu : la session suit le jeu, pas le lanceur.
+# dcs_updater.exe passe la main à dcs.exe : c'est lui que la session suit.
 track: dcs.exe
-# Ce que le jeu lance pour lui-même et qui n'a plus d'usage après lui.
+# SRS démarré par DCS n'a plus d'usage une fois le jeu fermé.
 kill_on_exit: [SR-ClientRadio.exe]
+capture: true
 ready: { file: '${saved}\dcs.lock', timeout: 3m }
+
+ui: tray
 log: { dir: '${prof}\logs', keep: 3 }
 
 hooks:
@@ -27,9 +30,13 @@ hooks:
 
 profiles:
   DEV:
+    icon: ${saved}\Profiles\Icons\dcs-dev.ico
     hooks:
       sync:
         - '${prof}\joystick.diff.lua <-> ${saved}\Config\Input\UiLayer\joystick\joystick.diff.lua'
-  VR: {}
+  VR:
+    icon: ${saved}\Profiles\Icons\dcs-vr.ico
+  STD:
+    icon: ${saved}\Profiles\Icons\dcs.ico
 
 exit: { delay: 2s }

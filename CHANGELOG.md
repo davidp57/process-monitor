@@ -9,9 +9,11 @@ A pull request adds its entry at the **end** of `[Unreleased]` and never touches
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-10-23
+
 ### Changed
 
-- **Rewritten in Go as a single `pm.exe`** (breaking): the Python `process-monitor` 1.x is replaced. Two subcommands split its two jobs: `pm run` (actions before, launch, wait for the end, actions after) and `pm watch` (watchdog with a restart policy and a terminal interface), plus `pm check` to validate a config without running anything. New YAML format with profiles and variables; see the migration table in the README.
+- **Rewritten in Go as a single `pm.exe`** (breaking): the Python `process-monitor` 1.x is replaced. Two subcommands split its two jobs: `pm run` (actions before, launch, wait for the end, actions after) and `pm watch` (watchdog with a restart policy and a terminal interface), plus `pm check` to validate a config without running anything. New YAML format with profiles and variables; see "Migrating from 1.x" on the documentation site.
 - **The program runs in a Windows Job Object** and the real game process is followed by handle (`track`), including through a launcher that hands over, a process that leaves the job, or a same-name successor. Polling by name every half second is gone.
 - **Once the game has exited, pm waits for its launcher only**, not for what the game started on the side (a radio client): the copy-back no longer waits for SRS to be closed. See ADR 0002.
 - **`pm watch` runs the before actions again before every restart**, as 1.x ran its cleanup; the sync copies happen once per session (1.x also re-copied its initial copies at every restart), and a replay makes no new `.bak`.
@@ -27,6 +29,7 @@ A pull request adds its entry at the **end** of `[Unreleased]` and never touches
 - **Notification-area icon** (`--tray`, or `ui: tray` in the config): `pm run` and `pm watch` without a console window. The icon's colour and tooltip follow the session; its menu opens the log, stops, detaches (with a confirmation that says what it costs at that moment) and, in `watch`, pauses and restarts. A failed session ends with a Windows message box (#4). A custom image (`--icon`, `icon:`, per profile too; `.png` or `.ico`) gets a state dot in its corner. Exec actions no longer open console windows.
 - **French and English**: every message comes from an embedded catalog; the language is `--lang`, else `PM_LANG`, else `lang:` in the config, else the Windows display language, else English (#6).
 - **Documentation site** in French and English (MkDocs Material, GitHub Pages, one version per release with mike); the README is now a short bilingual overview pointing to it (#6).
+- **Documentation**: an entry page that says what Process Monitor is for, a Features page with the configuration of each feature, and worked examples (DCS World with profiles, SimAppPro, a backup before starting) whose configs are the tested files of `examples/`.
 
 ### Fixed
 

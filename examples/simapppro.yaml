@@ -1,0 +1,33 @@
+# Garder SimAppPro en vie : pm watch simapppro.yaml
+#
+# Toute instance déjà lancée est arrêtée ; les fichiers temporaires sont
+# nettoyés avant chaque lancement et à la fin de la session.
+
+name: simapppro
+lang: fr
+
+command: ${env:LOCALAPPDATA}\Programs\SimAppPro\SimAppPro.exe
+workdir: ${config_dir}
+if_running: kill
+capture: true
+env:
+  ELECTRON_NO_ATTACH_CONSOLE: "true"   # SimAppPro est une appli Electron
+
+ui: tray
+icon: ${env:LOCALAPPDATA}\Programs\SimAppPro\resources\icon.png
+log: { dir: '${config_dir}\logs', keep: 2 }
+
+watch:
+  restart: always
+  delay: 2s
+  max_delay: 1m
+
+hooks:
+  before:
+    - delete: ${config_dir}\Scripts
+    - delete: ${config_dir}\WWTHID.log
+    - delete: ${config_dir}\WWTUSBHID.log
+  after:
+    - delete: ${config_dir}\Scripts
+    - delete: ${config_dir}\WWTHID.log
+    - delete: ${config_dir}\WWTUSBHID.log

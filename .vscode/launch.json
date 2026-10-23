@@ -6,7 +6,7 @@
             "type": "go",
             "request": "launch",
             "program": "${workspaceFolder}/cmd/pm",
-            "args": ["check", "${workspaceFolder}/examples/profiles.yaml", "--profile", "DEV"],
+            "args": ["check", "${workspaceFolder}/examples/dcs.yaml", "--profile", "DEV"],
             "console": "integratedTerminal"
         },
         {
