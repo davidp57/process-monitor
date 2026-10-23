@@ -1,0 +1,26 @@
+# pm watch watchdog.yaml
+#
+# Garde un programme en vie : relance après chaque arrêt, avec un délai qui
+# double si le programme plante en boucle.
+
+command: ${env:LOCALAPPDATA}\Programs\SimAppPro\SimAppPro.exe
+workdir: ${config_dir}
+if_running: kill        # arrête l'instance déjà lancée au lieu de refuser
+capture: true           # sortie du programme dans le journal
+env:
+  ELECTRON_NO_ATTACH_CONSOLE: "true"
+
+watch:
+  restart: always       # always | on-failure | never
+  delay: 2s
+  max_delay: 1m
+  max_restarts: 0       # 0 = sans limite
+
+hooks:
+  before:
+    - delete: ${config_dir}\WWTHID.log
+  after:
+    - delete: ${config_dir}\WWTHID.log
+    - exec: [cmd, /c, echo session finie]
+
+exit: { wait_key: always }

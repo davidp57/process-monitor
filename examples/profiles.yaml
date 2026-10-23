@@ -1,0 +1,35 @@
+# pm run profiles.yaml --profile DEV
+#
+# Un jeu, plusieurs jeux de réglages. Avant le lancement, les fichiers du
+# profil sont copiés dans le jeu ; après sa fermeture, ils sont recopiés dans
+# le profil. Tous les profils partagent la même session : impossible d'en
+# lancer un second tant que le premier tourne.
+
+name: dcs
+
+vars:
+  saved: ${env:USERPROFILE}\Saved Games\DCS
+  prof: ${saved}\Profiles\${profile}
+
+command: C:\jeux\DCS World\bin\dcs_updater.exe
+workdir: ${prof}
+# Le lanceur passe la main au jeu : la session suit le jeu, pas le lanceur.
+track: dcs.exe
+# Ce que le jeu lance pour lui-même et qui n'a plus d'usage après lui.
+kill_on_exit: [SR-ClientRadio.exe]
+ready: { file: '${saved}\dcs.lock', timeout: 3m }
+log: { dir: '${prof}\logs', keep: 3 }
+
+hooks:
+  sync:
+    - ${prof}\export.lua  <-> ${saved}\Scripts\export.lua
+    - ${prof}\options.lua <-> ${saved}\Config\options.lua
+
+profiles:
+  DEV:
+    hooks:
+      sync:
+        - '${prof}\joystick.diff.lua <-> ${saved}\Config\Input\UiLayer\joystick\joystick.diff.lua'
+  VR: {}
+
+exit: { delay: 2s }
