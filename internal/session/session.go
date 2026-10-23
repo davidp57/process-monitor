@@ -117,8 +117,15 @@ func (s *Session) send(c command) {
 	select {
 	case s.cmds <- c:
 	default: // a command is already pending; drop repeated key presses
+		if c == cmdRestart {
+			s.restartHandled() // dropped: a later press must still work
+		}
 	}
 }
+
+// ErrCancelled ends a session the user cancelled before anything was
+// launched: not a failure, but not a success either (pm run exits 1).
+var ErrCancelled = errors.New("session annulée avant le lancement : fichiers live remis en état, rien n'a été lancé")
 
 func (s *Session) restartHandled() {
 	s.mu.Lock()
@@ -171,7 +178,7 @@ func (s *Session) Run(ctx context.Context) error {
 	if err != nil {
 		s.update(func(st *State) { st.Status = Finished })
 		if ctx.Err() != nil {
-			return fmt.Errorf("session annulée avant le lancement : fichiers live remis en état, rien n'a été lancé")
+			return ErrCancelled
 		}
 		return fmt.Errorf("actions de départ en échec, %s n'a pas été lancé : %w", c.Command, err)
 	}
@@ -181,7 +188,7 @@ func (s *Session) Run(ctx context.Context) error {
 	if s.cancelledBeforeLaunch(ctx) {
 		undo()
 		s.update(func(st *State) { st.Status = Finished })
-		return fmt.Errorf("session annulée avant le lancement : fichiers live remis en état, rien n'a été lancé")
+		return ErrCancelled
 	}
 
 	runErr, detached := s.loop(ctx)

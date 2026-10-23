@@ -120,12 +120,32 @@ func TestGuards(t *testing.T) {
 		"two docs":    {"command: a.exe\n---\nhooks: {before: [{delete: x}]}\n", "un seul document"},
 		"neg delay":   {"command: a.exe\nwatch: {delay: -2s}\n", "négative"},
 		"kill path":   {"command: a.exe\nkill_on_exit: ['C:\\x\\srs.exe']\n", "kill_on_exit"},
+		"bad ui":      {"command: a.exe\nui: window\n", "ui :"},
 	}
 	for name, tc := range cases {
 		_, err := Load(write(t, tc.yml), "")
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s : err = %v, attendu %q", name, err, tc.want)
 		}
+	}
+}
+
+func TestIconPerProfile(t *testing.T) {
+	p := write(t, "command: a.exe\nicon: Icons\\default.ico\nprofiles:\n  DEV: {icon: 'Icons\\dcs-${profile}.png'}\n  VR: {}\n")
+	dir := filepath.Dir(p)
+	dev, err := Load(p, "DEV")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dev.Icon != filepath.Join(dir, "Icons", "dcs-DEV.png") {
+		t.Errorf("DEV : %q", dev.Icon)
+	}
+	vr, err := Load(p, "VR")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if vr.Icon != filepath.Join(dir, "Icons", "default.ico") {
+		t.Errorf("VR : %q", vr.Icon)
 	}
 }
 

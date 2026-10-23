@@ -185,6 +185,7 @@ func (r *Runner) exec(ctx context.Context, argv []string) error {
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Dir = r.Dir
+	noWindow(cmd)
 	// A program the command started in the background keeps the output
 	// open; do not wait for it once the command itself has finished.
 	cmd.WaitDelay = 5 * time.Second

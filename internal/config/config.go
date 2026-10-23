@@ -28,16 +28,20 @@ type Config struct {
 	Track   string            `yaml:"track"`
 	// KillOnExit names processes to stop once the followed one has exited
 	// (a radio client the game started, say).
-	KillOnExit []string           `yaml:"kill_on_exit"`
-	IfRunning  string             `yaml:"if_running"`
-	Capture    bool               `yaml:"capture"`
-	Ready      *Ready             `yaml:"ready"`
-	Hooks      Hooks              `yaml:"hooks"`
-	Backup     *bool              `yaml:"backup"`
-	Log        Log                `yaml:"log"`
-	Watch      Watch              `yaml:"watch"`
-	Exit       Exit               `yaml:"exit"`
-	Profiles   map[string]Profile `yaml:"profiles"`
+	KillOnExit []string `yaml:"kill_on_exit"`
+	IfRunning  string   `yaml:"if_running"`
+	Capture    bool     `yaml:"capture"`
+	// UI is how a session shows itself: "console" (default) or "tray".
+	UI string `yaml:"ui"`
+	// Icon is the .ico or .png shown in the notification area (tray only).
+	Icon     string             `yaml:"icon"`
+	Ready    *Ready             `yaml:"ready"`
+	Hooks    Hooks              `yaml:"hooks"`
+	Backup   *bool              `yaml:"backup"`
+	Log      Log                `yaml:"log"`
+	Watch    Watch              `yaml:"watch"`
+	Exit     Exit               `yaml:"exit"`
+	Profiles map[string]Profile `yaml:"profiles"`
 
 	// Filled by Load, not by YAML.
 	Profile string     `yaml:"-"`
@@ -96,9 +100,10 @@ type Exit struct {
 	WaitKey string   `yaml:"wait_key"`
 }
 
-// Profile overrides vars and appends hooks.
+// Profile overrides vars and the icon, and appends hooks.
 type Profile struct {
 	Vars  map[string]string `yaml:"vars"`
+	Icon  string            `yaml:"icon"`
 	Hooks Hooks             `yaml:"hooks"`
 }
 
@@ -109,6 +114,9 @@ const (
 	RestartAlways    = "always"
 	RestartOnFailure = "on-failure"
 	RestartNever     = "never"
+
+	UIConsole = "console"
+	UITray    = "tray"
 
 	WaitKeyNever   = "never"
 	WaitKeyOnError = "on-error"
@@ -186,6 +194,9 @@ func (c *Config) applyProfile(name string) error {
 	c.Hooks.Before = append(c.Hooks.Before, p.Hooks.Before...)
 	c.Hooks.After = append(c.Hooks.After, p.Hooks.After...)
 	c.Hooks.Sync = append(c.Hooks.Sync, p.Hooks.Sync...)
+	if p.Icon != "" {
+		c.Icon = p.Icon
+	}
 	c.Profile = name
 	return nil
 }
@@ -225,6 +236,9 @@ func (c *Config) defaults() {
 	if c.Hooks.Timeout == 0 {
 		c.Hooks.Timeout = Duration(10 * time.Minute)
 	}
+	if c.UI == "" {
+		c.UI = UIConsole
+	}
 	if c.Exit.WaitKey == "" {
 		c.Exit.WaitKey = WaitKeyOnError
 	}
@@ -250,6 +264,11 @@ func (c *Config) validate() error {
 	case RestartAlways, RestartOnFailure, RestartNever:
 	default:
 		errs = append(errs, fmt.Errorf("watch.restart : %q invalide (always, on-failure ou never)", c.Watch.Restart))
+	}
+	switch c.UI {
+	case UIConsole, UITray:
+	default:
+		errs = append(errs, fmt.Errorf("ui : %q invalide (console ou tray)", c.UI))
 	}
 	switch c.Exit.WaitKey {
 	case WaitKeyNever, WaitKeyOnError, WaitKeyAlways:

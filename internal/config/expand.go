@@ -127,6 +127,7 @@ func (c *Config) expand() error {
 	prog(&c.Command)
 	xs(c.Args)
 	xp(&c.Workdir)
+	xp(&c.Icon)
 	x(&c.Track)
 	xs(c.KillOnExit)
 	for k, v := range c.Env {
