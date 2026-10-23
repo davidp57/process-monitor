@@ -31,5 +31,5 @@ gh issue close N --reason "not planned"   # wontfix
 
 ## What stays out of the tracker
 
-- David's own to-dos (a test to fly, a shortcut to switch) go to his Obsidian vault; the issue holds the technical detail and the vault task points to it.
+- David's own to-dos (a test to fly, a shortcut to switch) go to David's Obsidian vault; the issue holds the technical detail and the vault task points to it.
 - Review comments stay on their pull request.

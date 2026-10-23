@@ -14,6 +14,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 var (
@@ -86,7 +88,7 @@ func Start(spec Spec) (Process, error) {
 	p := &winProcess{spec: spec, followed: map[int]bool{}, mainExited: make(chan struct{}), done: make(chan struct{}),
 		stop: make(chan struct{}), followDone: make(chan struct{})}
 	if err := p.createJob(); err != nil {
-		spec.event(fmt.Sprintf("Job Object indisponible (%v), suivi du seul process lancé", err))
+		spec.event(i18n.T("proc.no_job", err))
 		p.closeJob()
 	}
 
@@ -132,18 +134,18 @@ func Start(spec Spec) (Process, error) {
 	h, err := windows.OpenProcess(processAccess, false, uint32(cmd.Process.Pid))
 	if err != nil {
 		_ = cmd.Process.Kill()
-		return fail(fmt.Errorf("ouverture du process %d : %w", cmd.Process.Pid, err))
+		return fail(i18n.Errorf("proc.open_failed", cmd.Process.Pid, err))
 	}
 	p.mainH = h
 	if p.job != 0 {
 		if err := windows.AssignProcessToJobObject(p.job, h); err != nil {
-			spec.event(fmt.Sprintf("rattachement au Job Object impossible (%v), suivi du seul process lancé", err))
+			spec.event(i18n.T("proc.assign_failed", err))
 			p.closeJob()
 		}
 	}
 	if r, _, err := ntResumeProcess.Call(uintptr(h)); r != 0 {
 		_ = cmd.Process.Kill()
-		return fail(fmt.Errorf("reprise du process suspendu : %w", err))
+		return fail(i18n.Errorf("proc.resume_failed", err))
 	}
 
 	if spec.Output != nil {
@@ -249,7 +251,7 @@ func (p *winProcess) follow() {
 		if p.trackedHandle() == 0 {
 			p.searchTracked()
 			if p.trackedHandle() != 0 && last != nil {
-				p.spec.event(fmt.Sprintf("relais : %s (pid %d) a pris la suite du pid %d", p.spec.Track, p.PID(), last.PID))
+				p.spec.event(i18n.T("proc.handover", p.spec.Track, p.PID(), last.PID))
 				last = nil
 			}
 		}
@@ -280,11 +282,11 @@ func (p *winProcess) follow() {
 			if launchers, others := p.remaining(); len(launchers) > 0 {
 				if !lingerTold {
 					lingerTold = true
-					p.spec.event(fmt.Sprintf("%s s'est terminé, mais son lanceur tourne encore (%s) : attente de sa fin", p.spec.Track, strings.Join(launchers, ", ")))
+					p.spec.event(i18n.T("proc.launcher_lingers", p.spec.Track, strings.Join(launchers, ", ")))
 				}
 				continue
 			} else if len(others) > 0 {
-				p.spec.event(fmt.Sprintf("%s s'est terminé ; process lancés pendant la session et non attendus : %s", p.spec.Track, strings.Join(others, ", ")))
+				p.spec.event(i18n.T("proc.leftovers", p.spec.Track, strings.Join(others, ", ")))
 			}
 			p.finish(*last)
 			return
@@ -296,7 +298,7 @@ func (p *winProcess) follow() {
 			if time.Since(lostSince) > p.spec.TrackGrace {
 				<-p.mainExited
 				p.finish(Result{PID: p.cmd.Process.Pid, ExitCode: p.mainCode,
-					Err: fmt.Errorf("%s n'est jamais apparu (le lanceur s'est terminé avec le code %d)", p.spec.Track, p.mainCode)})
+					Err: i18n.Errorf("proc.never_appeared", p.spec.Track, p.mainCode)})
 				return
 			}
 		}
@@ -383,7 +385,7 @@ func (p *winProcess) searchTracked() {
 		created := creationTime(h)
 		windows.CloseHandle(h)
 		if !created.Before(p.started.Add(-time.Second)) && p.consider(pid) {
-			p.spec.event(fmt.Sprintf("%s (pid %d) a quitté le Job Object, suivi par son nom", p.spec.Track, pid))
+			p.spec.event(i18n.T("proc.left_job", p.spec.Track, pid))
 			return
 		}
 	}
@@ -409,7 +411,7 @@ func (p *winProcess) consider(pid int) bool {
 	p.tracked, p.trackPID = h, pid
 	p.mu.Unlock()
 	p.followed[pid] = true
-	p.spec.event(fmt.Sprintf("process suivi : %s (pid %d)", p.spec.Track, pid))
+	p.spec.event(i18n.T("proc.tracked", p.spec.Track, pid))
 	return true
 }
 
@@ -490,7 +492,7 @@ func (p *winProcess) handles() []windows.Handle {
 func (p *winProcess) each(fn *windows.LazyProc) error {
 	hs := p.handles()
 	if len(hs) == 0 {
-		return errors.New("aucun process à atteindre")
+		return errors.New(i18n.T("proc.none_to_reach"))
 	}
 	var errs []error
 	for _, h := range hs {
@@ -557,7 +559,7 @@ func FindByName(name string) ([]int, error) {
 	// Any other error than the end of the list means "could not tell": an
 	// empty answer would read as "not running".
 	if !errors.Is(err, windows.ERROR_NO_MORE_FILES) {
-		return nil, fmt.Errorf("liste des process : %w", err)
+		return nil, i18n.Errorf("proc.list_failed", err)
 	}
 	return pids, nil
 }
@@ -574,7 +576,7 @@ func KillByName(name string, timeout time.Duration) (int, error) {
 	for _, pid := range pids {
 		h, err := windows.OpenProcess(windows.PROCESS_TERMINATE|windows.SYNCHRONIZE|windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
 		if err != nil {
-			errs = append(errs, fmt.Errorf("pid %d : %w", pid, err))
+			errs = append(errs, i18n.Errorf("proc.pid_error", pid, err))
 			continue
 		}
 		// The PID may have been reused since the listing: check who it is now.
@@ -583,9 +585,9 @@ func KillByName(name string, timeout time.Duration) (int, error) {
 			continue
 		}
 		if err := windows.TerminateProcess(h, 1); err != nil {
-			errs = append(errs, fmt.Errorf("pid %d : %w", pid, err))
+			errs = append(errs, i18n.Errorf("proc.pid_error", pid, err))
 		} else if ev, _ := windows.WaitForSingleObject(h, uint32(timeout.Milliseconds())); ev != windows.WAIT_OBJECT_0 {
-			errs = append(errs, fmt.Errorf("pid %d toujours présent après %s", pid, timeout))
+			errs = append(errs, i18n.Errorf("proc.still_there", pid, timeout))
 		} else {
 			killed++
 		}

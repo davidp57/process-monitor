@@ -25,6 +25,8 @@ A pull request adds its entry at the **end** of `[Unreleased]` and never touches
 - **`kill_on_exit`**: processes stopped once the followed one has exited.
 - **`hooks.timeout`** on exec actions; atomic copies with a `.bak` of the overwritten file.
 - **Notification-area icon** (`--tray`, or `ui: tray` in the config): `pm run` and `pm watch` without a console window. The icon's colour and tooltip follow the session; its menu opens the log, stops, detaches (with a confirmation that says what it costs at that moment) and, in `watch`, pauses and restarts. A failed session ends with a Windows message box (#4). A custom image (`--icon`, `icon:`, per profile too; `.png` or `.ico`) gets a state dot in its corner. Exec actions no longer open console windows.
+- **French and English**: every message comes from an embedded catalog; the language is `--lang`, else `PM_LANG`, else `lang:` in the config, else the Windows display language, else English (#6).
+- **Documentation site** in French and English (MkDocs Material, GitHub Pages, one version per release with mike); the README is now a short bilingual overview pointing to it (#6).
 
 ### Fixed
 

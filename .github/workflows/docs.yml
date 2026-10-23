@@ -1,0 +1,50 @@
+name: Docs
+
+# Publishes the documentation site on GitHub Pages (gh-pages branch), with
+# mike keeping one copy per version: "dev" follows main, a vX.Y.Z tag adds
+# that version and moves "latest" (the site's default) to it. Links point to
+# /latest/: it always exists, on dev until the first release.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # mike commits to gh-pages
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-docs.txt
+      - name: Git identity for mike
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Deploy dev
+        if: github.ref_type == 'branch'
+        run: |
+          # Until a first release exists, dev also answers as "latest", so
+          # the README's /latest/ links work from the first deployment.
+          if mike list | grep -qv '^dev'; then
+            mike deploy --push dev
+          else
+            mike deploy --push --update-aliases dev latest
+            mike set-default --push latest
+          fi
+      - name: Deploy the release
+        if: github.ref_type == 'tag'
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mike deploy --push --update-aliases "$version" latest
+          mike set-default --push latest

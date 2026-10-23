@@ -27,3 +27,27 @@ jobs:
         env:
           CGO_ENABLED: "1"
         run: go test -race -count=1 ./...
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Every page in both languages
+        run: |
+          missing=0
+          for f in doc/*.md; do
+            case "$f" in *.en.md) continue ;; esac
+            en="${f%.md}.en.md"
+            if [ ! -f "$en" ]; then echo "missing English page: $en"; missing=1; fi
+          done
+          for f in doc/*.en.md; do
+            fr="${f%.en.md}.md"
+            if [ ! -f "$fr" ]; then echo "missing French page: $fr"; missing=1; fi
+          done
+          exit $missing
+      - run: pip install -r requirements-docs.txt
+      - name: mkdocs build --strict
+        run: mkdocs build --strict

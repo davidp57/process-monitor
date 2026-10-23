@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 // Config is a fully loaded, profile-applied and expanded configuration.
@@ -33,6 +35,8 @@ type Config struct {
 	Capture    bool     `yaml:"capture"`
 	// UI is how a session shows itself: "console" (default) or "tray".
 	UI string `yaml:"ui"`
+	// Lang is pm's language when neither --lang nor PM_LANG is set: fr or en.
+	Lang string `yaml:"lang"`
 	// Icon is the .ico or .png shown in the notification area (tray only).
 	Icon     string             `yaml:"icon"`
 	Ready    *Ready             `yaml:"ready"`
@@ -129,7 +133,7 @@ type Duration time.Duration
 func (d *Duration) UnmarshalYAML(n *yaml.Node) error {
 	v, err := time.ParseDuration(n.Value)
 	if err != nil {
-		return fmt.Errorf("ligne %d : durée invalide %q (exemples : 500ms, 2s, 1m)", n.Line, n.Value)
+		return i18n.Errorf("config.bad_duration", n.Line, n.Value)
 	}
 	*d = Duration(v)
 	return nil
@@ -155,7 +159,7 @@ func Load(path, profile string) (*Config, error) {
 	}
 	var extra yaml.Node
 	if err := dec.Decode(&extra); err != io.EOF {
-		return nil, fmt.Errorf("%s : un seul document YAML attendu (séparateur --- en trop ?)", abs)
+		return nil, i18n.Errorf("config.one_document", abs)
 	}
 	c.Path = abs
 	if err := c.applyProfile(profile); err != nil {
@@ -174,16 +178,16 @@ func Load(path, profile string) (*Config, error) {
 func (c *Config) applyProfile(name string) error {
 	if len(c.Profiles) == 0 {
 		if name != "" {
-			return fmt.Errorf("profil %q demandé, mais %s ne définit aucun profil", name, c.Path)
+			return i18n.Errorf("config.no_profiles", name, c.Path)
 		}
 		return nil
 	}
 	if name == "" {
-		return fmt.Errorf("%s définit des profils, choisis-en un avec --profile : %s", c.Path, strings.Join(c.ProfileNames(), ", "))
+		return i18n.Errorf("config.profile_required", c.Path, strings.Join(c.ProfileNames(), ", "))
 	}
 	p, ok := c.Profiles[name]
 	if !ok {
-		return fmt.Errorf("profil %q inconnu, profils disponibles : %s", name, strings.Join(c.ProfileNames(), ", "))
+		return i18n.Errorf("config.unknown_profile", name, strings.Join(c.ProfileNames(), ", "))
 	}
 	if c.Vars == nil {
 		c.Vars = map[string]string{}
@@ -253,51 +257,54 @@ func (c *Config) BackupEnabled() bool { return c.Backup == nil || *c.Backup }
 func (c *Config) validate() error {
 	var errs []error
 	if c.Command == "" {
-		errs = append(errs, errors.New("command est obligatoire"))
+		errs = append(errs, errors.New(i18n.T("config.command_required")))
 	}
 	switch c.IfRunning {
 	case IfRunningAbort, IfRunningKill:
 	default:
-		errs = append(errs, fmt.Errorf("if_running : %q invalide (abort ou kill)", c.IfRunning))
+		errs = append(errs, i18n.Errorf("config.bad_if_running", c.IfRunning))
 	}
 	switch c.Watch.Restart {
 	case RestartAlways, RestartOnFailure, RestartNever:
 	default:
-		errs = append(errs, fmt.Errorf("watch.restart : %q invalide (always, on-failure ou never)", c.Watch.Restart))
+		errs = append(errs, i18n.Errorf("config.bad_restart", c.Watch.Restart))
+	}
+	if c.Lang != "" && c.Lang != "fr" && c.Lang != "en" {
+		errs = append(errs, i18n.Errorf("config.bad_lang", c.Lang))
 	}
 	switch c.UI {
 	case UIConsole, UITray:
 	default:
-		errs = append(errs, fmt.Errorf("ui : %q invalide (console ou tray)", c.UI))
+		errs = append(errs, i18n.Errorf("config.bad_ui", c.UI))
 	}
 	switch c.Exit.WaitKey {
 	case WaitKeyNever, WaitKeyOnError, WaitKeyAlways:
 	default:
-		errs = append(errs, fmt.Errorf("exit.wait_key : %q invalide (never, on-error ou always)", c.Exit.WaitKey))
+		errs = append(errs, i18n.Errorf("config.bad_wait_key", c.Exit.WaitKey))
 	}
 	for name, d := range map[string]Duration{"watch.delay": c.Watch.Delay, "watch.max_delay": c.Watch.MaxDelay,
 		"exit.delay": c.Exit.Delay, "hooks.timeout": c.Hooks.Timeout} {
 		if d < 0 {
-			errs = append(errs, fmt.Errorf("%s : durée négative", name))
+			errs = append(errs, i18n.Errorf("config.negative_duration", name))
 		}
 	}
 	if c.Ready != nil && c.Ready.Timeout < 0 {
-		errs = append(errs, errors.New("ready.timeout : durée négative"))
+		errs = append(errs, i18n.Errorf("config.negative_duration", "ready.timeout"))
 	}
 	if c.Ready != nil && c.Ready.File == "" {
-		errs = append(errs, errors.New("ready.file est obligatoire quand ready est présent"))
+		errs = append(errs, errors.New(i18n.T("config.ready_file_required")))
 	}
 	for i, a := range append(append([]Action{}, c.Hooks.Before...), c.Hooks.After...) {
 		if err := a.validate(); err != nil {
-			errs = append(errs, fmt.Errorf("action %d : %w", i+1, err))
+			errs = append(errs, i18n.Errorf("config.action", i+1, err))
 		}
 	}
 	if c.Track != "" && !processName(c.Track) {
-		errs = append(errs, fmt.Errorf("track : %q doit être un nom de process seul, extension comprise (ex. dcs.exe)", c.Track))
+		errs = append(errs, i18n.Errorf("config.bad_track", c.Track))
 	}
 	for _, n := range c.KillOnExit {
 		if !processName(n) {
-			errs = append(errs, fmt.Errorf("kill_on_exit : %q doit être un nom de process seul, extension comprise (ex. SR-ClientRadio.exe)", n))
+			errs = append(errs, i18n.Errorf("config.bad_kill_on_exit", n))
 		}
 	}
 	c.Sync = nil
@@ -306,19 +313,19 @@ func (c *Config) validate() error {
 		a, b, ok := strings.Cut(line, "<->")
 		a, b = strings.TrimSpace(a), strings.TrimSpace(b)
 		if !ok || a == "" || b == "" {
-			errs = append(errs, fmt.Errorf("sync : %q n'a pas la forme \"profil <-> live\"", line))
+			errs = append(errs, i18n.Errorf("config.bad_sync", line))
 			continue
 		}
 		pair := SyncPair{Source: c.abs(a), Target: c.abs(b)}
 		// Two sources for one live file: the copy back would overwrite both with the same content.
 		key := strings.ToLower(pair.Target)
 		if prev, dup := targets[key]; dup {
-			errs = append(errs, fmt.Errorf("sync : %s est la cible de deux lignes (%s et %s)", pair.Target, prev, pair.Source))
+			errs = append(errs, i18n.Errorf("config.dup_target", pair.Target, prev, pair.Source))
 		}
 		targets[key] = pair.Source
 		// Two live files for one profile file: the copy back would keep only the last one.
 		if prev, dup := sources[strings.ToLower(pair.Source)]; dup {
-			errs = append(errs, fmt.Errorf("sync : %s est la source de deux lignes (vers %s et %s)", pair.Source, prev, pair.Target))
+			errs = append(errs, i18n.Errorf("config.dup_source", pair.Source, prev, pair.Target))
 		}
 		sources[strings.ToLower(pair.Source)] = pair.Target
 		c.Sync = append(c.Sync, pair)
@@ -336,7 +343,7 @@ func (a Action) validate() error {
 	if a.Copy != nil {
 		n++
 		if a.Copy.From == "" || a.Copy.To == "" {
-			return errors.New("copy demande from et to")
+			return errors.New(i18n.T("config.copy_fields"))
 		}
 	}
 	if a.Delete != "" {
@@ -346,7 +353,7 @@ func (a Action) validate() error {
 		n++
 	}
 	if n != 1 {
-		return errors.New("une action contient exactement une clé parmi copy, delete, exec")
+		return errors.New(i18n.T("config.one_action"))
 	}
 	return nil
 }
