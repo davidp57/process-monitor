@@ -64,6 +64,18 @@ func (r *Runner) Before(ctx context.Context, c *config.Config) error {
 	return nil
 }
 
+// BeforeRestart runs the before actions again, without the sync copies
+// (the profile is already in place): pm watch calls it before each restart,
+// so a crashed program starts as clean as the first time. Every action runs
+// and all failures are returned: a watchdog relaunches anyway.
+func (r *Runner) BeforeRestart(ctx context.Context, c *config.Config) error {
+	var errs []error
+	for _, a := range c.Hooks.Before {
+		errs = append(errs, r.run(ctx, a))
+	}
+	return errors.Join(errs...)
+}
+
 func take(path string) (snapshot, error) {
 	info, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {

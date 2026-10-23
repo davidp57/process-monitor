@@ -284,6 +284,27 @@ func TestDetachDuringRestartDelayRunsAfterHooks(t *testing.T) {
 	}
 }
 
+// Like 1.x: the before actions (a cleanup) run again before every restart,
+// the sync copies only once.
+func TestWatchReplaysBeforeActionsOnRestart(t *testing.T) {
+	d := t.TempDir()
+	prof, live, count := filepath.Join(d, "prof"), filepath.Join(d, "live"), filepath.Join(d, "count")
+	put(t, prof, "p")
+	put(t, count, "")
+	c := newConfig(t, "exit:3")
+	c.Watch.MaxRestarts = 2
+	c.Sync = []config.SyncPair{{Source: prof, Target: live}}
+	c.Hooks.Before = []config.Action{{Exec: []string{"cmd", "/c", "echo x>>" + count}}}
+	log, _ := logger(t)
+	runWithin(t, New(c, log, config.RestartAlways), 30*time.Second)
+	if n := strings.Count(read(t, count), "x"); n != 3 {
+		t.Errorf("actions avant exécutées %d fois, attendu 3 (lancement + 2 relances)", n)
+	}
+	if _, err := os.Stat(live + ".bak"); err == nil {
+		t.Error("la copie sync a été refaite à une relance")
+	}
+}
+
 func TestKillOnExitStopsListedProcesses(t *testing.T) {
 	c := newConfig(t, "exit:0")
 	radio := program(t)

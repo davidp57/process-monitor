@@ -71,6 +71,7 @@ type Session struct {
 	cmds chan command
 
 	readyUsable bool // the stale ready file is gone: its appearance proves something
+	hooks       *hooks.Runner
 
 	mu             sync.Mutex
 	state          State
@@ -165,6 +166,7 @@ func (s *Session) Run(ctx context.Context) error {
 	}
 
 	h := &hooks.Runner{Log: s.log, Backup: c.BackupEnabled(), Timeout: c.Hooks.Timeout.D()}
+	s.hooks = h
 	if err := h.Before(ctx, c); err != nil {
 		s.update(func(st *State) { st.Status = Finished })
 		return fmt.Errorf("actions de départ en échec, %s n'a pas été lancé : %w", c.Command, err)
@@ -333,7 +335,13 @@ func (s *Session) loop(ctx context.Context) (err error, detached bool) {
 	c := s.cfg
 	delay := c.Watch.Delay.D()
 	quick := 0 // consecutive quick crashes, for the backoff
-	for crashes := 0; ; {
+	for crashes, first := 0, true; ; first = false {
+		if !first && len(c.Hooks.Before) > 0 {
+			s.log.Infof("actions avant rejouées avant la relance")
+			if err := s.hooks.BeforeRestart(ctx, c); err != nil {
+				s.log.Warnf("actions avant en échec, relance quand même : %v", err)
+			}
+		}
 		p, startErr := s.start()
 		begin := time.Now()
 		s.restartHandled() // a new run exists: a new press may restart it
