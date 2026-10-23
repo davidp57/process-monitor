@@ -16,6 +16,7 @@ import (
 	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/logx"
 	"github.com/davidp57/process-monitor/internal/session"
+	"github.com/davidp57/process-monitor/internal/tray"
 	"github.com/davidp57/process-monitor/internal/tui"
 )
 
@@ -23,8 +24,10 @@ var version = "dev" // set by the release build: -ldflags "-X main.version=x.y.z
 
 const usage = `pm %s — lance un programme et l'encadre.
 
-  pm run   <config.yaml> [--profile NOM]            actions avant → lancement → attente de la fin → actions après
-  pm watch <config.yaml> [--profile NOM] [--no-tui] garde le programme en vie (relance), actions avant/après la session
+  pm run   <config.yaml> [--profile NOM] [--tray]            actions avant → lancement → attente de la fin → actions après
+  pm watch <config.yaml> [--profile NOM] [--tray|--no-tui]  garde le programme en vie (relance), actions avant/après la session
+
+  --tray : une icône dans la zone de notification à la place de la fenêtre console (ou ui: tray dans la config)
   pm check <config.yaml> [--profile NOM]            valide la config et affiche ce qui sera fait
   pm version
 `
@@ -35,7 +38,7 @@ func main() {
 
 type args struct {
 	cmd, path, profile string
-	noTUI              bool
+	noTUI, tray        bool
 }
 
 // parse accepts flags before or after the config path.
@@ -58,6 +61,8 @@ func parse(argv []string) (args, error) {
 			a.profile = strings.TrimPrefix(arg, "--profile=")
 		case arg == "--no-tui":
 			a.noTUI = true
+		case arg == "--tray":
+			a.tray = true
 		case strings.HasPrefix(arg, "-"):
 			return a, fmt.Errorf("option inconnue %s", arg)
 		case a.path == "":
@@ -99,13 +104,17 @@ func run(argv []string) int {
 		return 0
 	}
 
-	useTUI := a.cmd == "watch" && !a.noTUI
+	useTray := a.tray || cfg.UI == config.UITray
+	useTUI := a.cmd == "watch" && !a.noTUI && !useTray
+	// From a shortcut the console is ours alone: give it back, its window
+	// closes. From a terminal it is shared: keep printing to it.
+	console := !(useTray && releaseConsole())
 	prefix := cfg.Name
 	if cfg.Profile != "" {
 		prefix += "-" + cfg.Profile
 	}
 	var sink func(logx.Line)
-	if !useTUI {
+	if !useTUI && console {
 		sink = func(l logx.Line) { fmt.Println(l) }
 	}
 	log, err := logx.New(cfg.Log.Dir, prefix, cfg.Log.Keep, sink)
@@ -133,6 +142,10 @@ func run(argv []string) int {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	if useTray {
+		err = tray.Run(ctx, s, log, a.cmd == "watch")
+		return finalCode(a, s, err, log)
+	}
 	go interrupts(log, cancel, func() session.Status { return s.State().Status })
 	err = s.Run(ctx)
 	code := s.State().ExitCode
@@ -147,13 +160,19 @@ func run(argv []string) int {
 		log.Infof("session terminée")
 	}
 	finish(cfg, err != nil || log.Errors() > 0)
+	return finalCode(a, s, err, log)
+}
+
+// finalCode is pm's exit code: 1 when pm failed, the program's own code for
+// pm run, and 1 for a pm run that detached (its copy-back did not happen).
+func finalCode(a args, s *session.Session, err error, log *logx.Logger) int {
 	if rc := exitCode(err, log); rc != 0 || a.cmd != "run" {
 		return rc
 	}
-	if detached {
-		return 1 // pm run without its copy-back is not a success
+	if s.State().Status == session.Detached {
+		return 1
 	}
-	return code // pm run passes the program's exit code on
+	return s.State().ExitCode
 }
 
 // interrupts acts on a second Ctrl+C within five seconds: one stray

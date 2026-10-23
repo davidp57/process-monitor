@@ -35,8 +35,8 @@ Une compilation locale affiche la version `dev` ; les versions publiées sont su
 ## Utilisation
 
 ```
-pm run   <config.yaml> [--profile NOM]
-pm watch <config.yaml> [--profile NOM] [--no-tui]
+pm run   <config.yaml> [--profile NOM] [--tray]
+pm watch <config.yaml> [--profile NOM] [--tray | --no-tui]
 pm check <config.yaml> [--profile NOM]
 pm version
 ```
@@ -84,6 +84,17 @@ Touches de l'interface :
 
 `--no-tui` remplace l'interface par un journal en texte simple, par exemple pour un lancement en service.
 
+### Sans fenêtre : l'icône de notification
+
+`--tray`, ou `ui: tray` dans la config, remplace la fenêtre par une icône dans la zone de notification, pour `pm run` comme pour `pm watch`.
+Lancé depuis un raccourci, pm rend sa fenêtre console dès le démarrage (elle apparaît une fraction de seconde) ; lancé depuis un terminal, il continue d'y écrire.
+
+- **Couleur** : verte quand le programme tourne, orange pendant les copies, l'attente du lanceur ou avant une relance, grise en pause, rouge après une erreur. L'infobulle donne la session, le profil et l'état.
+- **Menu** : ouvrir le journal ; arrêter et finir (actions *après* exécutées) ; détacher, après une confirmation qui dit ce que ça coûte selon le moment (annuler au démarrage, terminer pendant le délai de relance, sinon laisser le programme sans copie retour). En `watch` : pause, reprise, relance.
+- **À la fin** : si la session a échoué, une fenêtre Windows dit ce qui a échoué et où est le journal ; sinon l'icône disparaît.
+
+Il n'y a plus de fenêtre à fermer par mégarde : on ne quitte que par le menu.
+
 ## Comment pm suit un programme
 
 Le programme est lancé dans un **Job Object** Windows : tous les process qu'il crée y restent rattachés.
@@ -117,6 +128,7 @@ track: dcs.exe                  # process à suivre à la place du programme lan
 kill_on_exit: [SR-ClientRadio.exe]  # arrêtés quand le process suivi s'est terminé, où qu'ils tournent
 if_running: abort               # abort (défaut) ou kill, voir Garde-fous
 capture: false                  # sortie du programme dans le journal (et pas de fenêtre console)
+ui: console                     # console (défaut) ou tray : une icône de notification, comme --tray
 ready: { file: '${saved}\dcs.lock', timeout: 3m }
 backup: true                    # garde un .bak de chaque fichier écrasé (défaut)
 
