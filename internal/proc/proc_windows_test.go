@@ -69,6 +69,11 @@ func TestMain(m *testing.M) {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(99)
 		}
+		if sib := os.Getenv("PM_SIBLING"); sib != "" { // something else the game starts, like a radio client
+			other := exec.Command(sib)
+			other.Env = append(os.Environ(), "PM_HELPER=sleep:8000:0", "PM_SIBLING=")
+			other.Start()
+		}
 		if kind == "linger" {
 			time.Sleep(5 * time.Second) // a launcher that outlives the game
 			mark("PM_MARK_LAUNCHER")
@@ -244,6 +249,25 @@ func TestTrackWaitsForLingeringLauncher(t *testing.T) {
 	r := wait(t, p, 20*time.Second)
 	if r.ExitCode != 7 || r.Err != nil || !exited(launcherDone) {
 		t.Errorf("result = %+v, lanceur fini = %v (events %q)", r, exited(launcherDone), events)
+	}
+}
+
+// The game exits while something it started (a radio client) still runs:
+// that one is not waited for, only the launcher would be.
+func TestTrackDoesNotWaitForOtherLeftovers(t *testing.T) {
+	game := copySelf(t, "pm-test-sim.exe")
+	radio := copySelf(t, "pm-test-radio.exe")
+	var events []string
+	p := start(t, "launch:"+game+":sleep:500:7", Spec{Track: "pm-test-sim.exe", TrackGrace: 5 * time.Second,
+		Env: []string{"PM_SIBLING=" + radio}, Event: func(m string) { events = append(events, m) }})
+	t.Cleanup(func() { p.Kill() }) // the radio is still in the job
+	begin := time.Now()
+	r := wait(t, p, 20*time.Second)
+	if r.ExitCode != 7 || r.Err != nil || time.Since(begin) > 6*time.Second {
+		t.Errorf("result = %+v après %s (events %q)", r, time.Since(begin), events)
+	}
+	if !strings.Contains(strings.Join(events, "|"), "pm-test-radio.exe") {
+		t.Errorf("le process restant n'est pas signalé : %q", events)
 	}
 }
 

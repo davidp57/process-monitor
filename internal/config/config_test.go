@@ -119,6 +119,7 @@ func TestGuards(t *testing.T) {
 		"dup source":  {"command: a.exe\nhooks: {sync: ['C:\\p <-> a', 'c:\\P <-> b']}\n", "source de deux lignes"},
 		"two docs":    {"command: a.exe\n---\nhooks: {before: [{delete: x}]}\n", "un seul document"},
 		"neg delay":   {"command: a.exe\nwatch: {delay: -2s}\n", "négative"},
+		"kill path":   {"command: a.exe\nkill_on_exit: ['C:\\x\\srs.exe']\n", "kill_on_exit"},
 	}
 	for name, tc := range cases {
 		_, err := Load(write(t, tc.yml), "")

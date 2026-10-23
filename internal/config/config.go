@@ -19,22 +19,25 @@ import (
 
 // Config is a fully loaded, profile-applied and expanded configuration.
 type Config struct {
-	Name      string             `yaml:"name"`
-	Vars      map[string]string  `yaml:"vars"`
-	Command   string             `yaml:"command"`
-	Args      []string           `yaml:"args"`
-	Workdir   string             `yaml:"workdir"`
-	Env       map[string]string  `yaml:"env"`
-	Track     string             `yaml:"track"`
-	IfRunning string             `yaml:"if_running"`
-	Capture   bool               `yaml:"capture"`
-	Ready     *Ready             `yaml:"ready"`
-	Hooks     Hooks              `yaml:"hooks"`
-	Backup    *bool              `yaml:"backup"`
-	Log       Log                `yaml:"log"`
-	Watch     Watch              `yaml:"watch"`
-	Exit      Exit               `yaml:"exit"`
-	Profiles  map[string]Profile `yaml:"profiles"`
+	Name    string            `yaml:"name"`
+	Vars    map[string]string `yaml:"vars"`
+	Command string            `yaml:"command"`
+	Args    []string          `yaml:"args"`
+	Workdir string            `yaml:"workdir"`
+	Env     map[string]string `yaml:"env"`
+	Track   string            `yaml:"track"`
+	// KillOnExit names processes to stop once the followed one has exited
+	// (a radio client the game started, say).
+	KillOnExit []string           `yaml:"kill_on_exit"`
+	IfRunning  string             `yaml:"if_running"`
+	Capture    bool               `yaml:"capture"`
+	Ready      *Ready             `yaml:"ready"`
+	Hooks      Hooks              `yaml:"hooks"`
+	Backup     *bool              `yaml:"backup"`
+	Log        Log                `yaml:"log"`
+	Watch      Watch              `yaml:"watch"`
+	Exit       Exit               `yaml:"exit"`
+	Profiles   map[string]Profile `yaml:"profiles"`
 
 	// Filled by Load, not by YAML.
 	Profile string     `yaml:"-"`
@@ -270,8 +273,13 @@ func (c *Config) validate() error {
 			errs = append(errs, fmt.Errorf("action %d : %w", i+1, err))
 		}
 	}
-	if c.Track != "" && (strings.ContainsAny(c.Track, `\/`) || filepath.Ext(c.Track) == "") {
+	if c.Track != "" && !processName(c.Track) {
 		errs = append(errs, fmt.Errorf("track : %q doit être un nom de process seul, extension comprise (ex. dcs.exe)", c.Track))
+	}
+	for _, n := range c.KillOnExit {
+		if !processName(n) {
+			errs = append(errs, fmt.Errorf("kill_on_exit : %q doit être un nom de process seul, extension comprise (ex. SR-ClientRadio.exe)", n))
+		}
 	}
 	c.Sync = nil
 	targets, sources := map[string]string{}, map[string]string{}
@@ -297,6 +305,11 @@ func (c *Config) validate() error {
 		c.Sync = append(c.Sync, pair)
 	}
 	return errors.Join(errs...)
+}
+
+// processName reports whether s is an image name alone, extension included.
+func processName(s string) bool {
+	return !strings.ContainsAny(s, `\/`) && filepath.Ext(s) != ""
 }
 
 func (a Action) validate() error {

@@ -242,6 +242,19 @@ func (s *Session) checkRunning(names []string) error {
 	return nil
 }
 
+// killOnExit stops the processes listed in kill_on_exit, wherever they run:
+// what the game started for itself (a radio client) has no use once it is gone.
+func (s *Session) killOnExit() {
+	for _, name := range s.cfg.KillOnExit {
+		n, err := proc.KillByName(name, 10*time.Second)
+		if err != nil {
+			s.log.Errorf("kill_on_exit %s : %v", name, err)
+		} else if n > 0 {
+			s.log.Infof("kill_on_exit : %d instance(s) de %s arrêtée(s)", n, name)
+		}
+	}
+}
+
 // liveKey names the lock of a live file, the same for any spelling of its path.
 func liveKey(path string) string {
 	sum := sha256.Sum256([]byte(strings.ToLower(filepath.Clean(path))))
@@ -352,6 +365,7 @@ func (s *Session) loop(ctx context.Context) (err error, detached bool) {
 				_ = p.Kill() // leftovers of this run must not pile up with the next one
 			}
 			p.Close()
+			s.killOnExit()
 		}
 
 		ran := time.Since(begin).Round(time.Second)

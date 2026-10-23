@@ -267,14 +267,18 @@ func (p *winProcess) follow() {
 			if time.Since(lastAt) <= handoverGrace {
 				continue
 			}
-			// The after hooks must never run while anything of the session
-			// still runs (a launcher about to start the game again, say).
-			if !p.allExited() {
+			// Wait for the launcher only: it may start the game again (after
+			// an update, say). Anything else the game started (a radio
+			// client, an overlay) is not waited for: kill_on_exit deals
+			// with it.
+			if launchers, others := p.remaining(); len(launchers) > 0 {
 				if !lingerTold {
 					lingerTold = true
-					p.spec.event(fmt.Sprintf("%s s'est terminé, mais des process de la session tournent encore (pid %v) : attente de leur fin", p.spec.Track, p.jobPIDs()))
+					p.spec.event(fmt.Sprintf("%s s'est terminé, mais son lanceur tourne encore (%s) : attente de sa fin", p.spec.Track, strings.Join(launchers, ", ")))
 				}
 				continue
+			} else if len(others) > 0 {
+				p.spec.event(fmt.Sprintf("%s s'est terminé ; process lancés pendant la session et non attendus : %s", p.spec.Track, strings.Join(others, ", ")))
 			}
 			p.finish(*last)
 			return
@@ -304,6 +308,35 @@ func (p *winProcess) finish(r Result) {
 	}
 	p.result = r
 	close(p.done)
+}
+
+// remaining lists the session's processes still running, as "name (pid)":
+// the launcher (same image name as the launched command) apart from the rest.
+func (p *winProcess) remaining() (launchers, others []string) {
+	if p.job == 0 {
+		select {
+		case <-p.mainExited:
+			return nil, nil
+		default:
+			return []string{fmt.Sprintf("%s (%d)", filepath.Base(p.spec.Command), p.cmd.Process.Pid)}, nil
+		}
+	}
+	launcher := filepath.Base(p.cmd.Path)
+	for _, pid := range p.jobPIDs() {
+		h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
+		if err != nil {
+			continue
+		}
+		name := imageName(h)
+		windows.CloseHandle(h)
+		entry := fmt.Sprintf("%s (%d)", name, pid)
+		if strings.EqualFold(name, launcher) {
+			launchers = append(launchers, entry)
+		} else {
+			others = append(others, entry)
+		}
+	}
+	return launchers, others
 }
 
 // allExited reports whether nothing started by the session is still running.

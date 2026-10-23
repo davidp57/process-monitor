@@ -284,6 +284,29 @@ func TestDetachDuringRestartDelayRunsAfterHooks(t *testing.T) {
 	}
 }
 
+func TestKillOnExitStopsListedProcesses(t *testing.T) {
+	c := newConfig(t, "exit:0")
+	radio := program(t)
+	c.KillOnExit = []string{filepath.Base(radio)}
+	other := exec.Command(radio)
+	other.Env = append(os.Environ(), "PM_HELPER=sleep:30000")
+	if err := other.Start(); err != nil {
+		t.Fatal(err)
+	}
+	stopped := make(chan struct{})
+	go func() { other.Wait(); close(stopped) }()
+	log, _ := logger(t)
+	if err := runWithin(t, New(c, log, config.RestartNever), 15*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-stopped:
+	case <-time.After(5 * time.Second):
+		other.Process.Kill()
+		t.Error("le process listé dans kill_on_exit tourne toujours")
+	}
+}
+
 func TestKillRunsAfterHooksDetachSkipsThem(t *testing.T) {
 	for _, detach := range []bool{false, true} {
 		d := t.TempDir()

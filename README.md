@@ -87,7 +87,8 @@ Beaucoup de programmes passent par un lanceur : `dcs_updater.exe` démarre `dcs.
 - pm le trouve dans le groupe dès sa création ;
 - s'il a quitté le groupe, pm le cherche par son nom parmi les process créés après le lancement ;
 - quand il s'arrête, pm attend encore 3 secondes, au cas où il passerait la main à un autre process du même nom (le Notepad de Windows 11 fait ainsi) ;
-- la session ne se termine que lorsque **plus aucun process du groupe** ne tourne : si le lanceur est encore là (pour relancer le jeu après une mise à jour, par exemple), pm l'attend et le signale dans le journal ;
+- si le **lanceur** tourne encore (pour relancer le jeu après une mise à jour, par exemple), pm l'attend et le signale dans le journal ;
+- les autres process que le jeu a lancés (un client radio comme SRS, un overlay) ne sont **pas** attendus : le journal les nomme, et `kill_on_exit` peut les arrêter ;
 - s'il n'apparaît pas dans les 10 secondes qui suivent la fin de tout le reste, la session se termine en erreur.
 
 ## Configuration
@@ -105,6 +106,7 @@ args: []
 workdir: ${prof}
 env: { CLE: valeur }            # ajoutées à l'environnement de pm
 track: dcs.exe                  # process à suivre à la place du programme lancé
+kill_on_exit: [SR-ClientRadio.exe]  # arrêtés quand le process suivi s'est terminé, où qu'ils tournent
 if_running: abort               # abort (défaut) ou kill, voir Garde-fous
 capture: false                  # sortie du programme dans le journal (et pas de fenêtre console)
 ready: { file: '${saved}\dcs.lock', timeout: 3m }
@@ -186,7 +188,7 @@ Comportements changés :
 - Une action *avant* en échec empêche le lancement (la 1.x le journalisait et lançait quand même).
 - En `pm watch`, les actions *avant* ne sont plus rejouées avant chaque relance, seulement au début de la session.
 - `exit.wait_key` s'applique aussi à l'interface de `pm watch` (la 1.x ignorait `wait_keypress` en mode TUI).
-- La copie retour attend que tous les process du groupe soient terminés, pas seulement le jeu.
+- La copie retour attend la fin du jeu et de son lanceur, pas celle des autres process qu'il a lancés (la 1.x n'attendait que le jeu).
 
 ## Développement
 
