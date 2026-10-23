@@ -16,7 +16,7 @@ It is a single file, `pm.exe`, with nothing to install and no dependency. You st
   Delete temporary files, empty a cache, run a command or a script before the start and after the stop.
   → [Example: back up before starting](examples/backup.md)
 - **Close what the program opened on the side.**
-  A radio client, an overlay started by the game: Process Monitor can close them when the game stops.
+  A radio client, an overlay started by the game: Process Monitor can close them when the game stops (see [Side programs](features.md#kill-on-exit)).
 - **Never mix two profiles.**
   If the game already runs, or another profile of the same game is in use, Process Monitor refuses to start rather than overwrite settings.
 - **Run quietly.**

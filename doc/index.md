@@ -16,7 +16,7 @@ C'est un seul fichier, `pm.exe`, sans installation ni dépendance. On le lance d
   Supprimer des fichiers temporaires, vider un cache, lancer une commande ou un script avant le démarrage et après l'arrêt.
   → [Exemple : sauvegarder avant de lancer](examples/backup.md)
 - **Fermer ce que le programme a ouvert à côté.**
-  Un client radio, un overlay lancés par le jeu : Process Monitor peut les fermer quand le jeu s'arrête.
+  Un client radio, un overlay lancés par le jeu : Process Monitor peut les fermer quand le jeu s'arrête (voir [Programmes annexes](features.md#kill-on-exit)).
 - **Ne jamais mélanger deux profils.**
   Si le jeu tourne déjà, ou si un autre profil du même jeu est en cours, Process Monitor refuse de démarrer plutôt que d'écraser des réglages.
 - **Tourner discrètement.**

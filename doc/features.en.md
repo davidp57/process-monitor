@@ -61,7 +61,7 @@ hooks:
   timeout: 10m                  # longest an exec command may run
 ```
 
-- If a *before* action fails, nothing is launched, and the files already replaced are put back as they were.
+- If a *before* action fails, nothing is launched, and the live files already replaced by the `sync` lines are put back as they were. The `copy` and `delete` actions already done are not undone (a `copy` leaves the previous file as `.bak`).
 - If an *after* action fails, the following ones still run.
 - An `exec` command runs in the config's folder, without opening a window; its output goes to the log.
 
@@ -110,7 +110,7 @@ The *before* actions (a cleanup) run again before every restart; the `sync` line
 kill_on_exit: [SR-ClientRadio.exe]
 ```
 
-Process Monitor does not wait for these programs before bringing the settings back; those in the list are stopped once the followed program has exited.
+With `track`, Process Monitor does not wait for these programs before bringing the settings back, and those in the list are stopped once the followed program has exited. Without `track`, the session waits for every program it started, these included: `kill_on_exit` only stops them afterwards, so it is only useful with `track`.
 
 ## The notification icon {#tray}
 
@@ -128,7 +128,7 @@ The icon is green while the program runs, orange during the copies or before a r
 ```yaml
 capture: true                       # the program's output into the log
 log: { dir: '${config_dir}\logs', keep: 5 }
-lang: en                            # fr or en; else --lang, PM_LANG, or the Windows language
+lang: en                            # fr or en; --lang and PM_LANG win over it; with none, the Windows language
 ```
 
 Each session writes its log: steps, copies, errors, and the program's output with `capture`. Only the `keep` most recent are kept.

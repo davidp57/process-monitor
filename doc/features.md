@@ -61,7 +61,7 @@ hooks:
   timeout: 10m                  # durée maximale d'une commande exec
 ```
 
-- Si une action *avant* échoue, rien n'est lancé, et les fichiers déjà remplacés sont remis comme avant.
+- Si une action *avant* échoue, rien n'est lancé, et les fichiers live déjà remplacés par les lignes `sync` sont remis comme avant. Les actions `copy` et `delete` déjà faites, elles, ne sont pas défaites (un `copy` laisse l'ancien fichier en `.bak`).
 - Si une action *après* échoue, les suivantes s'exécutent quand même.
 - Une commande `exec` s'exécute dans le dossier de la config, sans ouvrir de fenêtre ; sa sortie va dans le journal.
 
@@ -110,7 +110,7 @@ Les actions *avant* (un nettoyage) sont rejouées avant chaque relance ; les lig
 kill_on_exit: [SR-ClientRadio.exe]
 ```
 
-Process Monitor n'attend pas ces programmes pour récupérer les réglages ; ceux de la liste sont arrêtés quand le programme suivi s'est terminé.
+Avec `track`, Process Monitor n'attend pas ces programmes pour récupérer les réglages, et ceux de la liste sont arrêtés quand le programme suivi s'est terminé. Sans `track`, la session attend la fin de tous les programmes lancés, ceux-là compris : `kill_on_exit` ne les arrête qu'ensuite, donc ne sert qu'avec `track`.
 
 ## L'icône de notification {#tray}
 
@@ -128,7 +128,7 @@ L'icône est verte quand le programme tourne, orange pendant les copies ou avant
 ```yaml
 capture: true                       # la sortie du programme dans le journal
 log: { dir: '${config_dir}\logs', keep: 5 }
-lang: fr                            # fr ou en ; sinon --lang, PM_LANG, ou la langue de Windows
+lang: fr                            # fr ou en ; --lang et PM_LANG l'emportent ; sans rien, la langue de Windows
 ```
 
 Chaque session écrit son journal : étapes, copies, erreurs, et la sortie du programme avec `capture`. Seuls les `keep` plus récents sont gardés.
