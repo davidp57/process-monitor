@@ -19,7 +19,7 @@ import (
 	"github.com/davidp57/process-monitor/internal/tui"
 )
 
-var version = "2.0.0"
+var version = "dev" // set by the release build: -ldflags "-X main.version=x.y.z"
 
 const usage = `pm %s — lance un programme et l'encadre.
 

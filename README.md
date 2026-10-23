@@ -30,6 +30,7 @@ go build -o dist/pm.exe ./cmd/pm
 ```
 
 `dist/pm.exe` se copie où l'on veut : il n'a besoin de rien d'autre.
+Une compilation locale affiche la version `dev` ; les versions publiées sont sur la page [Releases](https://github.com/davidp57/process-monitor/releases).
 
 ## Utilisation
 
@@ -62,7 +63,8 @@ Fermer la fenêtre de la console a le même effet, sans confirmation possible : 
 Relance le programme à chaque arrêt, selon `watch.restart`.
 Un arrêt moins de 10 secondes après le lancement compte comme un plantage en boucle : le premier attend `watch.delay`, chaque suivant double le délai, jusqu'à `watch.max_delay`.
 `watch.max_restarts` ne compte que les relances automatiques, pas celles demandées avec `r`.
-Les actions *avant* et *après* encadrent la session entière, pas chaque relance.
+Les lignes `sync` sont copiées une fois au début et recopiées une fois à la fin de la session.
+Les autres actions *avant* (un nettoyage, par exemple) sont rejouées avant chaque relance, comme en 1.x ; les actions *après* ne s'exécutent qu'à la fin.
 
 Touches de l'interface :
 
@@ -186,16 +188,23 @@ Comportements changés :
 - Les actions de fin s'exécutent une seule fois (la 1.x les jouait jusqu'à trois fois).
 - Un programme déjà lancé n'est plus « adopté » : pm refuse (ou l'arrête avec `if_running: kill`).
 - Une action *avant* en échec empêche le lancement (la 1.x le journalisait et lançait quand même).
-- En `pm watch`, les actions *avant* ne sont plus rejouées avant chaque relance, seulement au début de la session.
 - `exit.wait_key` s'applique aussi à l'interface de `pm watch` (la 1.x ignorait `wait_keypress` en mode TUI).
 - La copie retour attend la fin du jeu et de son lanceur, pas celle des autres process qu'il a lancés (la 1.x n'attendait que le jeu).
 
 ## Développement
 
+Le fonctionnement du dépôt (tickets, branches, revue, releases) est décrit dans [`CLAUDE.md`](CLAUDE.md), le vocabulaire dans [`CONTEXT.md`](CONTEXT.md), les décisions dans [`docs/adr/`](docs/adr/).
+Les tickets sont les [issues GitHub](https://github.com/davidp57/process-monitor/issues).
+
+Ce que vérifie la CI à chaque PR :
+
 ```bash
+gofmt -l .
 go vet ./...
-go test ./...
+go test -race ./...
 ```
+
+Une release se fait avec la commande `/release` : un tag `vX.Y.Z` sur `main` compile `pm.exe` et publie la Release GitHub, avec `RELEASE_NOTES.md` pour texte.
 
 Les tests de `internal/proc` et `internal/session` lancent de vrais process : des copies du binaire de test, sans fenêtre.
 Ils couvrent le passage de main d'un lanceur à son programme, un programme qui quitte le Job Object, et deux process de même nom.
