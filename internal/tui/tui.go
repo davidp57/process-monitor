@@ -64,7 +64,9 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger) error {
 	m := &model{s: s, cfg: s.Config(), logPath: log.Path, errors: log.Errors, follow: true}
 	prog := tea.NewProgram(m, tea.WithAltScreen())
 	log.SetSink(func(l logx.Line) { prog.Send(lineMsg(l)) })
+	ended := make(chan struct{})
 	go func() {
+		defer close(ended)
 		err := s.Run(ctx)
 		if err != nil {
 			log.Errorf("session terminée en erreur : %v", err) // reaches both the file and the screen
@@ -74,6 +76,10 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger) error {
 	_, err := prog.Run()
 	log.SetSink(nil)
 	if err != nil {
+		// The interface is gone: do not leave the session running behind pm's back.
+		log.Errorf("interface en échec (%v) : session détachée", err)
+		s.Detach()
+		<-ended
 		return err
 	}
 	return m.err
@@ -228,6 +234,9 @@ func (m *model) footer() string {
 		return key.Render("une touche") + dim.Render(" pour fermer")
 	case m.finished:
 		return dim.Render(fmt.Sprintf("fermeture dans %s — ", time.Until(m.closeAt).Round(time.Second))) + key.Render("q") + dim.Render(" fermer")
+	case m.confirmQ && m.s.State().Status == session.Restarting:
+		// Between two runs nothing is left to detach from: quitting ends the session.
+		return key.Render("q") + dim.Render(" encore une fois pour terminer sans relancer : les actions de fin seront exécutées")
 	case m.confirmQ:
 		return key.Render("q") + dim.Render(" encore une fois pour détacher : le programme continue, les actions de fin ne seront PAS exécutées")
 	}

@@ -50,12 +50,29 @@ type Process interface {
 	Close()
 }
 
+// maxLine caps one output line; the rest of an overlong line is dropped,
+// but the pipe keeps being drained so the program never blocks on it.
+const maxLine = 64 * 1024
+
 func pump(r io.ReadCloser, out func(string)) {
 	defer r.Close()
-	s := bufio.NewScanner(r)
-	s.Buffer(make([]byte, 64*1024), 1024*1024)
-	for s.Scan() {
-		out(strings.TrimRight(s.Text(), "\r"))
+	br := bufio.NewReader(r)
+	var line []byte
+	for {
+		chunk, isPrefix, err := br.ReadLine()
+		if len(line) < maxLine {
+			line = append(line, chunk[:min(len(chunk), maxLine-len(line))]...)
+		}
+		if err != nil {
+			if len(line) > 0 {
+				out(strings.TrimRight(string(line), "\r"))
+			}
+			return
+		}
+		if !isPrefix {
+			out(strings.TrimRight(string(line), "\r"))
+			line = line[:0]
+		}
 	}
 }
 

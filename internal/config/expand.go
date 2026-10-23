@@ -70,9 +70,15 @@ func (c *Config) expand() error {
 	if len(c.Profiles) > 0 {
 		vars["profile"] = c.Profile // without profiles, ${profile} is an error, never ""
 	}
-	vars["name"] = c.Name
 	vars["config_dir"] = filepath.Dir(c.Path)
 	e := &expander{vars: vars, resolved: map[string]string{}, visiting: map[string]bool{}}
+	// The name may use variables itself; ${name} then gives the expanded value.
+	name, err := e.expand(c.Name)
+	if err != nil {
+		return fmt.Errorf("name : %w", err)
+	}
+	c.Name = name
+	vars["name"] = name
 
 	var firstErr error
 	x := func(s *string) {
@@ -96,6 +102,13 @@ func (c *Config) expand() error {
 			*s = c.abs(*s)
 		}
 	}
+	// prog anchors a program: a bare name is looked up in PATH, a path
+	// (tools\app.exe) is taken from the config's folder.
+	prog := func(s *string) {
+		if strings.ContainsAny(*s, `\/`) {
+			*s = c.abs(*s)
+		}
+	}
 	xa := func(actions []Action) {
 		for i := range actions {
 			if actions[i].Copy != nil {
@@ -104,10 +117,14 @@ func (c *Config) expand() error {
 			}
 			xp(&actions[i].Delete)
 			xs(actions[i].Exec)
+			if len(actions[i].Exec) > 0 {
+				prog(&actions[i].Exec[0]) // already expanded by xs
+			}
 		}
 	}
 
-	x(&c.Command) // a bare name is looked up in PATH: leave it alone
+	x(&c.Command)
+	prog(&c.Command)
 	xs(c.Args)
 	xp(&c.Workdir)
 	x(&c.Track)

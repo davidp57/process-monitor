@@ -97,8 +97,19 @@ func (l *Logger) Infof(format string, args ...any)  { l.log(Info, format, args..
 func (l *Logger) Warnf(format string, args ...any)  { l.log(Warn, format, args...) }
 func (l *Logger) Errorf(format string, args ...any) { l.log(Error, format, args...) }
 
-// Output records one line printed by the supervised program.
-func (l *Logger) Output(text string) { l.log(Out, "%s", text) }
+// Output records one line printed by the supervised program. Control
+// characters are dropped: escape sequences from the program must not drive
+// the terminal pm shows its own state in.
+func (l *Logger) Output(text string) { l.log(Out, "%s", printable(text)) }
+
+func printable(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '\t' || (r >= 0x20 && r != 0x7f && !(r >= 0x80 && r < 0xa0)) {
+			return r
+		}
+		return -1
+	}, s)
+}
 
 // Errors returns how many errors were logged.
 func (l *Logger) Errors() int {

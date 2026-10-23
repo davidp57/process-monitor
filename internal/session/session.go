@@ -49,6 +49,7 @@ type State struct {
 	Ready     string // "", "en attente", "prêt", "délai dépassé"
 	NextStart time.Time
 	LastExit  string
+	ExitCode  int // of the last run
 }
 
 type command int
@@ -69,9 +70,12 @@ type Session struct {
 
 	cmds chan command
 
-	mu    sync.Mutex
-	state State
-	cur   proc.Process
+	readyUsable bool // the stale ready file is gone: its appearance proves something
+
+	mu             sync.Mutex
+	state          State
+	cur            proc.Process
+	restartPending bool
 }
 
 // New prepares a session. restart is config.RestartNever for pm run.
@@ -99,10 +103,26 @@ func (s *Session) update(fn func(*State)) {
 }
 
 func (s *Session) send(c command) {
+	if c == cmdRestart {
+		// One restart at a time: a second press must not kill the new run.
+		s.mu.Lock()
+		pending := s.restartPending
+		s.restartPending = true
+		s.mu.Unlock()
+		if pending {
+			return
+		}
+	}
 	select {
 	case s.cmds <- c:
 	default: // a command is already pending; drop repeated key presses
 	}
+}
+
+func (s *Session) restartHandled() {
+	s.mu.Lock()
+	s.restartPending = false
+	s.mu.Unlock()
 }
 
 func (s *Session) Pause()   { s.send(cmdPause) }
@@ -144,7 +164,7 @@ func (s *Session) Run(ctx context.Context) error {
 		return err
 	}
 
-	h := &hooks.Runner{Log: s.log, Backup: c.BackupEnabled()}
+	h := &hooks.Runner{Log: s.log, Backup: c.BackupEnabled(), Timeout: c.Hooks.Timeout.D()}
 	if err := h.Before(ctx, c); err != nil {
 		s.update(func(st *State) { st.Status = Finished })
 		return fmt.Errorf("actions de départ en échec, %s n'a pas été lancé : %w", c.Command, err)
@@ -160,10 +180,18 @@ func (s *Session) Run(ctx context.Context) error {
 		return runErr
 	}
 	s.update(func(st *State) { st.Status = Stopping })
-	// Last safety net: never copy back while the program runs unfollowed.
-	if pids, _ := proc.FindByName(c.ProcessName()); len(pids) > 0 && c.Track != "" {
-		s.update(func(st *State) { st.Status = Finished })
-		return errors.Join(runErr, fmt.Errorf("%s tourne encore (pid %v) sans être suivi : actions de fin NON exécutées, pour ne rien recopier pendant qu'il tourne", c.ProcessName(), pids))
+	// Last safety net: never copy back while the program runs unfollowed,
+	// nor when that cannot be checked.
+	if c.Track != "" {
+		pids, err := proc.FindByName(c.ProcessName())
+		if err != nil || len(pids) > 0 {
+			s.update(func(st *State) { st.Status = Finished })
+			why := fmt.Sprintf("tourne encore (pid %v) sans être suivi", pids)
+			if err != nil {
+				why = fmt.Sprintf("n'a pas pu être recherché (%v)", err)
+			}
+			return errors.Join(runErr, fmt.Errorf("%s %s : actions de fin NON exécutées, pour ne rien recopier pendant qu'il tourne", c.ProcessName(), why))
+		}
 	}
 	afterErr := h.After(context.WithoutCancel(ctx), c)
 	s.update(func(st *State) { st.Status = Finished })
@@ -176,10 +204,24 @@ func (s *Session) Run(ctx context.Context) error {
 // handleAlreadyRunning checks the tracked process and the launcher: a
 // launcher busy updating the game counts as a running game.
 func (s *Session) handleAlreadyRunning() error {
-	names := []string{s.cfg.ProcessName()}
-	if launcher := filepath.Base(s.cfg.Command); !strings.EqualFold(launcher, names[0]) {
-		names = append(names, launcher)
+	// Launcher first: killed after its target, it could start it again.
+	names := []string{s.cfg.LauncherName()}
+	if target := s.cfg.ProcessName(); !strings.EqualFold(target, names[0]) {
+		names = append(names, target)
 	}
+	if err := s.checkRunning(names); err != nil || s.cfg.IfRunning == config.IfRunningAbort {
+		return err
+	}
+	// Killed: make sure nothing came back in between.
+	for _, name := range names {
+		if pids, err := proc.FindByName(name); err != nil || len(pids) > 0 {
+			return fmt.Errorf("%s toujours présent après l'arrêt (pid %v, %v) : rien n'a été copié ni lancé", name, pids, err)
+		}
+	}
+	return nil
+}
+
+func (s *Session) checkRunning(names []string) error {
 	for _, name := range names {
 		pids, err := proc.FindByName(name)
 		if err != nil {
@@ -219,12 +261,14 @@ func (s *Session) env() []string {
 
 func (s *Session) start() (proc.Process, error) {
 	c := s.cfg
+	s.readyUsable = c.Ready != nil
 	if c.Ready != nil {
 		// A ready file left by a crash would make the program look ready at once.
 		if err := os.Remove(c.Ready.File); err == nil {
 			s.log.Infof("ancien fichier de démarrage supprimé : %s", c.Ready.File)
 		} else if !errors.Is(err, os.ErrNotExist) {
-			s.log.Warnf("ancien fichier de démarrage impossible à supprimer (%v) : il ne prouvera rien", err)
+			s.readyUsable = false
+			s.log.Warnf("ancien fichier de démarrage impossible à supprimer (%v) : le démarrage ne sera pas suivi", err)
 		}
 	}
 	s.log.Infof("lancement de %s %s", c.Command, strings.Join(c.Args, " "))
@@ -244,7 +288,7 @@ func (s *Session) start() (proc.Process, error) {
 // watchReady reports when the ready file appears, or that it never did.
 func (s *Session) watchReady(done <-chan struct{}) {
 	r := s.cfg.Ready
-	if r == nil {
+	if r == nil || !s.readyUsable {
 		return
 	}
 	s.update(func(st *State) { st.Ready = "en attente" })
@@ -279,6 +323,7 @@ func (s *Session) loop(ctx context.Context) (err error, detached bool) {
 	for crashes := 0; ; {
 		p, startErr := s.start()
 		begin := time.Now()
+		s.restartHandled() // a new run exists: a new press may restart it
 		var res proc.Result
 		killed, restartAsked := false, false
 
@@ -314,7 +359,7 @@ func (s *Session) loop(ctx context.Context) (err error, detached bool) {
 		if res.Err != nil {
 			summary = res.Err.Error()
 		}
-		s.update(func(st *State) { st.LastExit = summary })
+		s.update(func(st *State) { st.LastExit, st.ExitCode = summary, res.ExitCode })
 		switch {
 		case res.Err != nil:
 			s.log.Errorf("fin de session : %s", summary)

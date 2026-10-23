@@ -4,7 +4,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/logx"
@@ -84,6 +86,50 @@ func TestBeforeStopsAtFirstFailure(t *testing.T) {
 	}
 	if r.Log.Errors() != 1 {
 		t.Errorf("erreurs journalisées = %d", r.Log.Errors())
+	}
+}
+
+func TestBeforeFailureRestoresLiveFiles(t *testing.T) {
+	d := t.TempDir()
+	p1, l1 := filepath.Join(d, "p1"), filepath.Join(d, "live", "l1")
+	p2, l2 := filepath.Join(d, "p2"), filepath.Join(d, "live", "l2")
+	put(t, p1, "profile 1")
+	put(t, l1, "live 1")
+	put(t, p2, "profile 2") // l2 does not exist yet
+	c := &config.Config{
+		Sync:  []config.SyncPair{{Source: p1, Target: l1}, {Source: p2, Target: l2}},
+		Hooks: config.Hooks{Before: []config.Action{{Copy: &config.Copy{From: filepath.Join(d, "missing"), To: filepath.Join(d, "x")}}}},
+	}
+	if err := runner(t).Before(context.Background(), c); err == nil {
+		t.Fatal("pas d'erreur")
+	}
+	if read(t, l1) != "live 1" {
+		t.Errorf("l1 = %q, pas remis en état", read(t, l1))
+	}
+	if _, err := os.Stat(l2); !os.IsNotExist(err) {
+		t.Error("l2 aurait dû disparaître : il n'existait pas avant")
+	}
+}
+
+// A command that leaves a program in the background must not hold pm.
+func TestExecDoesNotWaitForBackgroundChild(t *testing.T) {
+	r := runner(t)
+	begin := time.Now()
+	err := r.exec(context.Background(), []string{"cmd", "/c", "start", "/b", "ping", "-n", "12", "127.0.0.1"}) // the background ping ends on its own
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := time.Since(begin); d > 10*time.Second {
+		t.Errorf("exec a attendu %s", d)
+	}
+}
+
+func TestExecTimeout(t *testing.T) {
+	r := runner(t)
+	r.Timeout = 500 * time.Millisecond
+	err := r.exec(context.Background(), []string{"ping", "-n", "10", "127.0.0.1"})
+	if err == nil || !strings.Contains(err.Error(), "délai") {
+		t.Errorf("err = %v", err)
 	}
 }
 

@@ -116,12 +116,33 @@ func TestGuards(t *testing.T) {
 		// Without profiles, ${profile} must not silently become "" (C:\P\ would be deleted).
 		"no profiles": {"command: a.exe\nhooks: {before: [{delete: 'C:\\P\\${profile}'}]}\n", "${profile} non définie"},
 		"dup target":  {"command: a.exe\nhooks: {sync: ['a <-> C:\\x', 'b <-> c:\\X']}\n", "cible de deux lignes"},
+		"dup source":  {"command: a.exe\nhooks: {sync: ['C:\\p <-> a', 'c:\\P <-> b']}\n", "source de deux lignes"},
+		"two docs":    {"command: a.exe\n---\nhooks: {before: [{delete: x}]}\n", "un seul document"},
+		"neg delay":   {"command: a.exe\nwatch: {delay: -2s}\n", "négative"},
 	}
 	for name, tc := range cases {
 		_, err := Load(write(t, tc.yml), "")
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s : err = %v, attendu %q", name, err, tc.want)
 		}
+	}
+}
+
+func TestNamesAndPrograms(t *testing.T) {
+	p := write(t, "name: ${who}-game\nvars: {who: dav}\ncommand: tools\\app\nhooks: {before: [{exec: [bin\\x.cmd, arg]}, {exec: [cmd, /c, ok]}]}\n")
+	c, err := Load(p, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Dir(p)
+	if c.Name != "dav-game" {
+		t.Errorf("name = %q", c.Name)
+	}
+	if c.Command != filepath.Join(dir, "tools", "app") || c.LauncherName() != "app.exe" {
+		t.Errorf("command = %q, launcher = %q", c.Command, c.LauncherName())
+	}
+	if c.Hooks.Before[0].Exec[0] != filepath.Join(dir, "bin", "x.cmd") || c.Hooks.Before[1].Exec[0] != "cmd" {
+		t.Errorf("exec = %q / %q", c.Hooks.Before[0].Exec[0], c.Hooks.Before[1].Exec[0])
 	}
 }
 

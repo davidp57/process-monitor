@@ -135,15 +135,21 @@ func run(argv []string) int {
 	defer cancel()
 	go interrupts(log, cancel)
 	err = s.Run(ctx)
+	code := s.State().ExitCode
 	if err != nil {
 		log.Errorf("%v", err)
 	} else if s.State().Status == session.Detached {
 		log.Warnf("pm s'arrête, le programme continue sans surveillance")
+	} else if code != 0 && a.cmd == "run" {
+		log.Warnf("session terminée, le programme a rendu le code %d", code)
 	} else {
 		log.Infof("session terminée")
 	}
 	finish(cfg, err != nil || log.Errors() > 0)
-	return exitCode(err, log)
+	if rc := exitCode(err, log); rc != 0 || a.cmd != "run" {
+		return rc
+	}
+	return code // pm run passes the program's exit code on
 }
 
 // interrupts detaches on a second Ctrl+C within five seconds: one stray
@@ -225,7 +231,14 @@ func printPlan(c *config.Config) {
 		fmt.Printf("  copie  %s\n      -> %s%s\n", p.Source, p.Target, mark)
 	}
 	for _, a := range c.Hooks.Before {
-		fmt.Println("  " + describe(a))
+		mark := ""
+		if a.Copy != nil {
+			if _, err := os.Stat(a.Copy.From); err != nil {
+				mark = "   ← SOURCE ABSENTE"
+				missing++
+			}
+		}
+		fmt.Println("  " + describe(a) + mark)
 	}
 	fmt.Println("après :")
 	for _, p := range c.Sync {

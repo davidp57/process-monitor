@@ -40,7 +40,7 @@ pm check <config.yaml> [--profile NOM]
 pm version
 ```
 
-`pm check` ne lance rien : il valide la config et affiche ce qui sera copié, supprimé ou exécuté, en signalant les fichiers source absents.
+`pm check` ne lance rien : il valide la config et affiche ce qui sera copié, supprimé ou exécuté, en signalant les fichiers source absents (lignes `sync` et `copy` des actions *avant*).
 À passer après chaque modification de config.
 
 ### pm run
@@ -48,7 +48,9 @@ pm version
 Déroulé : verrou de session → actions *avant* → lancement → attente de la fin → actions *après*.
 
 La console affiche chaque étape.
-Si une action *avant* échoue, rien n'est lancé.
+Si une action *avant* échoue, rien n'est lancé, et les fichiers live déjà remplacés par le profil sont remis comme ils étaient.
+Chaque commande `exec` est limitée à `hooks.timeout` (10 minutes par défaut). Un programme qu'elle laisse tourner en arrière-plan ne bloque pas pm.
+`pm run` rend le code de sortie du programme suivi, sauf si pm lui-même a rencontré une erreur (code 1).
 Si une action *après* échoue, les suivantes sont quand même exécutées, et la fenêtre reste ouverte (`exit.wait_key: on-error`, le défaut) pour qu'on voie l'erreur.
 
 **Ctrl+C** ne coupe pas tout de suite : un second Ctrl+C dans les 5 secondes détache pm, et le programme continue sans lui.
@@ -69,7 +71,7 @@ Touches de l'interface :
 | `p` | met en pause / reprend le programme (tous ses process) |
 | `r` | arrête et relance le programme |
 | `k` | arrête le programme, exécute les actions *après*, quitte |
-| `q` deux fois | détache : pm quitte, le programme continue, les actions *après* ne sont **pas** exécutées |
+| `q` deux fois | détache : pm quitte, le programme continue, les actions *après* ne sont **pas** exécutées. Pendant le délai avant une relance, rien ne tourne : `q` deux fois termine alors la session, actions *après* comprises |
 | flèches, PgUp/PgDn | font défiler le journal |
 
 `--no-tui` remplace l'interface par un journal en texte simple, par exemple pour un lancement en service.
@@ -116,6 +118,7 @@ hooks:
     - delete: ${prof}\cache     # fichier ou dossier ; absent = rien à faire
     - exec: [cmd, /c, echo, ok]
   after: []
+  timeout: 10m                  # durée maximale d'une commande exec (défaut)
 
 profiles:                       # pm run ... --profile DEV
   DEV:
@@ -134,9 +137,10 @@ Points à connaître :
 - **Variables** : `${nom}` lit `vars`, qui peuvent se référencer entre elles. Sont aussi disponibles `${profile}`, `${name}`, `${config_dir}` (dossier du fichier de config) et `${env:NOM}`. Une variable inconnue est une erreur.
 - **Clés inconnues** : une faute de frappe dans une clé est une erreur, jamais une option ignorée.
 - **Chemins** : entre apostrophes `'...'` YAML ne transforme pas les `\`. Entre guillemets `"..."`, il faut les doubler.
-- **Chemins relatifs** : résolus depuis le dossier du fichier de config (sauf `command`, qu'un nom seul fait chercher dans le `PATH`).
+- **Chemins relatifs** : résolus depuis le dossier du fichier de config. Pour `command` et le programme d'un `exec`, un nom seul (`cmd`, `notepad`) est cherché dans le `PATH`, un chemin (`toolspp.exe`) part du dossier de la config.
 - **`track`** : un nom de process seul, extension comprise (`dcs.exe`).
-- **`sync`** : un même fichier live ne peut être la cible que d'une seule ligne.
+- **`sync`** : un même fichier ne peut apparaître que dans une seule ligne, côté profil comme côté live.
+- **Un seul document** : un `---` qui couperait le fichier en deux est une erreur, pas une seconde moitié ignorée.
 - **Ordre** : avant = `sync` (aller) puis `before` ; après = `sync` (retour) puis `after`.
 - **Copies** : écrites dans un fichier temporaire puis renommées, donc jamais à moitié écrites. L'ancien fichier est gardé en `.bak`.
 - **ready** : pm supprime l'ancien fichier avant le lancement (un reste de crash le ferait croire prêt), puis signale quand il réapparaît, ou qu'il n'est pas apparu dans le délai. C'est une information : la fin de session dépend du process suivi, pas de ce fichier.
@@ -146,8 +150,8 @@ Points à connaître :
 - **Verrous** : une session prend un verrou à son `name`, et un par fichier live de ses lignes `sync`. Deux sessions de même nom, ou deux configs différentes qui écrivent le même fichier live, ne peuvent donc pas tourner ensemble. Le second lancement est refusé avant toute copie, avec le profil de la session en cours. Windows libère les verrous à la sortie de pm, même après un crash : ils ne restent jamais bloqués.
 - **Programme déjà lancé hors de pm** (`if_running`), vérifié sur le process suivi **et** sur le lanceur :
   - `abort` (défaut) : refus, rien n'est copié ni lancé. C'est ce qui protège un profil d'être écrasé par les réglages d'un autre.
-  - `kill` : les instances existantes sont arrêtées avant le lancement.
-- **Dernier filet** : si, au moment des actions de fin, le process suivi tourne encore sans être suivi, les actions de fin ne sont pas exécutées et la session finit en erreur. Mieux vaut une copie retour manquée, signalée, qu'un profil écrasé pendant que le jeu tourne.
+  - `kill` : les instances existantes sont arrêtées avant le lancement, le lanceur d'abord (sinon il pourrait relancer le jeu), puis pm vérifie que plus rien ne tourne.
+- **Dernier filet** (avec `track`) : si, au moment des actions de fin, le process suivi tourne encore sans être suivi, ou si la liste des process est illisible, les actions de fin ne sont pas exécutées et la session finit en erreur. Mieux vaut une copie retour manquée, signalée, qu'un profil écrasé pendant que le jeu tourne.
 - **Arrêt** : `k` arrête les process du groupe et le process suivi. Si celui-ci avait quitté le groupe, c'est le process de ce nom créé après le lancement que pm a adopté.
 
 ## Journaux
@@ -179,6 +183,10 @@ Comportements changés :
 - `q` ne tue plus le programme : il détache, après confirmation. `k` arrête.
 - Les actions de fin s'exécutent une seule fois (la 1.x les jouait jusqu'à trois fois).
 - Un programme déjà lancé n'est plus « adopté » : pm refuse (ou l'arrête avec `if_running: kill`).
+- Une action *avant* en échec empêche le lancement (la 1.x le journalisait et lançait quand même).
+- En `pm watch`, les actions *avant* ne sont plus rejouées avant chaque relance, seulement au début de la session.
+- `exit.wait_key` s'applique aussi à l'interface de `pm watch` (la 1.x ignorait `wait_keypress` en mode TUI).
+- La copie retour attend que tous les process du groupe soient terminés, pas seulement le jeu.
 
 ## Développement
 

@@ -190,11 +190,18 @@ func TestIfRunningKill(t *testing.T) {
 	if err := other.Start(); err != nil {
 		t.Fatal(err)
 	}
-	defer other.Wait()
+	exitedCh := make(chan struct{})
+	go func() { other.Wait(); close(exitedCh) }()
 	time.Sleep(200 * time.Millisecond)
 	log, _ := logger(t)
 	if err := runWithin(t, New(c, log, config.RestartNever), 15*time.Second); err != nil {
 		t.Fatal(err)
+	}
+	select {
+	case <-exitedCh:
+	case <-time.After(5 * time.Second):
+		other.Process.Kill()
+		t.Error("l'instance existante n'a pas été arrêtée")
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/logx"
@@ -20,23 +21,73 @@ import (
 type Runner struct {
 	Log    *logx.Logger
 	Backup bool
+	// Timeout bounds each exec action; 0 means no limit.
+	Timeout time.Duration
+}
+
+// snapshot is a live file as it was before the profile was copied over it.
+type snapshot struct {
+	path   string
+	data   []byte // nil: the file did not exist
+	mod    time.Time
+	exists bool
 }
 
 // Before copies every sync pair in (profile -> live), then runs the before
-// actions. It stops at the first failure: launching with half a profile in
-// place is worse than not launching.
+// actions. It stops at the first failure and puts the live files back as they
+// were: launching with half a profile in place is worse than not launching,
+// and leaving half a profile behind is no better.
 func (r *Runner) Before(ctx context.Context, c *config.Config) error {
-	for _, p := range c.Sync {
-		if err := r.copyFile(p.Source, p.Target); err != nil {
-			return err
+	var done []snapshot
+	fail := func(err error) error {
+		for i := len(done) - 1; i >= 0; i-- {
+			r.restore(done[i])
 		}
+		return err
+	}
+	for _, p := range c.Sync {
+		snap, err := take(p.Target)
+		if err != nil {
+			r.Log.Errorf("lecture de %s avant copie : %v", p.Target, err)
+			return fail(err)
+		}
+		if err := r.copyFile(p.Source, p.Target); err != nil {
+			return fail(err)
+		}
+		done = append(done, snap)
 	}
 	for _, a := range c.Hooks.Before {
 		if err := r.run(ctx, a); err != nil {
-			return err
+			return fail(err)
 		}
 	}
 	return nil
+}
+
+func take(path string) (snapshot, error) {
+	info, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return snapshot{path: path}, nil
+	}
+	if err != nil {
+		return snapshot{}, err
+	}
+	data, err := os.ReadFile(path)
+	return snapshot{path: path, data: data, mod: info.ModTime(), exists: true}, err
+}
+
+func (r *Runner) restore(s snapshot) {
+	var err error
+	if s.exists {
+		err = writeAtomic(s.path, s.data, s.mod)
+	} else {
+		err = os.Remove(s.path)
+	}
+	if err != nil {
+		r.Log.Errorf("remise en état de %s : %v", s.path, err)
+		return
+	}
+	r.Log.Infof("remis en état : %s", s.path)
 }
 
 // After copies every sync pair back (live -> profile), then runs the after
@@ -97,8 +148,22 @@ func (r *Runner) delete(path string) error {
 }
 
 func (r *Runner) exec(ctx context.Context, argv []string) error {
+	if r.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, r.Timeout)
+		defer cancel()
+	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	// A program the command started in the background keeps the output
+	// open; do not wait for it once the command itself has finished.
+	cmd.WaitDelay = 5 * time.Second
 	out, err := cmd.CombinedOutput()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		err = nil
+	}
+	if ctx.Err() == context.DeadlineExceeded {
+		err = fmt.Errorf("délai de %s dépassé", r.Timeout)
+	}
 	for _, line := range strings.Split(strings.TrimRight(string(out), "\r\n"), "\n") {
 		if line != "" {
 			r.Log.Output(strings.TrimRight(line, "\r"))
@@ -147,17 +212,34 @@ func copyFile(from, to string, backup bool) error {
 		return err
 	}
 	if backup {
-		if err := copyPlain(to, to+".bak"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if old, err := os.ReadFile(to); err == nil {
+			if err := writeAtomic(to+".bak", old, time.Now()); err != nil {
+				return fmt.Errorf("sauvegarde .bak : %w", err)
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("sauvegarde .bak : %w", err)
 		}
 	}
 	return os.Rename(tmp.Name(), to)
 }
 
-func copyPlain(from, to string) error {
-	data, err := os.ReadFile(from)
+// writeAtomic writes a new file next to path and renames it over path: an
+// existing path (a link included) is replaced, never written through.
+func writeAtomic(path string, data []byte, mod time.Time) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".pm-*")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(to, data, 0o644)
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chtimes(tmp.Name(), mod, mod); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
 }

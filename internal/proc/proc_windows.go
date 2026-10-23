@@ -384,8 +384,11 @@ func (p *winProcess) jobPIDs() []int {
 	if p.job == 0 {
 		return nil
 	}
+	// JOBOBJECT_BASIC_PROCESS_ID_LIST: two DWORD counters (8 bytes), then
+	// ULONG_PTR ids, which start at byte 8 on 32- and 64-bit alike.
 	const max = 1024
-	buf := make([]uintptr, 1+max) // two uint32 counters fit in the first uintptr on amd64/arm64
+	hdr := 8 / int(unsafe.Sizeof(uintptr(0)))
+	buf := make([]uintptr, hdr+max)
 	if err := windows.QueryInformationJobObject(p.job, jobObjectBasicProcessIDList,
 		uintptr(unsafe.Pointer(&buf[0])), uint32(len(buf))*uint32(unsafe.Sizeof(buf[0])), nil); err != nil {
 		return nil
@@ -393,7 +396,7 @@ func (p *winProcess) jobPIDs() []int {
 	n := int(*(*uint32)(unsafe.Pointer(uintptr(unsafe.Pointer(&buf[0])) + 4)))
 	pids := make([]int, 0, n)
 	for i := 0; i < n && i < max; i++ {
-		pids = append(pids, int(buf[1+i]))
+		pids = append(pids, int(buf[hdr+i]))
 	}
 	return pids
 }
@@ -512,6 +515,11 @@ func FindByName(name string) ([]int, error) {
 			pids = append(pids, int(e.ProcessID))
 		}
 	}
+	// Any other error than the end of the list means "could not tell": an
+	// empty answer would read as "not running".
+	if !errors.Is(err, windows.ERROR_NO_MORE_FILES) {
+		return nil, fmt.Errorf("liste des process : %w", err)
+	}
 	return pids, nil
 }
 
@@ -525,9 +533,14 @@ func KillByName(name string, timeout time.Duration) (int, error) {
 	var errs []error
 	killed := 0
 	for _, pid := range pids {
-		h, err := windows.OpenProcess(windows.PROCESS_TERMINATE|windows.SYNCHRONIZE, false, uint32(pid))
+		h, err := windows.OpenProcess(windows.PROCESS_TERMINATE|windows.SYNCHRONIZE|windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
 		if err != nil {
 			errs = append(errs, fmt.Errorf("pid %d : %w", pid, err))
+			continue
+		}
+		// The PID may have been reused since the listing: check who it is now.
+		if !strings.EqualFold(imageName(h), name) {
+			windows.CloseHandle(h)
 			continue
 		}
 		if err := windows.TerminateProcess(h, 1); err != nil {

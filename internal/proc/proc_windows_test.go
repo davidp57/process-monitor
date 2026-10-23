@@ -22,6 +22,11 @@ import (
 //	sleep:MS:N        sleep MS milliseconds, exit N
 //	launch:EXE:MODE   start EXE with PM_HELPER=MODE and exit at once
 //	breakaway:EXE:MODE same, asking to leave the job
+//	linger:EXE:MODE   same, then stay 5 s
+//	tick:FILE         append a byte to FILE every 50 ms, forever
+//
+// PM_MARK_CHILD (sleep) and PM_MARK_LAUNCHER (linger) name a file written
+// just before exiting, so a test can tell whether a process was still alive.
 func TestMain(m *testing.M) {
 	mode := os.Getenv("PM_HELPER")
 	if mode == "" {
@@ -42,8 +47,17 @@ func TestMain(m *testing.M) {
 	case "sleep":
 		ms, _ := strconv.Atoi(a)
 		time.Sleep(time.Duration(ms) * time.Millisecond)
+		mark("PM_MARK_CHILD")
 		n, _ := strconv.Atoi(b)
 		os.Exit(n)
+	case "tick":
+		for {
+			if f, err := os.OpenFile(a, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
+				f.WriteString("x")
+				f.Close()
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
 	case "launch", "breakaway", "linger":
 		exe, child := a, b
 		cmd := exec.Command(exe)
@@ -57,10 +71,23 @@ func TestMain(m *testing.M) {
 		}
 		if kind == "linger" {
 			time.Sleep(5 * time.Second) // a launcher that outlives the game
+			mark("PM_MARK_LAUNCHER")
 		}
 		os.Exit(0)
 	}
 	os.Exit(98)
+}
+
+func mark(env string) {
+	if f := os.Getenv(env); f != "" {
+		os.WriteFile(f, nil, 0o644)
+	}
+}
+
+// exited reports whether the process that writes this marker has finished.
+func exited(f string) bool {
+	_, err := os.Stat(f)
+	return err == nil
 }
 
 // splitN splits on ':' but keeps a Windows drive colon inside the middle field.
@@ -119,7 +146,7 @@ func start(t *testing.T, mode string, spec Spec) Process {
 	if spec.Command == "" {
 		spec.Command = self(t)
 	}
-	spec.Env = append(os.Environ(), "PM_HELPER="+mode)
+	spec.Env = append(append(os.Environ(), spec.Env...), "PM_HELPER="+mode)
 	p, err := Start(spec)
 	if err != nil {
 		t.Fatal(err)
@@ -155,7 +182,8 @@ func TestExitCodeAndCapture(t *testing.T) {
 	time.Sleep(200 * time.Millisecond) // let the pipe readers drain
 	mu.Lock()
 	defer mu.Unlock()
-	if len(lines) != 2 {
+	got := strings.Join(lines, "|")
+	if len(lines) != 2 || !strings.Contains(got, "hello stdout") || !strings.Contains(got, "hello stderr") {
 		t.Errorf("lines = %q", lines)
 	}
 }
@@ -210,12 +238,12 @@ func TestTrackFollowsHandoverToSameName(t *testing.T) {
 func TestTrackWaitsForLingeringLauncher(t *testing.T) {
 	game := copySelf(t, "pm-test-linger.exe")
 	var events []string
+	launcherDone := filepath.Join(t.TempDir(), "launcher-done")
 	p := start(t, "linger:"+game+":sleep:500:7", Spec{Track: "pm-test-linger.exe", TrackGrace: 5 * time.Second,
-		Event: func(m string) { events = append(events, m) }})
-	begin := time.Now()
+		Env: []string{"PM_MARK_LAUNCHER=" + launcherDone}, Event: func(m string) { events = append(events, m) }})
 	r := wait(t, p, 20*time.Second)
-	if r.ExitCode != 7 || r.Err != nil || time.Since(begin) < 4*time.Second {
-		t.Errorf("result = %+v après %s (events %q)", r, time.Since(begin), events)
+	if r.ExitCode != 7 || r.Err != nil || !exited(launcherDone) {
+		t.Errorf("result = %+v, lanceur fini = %v (events %q)", r, exited(launcherDone), events)
 	}
 }
 
@@ -229,22 +257,40 @@ func TestTrackNeverAppears(t *testing.T) {
 
 func TestWithoutTrackWaitsForWholeJob(t *testing.T) {
 	child := copySelf(t, "pm-test-child.exe")
-	p := start(t, "launch:"+child+":sleep:1500:0", Spec{})
-	begin := time.Now()
+	childDone := filepath.Join(t.TempDir(), "child-done")
+	p := start(t, "launch:"+child+":sleep:1500:0", Spec{Env: []string{"PM_MARK_CHILD=" + childDone}})
 	wait(t, p, 15*time.Second)
-	if time.Since(begin) < time.Second {
-		t.Errorf("session finie en %s alors qu'un enfant tournait encore", time.Since(begin))
+	if !exited(childDone) {
+		t.Error("session finie alors que l'enfant tournait encore")
 	}
 }
 
 func TestKillAndSuspend(t *testing.T) {
-	p := start(t, "sleep:60000:0", Spec{})
-	time.Sleep(300 * time.Millisecond)
+	ticks := filepath.Join(t.TempDir(), "ticks")
+	p := start(t, "tick:"+ticks, Spec{})
+	size := func() int64 {
+		info, _ := os.Stat(ticks)
+		if info == nil {
+			return 0
+		}
+		return info.Size()
+	}
+	time.Sleep(500 * time.Millisecond)
 	if err := p.Suspend(); err != nil {
-		t.Errorf("suspend : %v", err)
+		t.Fatalf("suspend : %v", err)
+	}
+	time.Sleep(200 * time.Millisecond) // a write in flight may still land
+	frozen := size()
+	time.Sleep(500 * time.Millisecond)
+	if size() != frozen {
+		t.Errorf("le process avance malgré la pause (%d -> %d)", frozen, size())
 	}
 	if err := p.Resume(); err != nil {
-		t.Errorf("resume : %v", err)
+		t.Fatalf("resume : %v", err)
+	}
+	time.Sleep(500 * time.Millisecond)
+	if size() <= frozen {
+		t.Errorf("le process n'a pas repris (%d)", size())
 	}
 	if err := p.Kill(); err != nil {
 		t.Errorf("kill : %v", err)
@@ -252,6 +298,25 @@ func TestKillAndSuspend(t *testing.T) {
 	r := wait(t, p, 10*time.Second)
 	if r.ExitCode != 1 {
 		t.Errorf("result = %+v", r)
+	}
+}
+
+func TestPumpDrainsOverlongLines(t *testing.T) {
+	r, w := io.Pipe()
+	var got []string
+	done := make(chan struct{})
+	go func() { pump(r, func(l string) { got = append(got, l) }); close(done) }()
+	w.Write([]byte(strings.Repeat("a", 3*maxLine) + "\nnext\n"))
+	w.Close()
+	<-done
+	if len(got) != 2 || len(got[0]) != maxLine || got[1] != "next" {
+		t.Errorf("lignes : %d, longueurs %v", len(got), func() []int {
+			var n []int
+			for _, l := range got {
+				n = append(n, len(l))
+			}
+			return n
+		}())
 	}
 }
 

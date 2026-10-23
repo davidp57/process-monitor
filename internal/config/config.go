@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -53,6 +54,8 @@ type Hooks struct {
 	After  []Action `yaml:"after"`
 	// Sync lines "a <-> b": a is copied to b before, b back to a after.
 	Sync []string `yaml:"sync"`
+	// Timeout bounds each exec action (default 10m).
+	Timeout Duration `yaml:"timeout"`
 }
 
 // Action is exactly one of Copy, Delete or Exec.
@@ -139,6 +142,10 @@ func Load(path, profile string) (*Config, error) {
 	if err := dec.Decode(&c); err != nil {
 		return nil, fmt.Errorf("%s : %w", abs, err)
 	}
+	var extra yaml.Node
+	if err := dec.Decode(&extra); err != io.EOF {
+		return nil, fmt.Errorf("%s : un seul document YAML attendu (séparateur --- en trop ?)", abs)
+	}
 	c.Path = abs
 	if err := c.applyProfile(profile); err != nil {
 		return nil, err
@@ -212,6 +219,9 @@ func (c *Config) defaults() {
 	if c.Watch.MaxDelay == 0 {
 		c.Watch.MaxDelay = Duration(time.Minute)
 	}
+	if c.Hooks.Timeout == 0 {
+		c.Hooks.Timeout = Duration(10 * time.Minute)
+	}
 	if c.Exit.WaitKey == "" {
 		c.Exit.WaitKey = WaitKeyOnError
 	}
@@ -243,6 +253,15 @@ func (c *Config) validate() error {
 	default:
 		errs = append(errs, fmt.Errorf("exit.wait_key : %q invalide (never, on-error ou always)", c.Exit.WaitKey))
 	}
+	for name, d := range map[string]Duration{"watch.delay": c.Watch.Delay, "watch.max_delay": c.Watch.MaxDelay,
+		"exit.delay": c.Exit.Delay, "hooks.timeout": c.Hooks.Timeout} {
+		if d < 0 {
+			errs = append(errs, fmt.Errorf("%s : durée négative", name))
+		}
+	}
+	if c.Ready != nil && c.Ready.Timeout < 0 {
+		errs = append(errs, errors.New("ready.timeout : durée négative"))
+	}
 	if c.Ready != nil && c.Ready.File == "" {
 		errs = append(errs, errors.New("ready.file est obligatoire quand ready est présent"))
 	}
@@ -255,7 +274,7 @@ func (c *Config) validate() error {
 		errs = append(errs, fmt.Errorf("track : %q doit être un nom de process seul, extension comprise (ex. dcs.exe)", c.Track))
 	}
 	c.Sync = nil
-	targets := map[string]string{}
+	targets, sources := map[string]string{}, map[string]string{}
 	for _, line := range c.Hooks.Sync {
 		a, b, ok := strings.Cut(line, "<->")
 		a, b = strings.TrimSpace(a), strings.TrimSpace(b)
@@ -270,6 +289,11 @@ func (c *Config) validate() error {
 			errs = append(errs, fmt.Errorf("sync : %s est la cible de deux lignes (%s et %s)", pair.Target, prev, pair.Source))
 		}
 		targets[key] = pair.Source
+		// Two live files for one profile file: the copy back would keep only the last one.
+		if prev, dup := sources[strings.ToLower(pair.Source)]; dup {
+			errs = append(errs, fmt.Errorf("sync : %s est la source de deux lignes (vers %s et %s)", pair.Source, prev, pair.Target))
+		}
+		sources[strings.ToLower(pair.Source)] = pair.Target
 		c.Sync = append(c.Sync, pair)
 	}
 	return errors.Join(errs...)
@@ -301,5 +325,15 @@ func (c *Config) ProcessName() string {
 	if c.Track != "" {
 		return c.Track
 	}
-	return filepath.Base(c.Command)
+	return c.LauncherName()
+}
+
+// LauncherName is the image name of the launched executable. Windows lists
+// processes with their extension, so "notepad" is looked up as "notepad.exe".
+func (c *Config) LauncherName() string {
+	name := filepath.Base(c.Command)
+	if filepath.Ext(name) == "" {
+		name += ".exe"
+	}
+	return name
 }
