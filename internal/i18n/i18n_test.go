@@ -110,6 +110,36 @@ func TestNoFrenchLiteralInCode(t *testing.T) {
 	}
 }
 
+// sink matches a message written straight into an output call, whatever its
+// language: accents or not, a word there means a message the catalog missed.
+var sink = regexp.MustCompile(`(?:Infof|Warnf|Errorf|Info|Warn|Error|errors\.New|Sprintf|Printf|Println|Print|Fprintln|Fprintf|Fprint)\(\s*(?:os\.Std\w+,\s*)?"([^"]*)"`)
+
+var word = regexp.MustCompile(`[A-Za-z]{3,}`)
+
+// technical formats are not messages: a file name, and a build mistake
+// shown before any language exists.
+var technical = map[string]bool{
+	"%s-%s.log":            true,
+	"locales/%s.json : %v": true,
+}
+
+func TestNoMessageLiteralInOutputCalls(t *testing.T) {
+	for _, f := range goFiles(t) {
+		src, _ := os.ReadFile(f)
+		for i, line := range strings.Split(string(src), "\n") {
+			code, _, _ := strings.Cut(line, "//")
+			for _, m := range sink.FindAllStringSubmatchIndex(code, -1) {
+				if strings.HasSuffix(code[:m[0]], "i18n.") {
+					continue // i18n.Errorf("key"): the catalog itself
+				}
+				if msg := code[m[2]:m[3]]; word.MatchString(msg) && !technical[msg] {
+					t.Errorf("%s:%d : message en dur %q", f, i+1, msg)
+				}
+			}
+		}
+	}
+}
+
 func TestTranslateAndFallback(t *testing.T) {
 	defer Set("en")
 	Set("fr")

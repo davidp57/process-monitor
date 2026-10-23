@@ -40,6 +40,9 @@ func Set(lang string) {
 	}
 }
 
+// Supported reports whether v names a language pm speaks ("fr", "en-US"...).
+func Supported(v string) bool { return normalize(v) != "" }
+
 // Lang is the language in use.
 func Lang() string { return current.Load().(string) }
 

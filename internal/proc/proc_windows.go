@@ -576,7 +576,7 @@ func KillByName(name string, timeout time.Duration) (int, error) {
 	for _, pid := range pids {
 		h, err := windows.OpenProcess(windows.PROCESS_TERMINATE|windows.SYNCHRONIZE|windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
 		if err != nil {
-			errs = append(errs, fmt.Errorf("pid %d : %w", pid, err))
+			errs = append(errs, i18n.Errorf("proc.pid_error", pid, err))
 			continue
 		}
 		// The PID may have been reused since the listing: check who it is now.
@@ -585,7 +585,7 @@ func KillByName(name string, timeout time.Duration) (int, error) {
 			continue
 		}
 		if err := windows.TerminateProcess(h, 1); err != nil {
-			errs = append(errs, fmt.Errorf("pid %d : %w", pid, err))
+			errs = append(errs, i18n.Errorf("proc.pid_error", pid, err))
 		} else if ev, _ := windows.WaitForSingleObject(h, uint32(timeout.Milliseconds())); ev != windows.WAIT_OBJECT_0 {
 			errs = append(errs, i18n.Errorf("proc.still_there", pid, timeout))
 		} else {

@@ -47,7 +47,7 @@ type State struct {
 	PID       int
 	Restarts  int
 	StartedAt time.Time
-	Ready     string // "", "en attente", "prêt", "délai dépassé"
+	Ready     string // "", or a catalog key: ready.waiting, ready.done, ready.timeout
 	NextStart time.Time
 	LastExit  string
 	ExitCode  int // of the last run
@@ -295,7 +295,7 @@ func (s *Session) killOnExit() {
 	for _, name := range s.cfg.KillOnExit {
 		n, err := proc.KillByName(name, 10*time.Second)
 		if err != nil {
-			s.log.Errorf("kill_on_exit %s : %v", name, err)
+			s.log.Error(i18n.T("session.kill_on_exit_failed", name, err))
 		} else if n > 0 {
 			s.log.Info(i18n.T("session.kill_on_exit", n, name))
 		}
@@ -505,17 +505,17 @@ func (s *Session) supervise(ctx context.Context, p proc.Process) (res proc.Resul
 			switch cmd {
 			case cmdPause:
 				if err := p.Suspend(); err != nil {
-					s.log.Errorf("pause : %v", err)
+					s.log.Error(i18n.T("session.pause_failed", err))
 				} else {
 					s.update(func(st *State) { st.Status = Paused })
 					s.log.Info(i18n.T("session.paused", s.cfg.ProcessName()))
 				}
 			case cmdResume:
 				if err := p.Resume(); err != nil {
-					s.log.Errorf("reprise : %v", err)
+					s.log.Error(i18n.T("session.resume_failed", err))
 				} else {
 					s.update(func(st *State) { st.Status = Running })
-					s.log.Infof("%s repris", s.cfg.ProcessName())
+					s.log.Info(i18n.T("session.resumed", s.cfg.ProcessName()))
 				}
 			case cmdRestart, cmdKill:
 				if s.State().Status == Paused {

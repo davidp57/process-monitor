@@ -5,7 +5,6 @@ package hooks
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -149,7 +148,7 @@ func (r *Runner) run(ctx context.Context, a config.Action) error {
 
 func (r *Runner) copyFile(from, to string) error {
 	if err := copyFile(from, to, r.Backup); err != nil {
-		r.Log.Errorf("copie %s -> %s : %v", from, to, err)
+		r.Log.Error(i18n.T("hooks.copy_failed", from, to, err))
 		return err
 	}
 	r.Log.Info(i18n.T("hooks.copied", from, to))
@@ -163,7 +162,7 @@ func (r *Runner) delete(path string) error {
 		return nil
 	}
 	if err != nil {
-		r.Log.Errorf("suppression %s : %v", path, err)
+		r.Log.Error(i18n.T("hooks.delete_failed", path, err))
 		return err
 	}
 	if info.IsDir() {
@@ -172,7 +171,7 @@ func (r *Runner) delete(path string) error {
 		err = os.Remove(path)
 	}
 	if err != nil {
-		r.Log.Errorf("suppression %s : %v", path, err)
+		r.Log.Error(i18n.T("hooks.delete_failed", path, err))
 		return err
 	}
 	r.Log.Info(i18n.T("hooks.deleted", path))
@@ -204,10 +203,10 @@ func (r *Runner) exec(ctx context.Context, argv []string) error {
 		}
 	}
 	if err != nil {
-		r.Log.Errorf("commande %s : %v", strings.Join(argv, " "), err)
+		r.Log.Error(i18n.T("hooks.exec_failed", strings.Join(argv, " "), err))
 		return err
 	}
-	r.Log.Infof("commande %s : ok", strings.Join(argv, " "))
+	r.Log.Info(i18n.T("hooks.exec_ok", strings.Join(argv, " ")))
 	return nil
 }
 
@@ -248,10 +247,10 @@ func copyFile(from, to string, backup bool) error {
 	if backup {
 		if old, err := os.ReadFile(to); err == nil {
 			if err := writeAtomic(to+".bak", old, time.Now()); err != nil {
-				return fmt.Errorf("sauvegarde .bak : %w", err)
+				return i18n.Errorf("hooks.backup_failed", err)
 			}
 		} else if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("sauvegarde .bak : %w", err)
+			return i18n.Errorf("hooks.backup_failed", err)
 		}
 	}
 	return os.Rename(tmp.Name(), to)

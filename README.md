@@ -10,7 +10,7 @@
 
 A session shows itself in a console, a terminal interface or an icon in the notification area, in French or English.
 
-📖 **Documentation: <https://davidp57.github.io/process-monitor/en/>**
+📖 **Documentation: <https://davidp57.github.io/process-monitor/latest/en/>**
 
 ## Install
 
@@ -28,7 +28,7 @@ go build -o dist\pm.exe .\cmd\pm
 .\pm.exe watch .\app.yaml --tray          # keep a program alive, with a notification icon
 ```
 
-See the [configuration reference](https://davidp57.github.io/process-monitor/en/configuration/) and the [`examples`](examples/) folder.
+See the [configuration reference](https://davidp57.github.io/process-monitor/latest/en/configuration/) and the [`examples`](examples/) folder.
 
 ## Contributing
 
@@ -50,7 +50,7 @@ License: MIT.
 
 Une session s'affiche dans une console, une interface en terminal ou une icône dans la zone de notification, en français ou en anglais.
 
-📖 **Documentation : <https://davidp57.github.io/process-monitor/>**
+📖 **Documentation : <https://davidp57.github.io/process-monitor/latest/>**
 
 ## Installer
 
@@ -68,7 +68,7 @@ go build -o dist\pm.exe .\cmd\pm
 .\pm.exe watch .\app.yaml --tray          # garder un programme en vie, avec une icône de notification
 ```
 
-Voir la [référence de la configuration](https://davidp57.github.io/process-monitor/configuration/) et le dossier [`examples`](examples/).
+Voir la [référence de la configuration](https://davidp57.github.io/process-monitor/latest/configuration/) et le dossier [`examples`](examples/).
 
 ## Contribuer
 

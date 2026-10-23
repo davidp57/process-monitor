@@ -296,7 +296,7 @@ func (c *Config) validate() error {
 	}
 	for i, a := range append(append([]Action{}, c.Hooks.Before...), c.Hooks.After...) {
 		if err := a.validate(); err != nil {
-			errs = append(errs, fmt.Errorf("action %d : %w", i+1, err))
+			errs = append(errs, i18n.Errorf("config.action", i+1, err))
 		}
 	}
 	if c.Track != "" && !processName(c.Track) {

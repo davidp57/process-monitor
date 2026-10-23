@@ -144,7 +144,7 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool, 
 							msg = err.Error()
 						}
 						if log.Path != "" {
-							msg += "\n\nJournal : " + log.Path
+							msg += "\n\n" + i18n.T("tray.log_path", log.Path)
 						}
 						alert(cfg.Name, msg)
 					case err != nil: // cancelled by the user: nothing to report

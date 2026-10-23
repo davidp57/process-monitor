@@ -69,7 +69,7 @@ func parse(argv []string) (args, error) {
 		case arg == "--tray":
 			a.tray = true
 		case arg == "--lang":
-			if i+1 >= len(rest) {
+			if i+1 >= len(rest) || !i18n.Supported(rest[i+1]) {
 				return a, i18n.Errorf("cli.lang_value", arg)
 			}
 			i++
@@ -118,7 +118,9 @@ func run(argv []string) int {
 		}
 		return 2
 	}
-	if a.lang == "" && os.Getenv("PM_LANG") == "" && cfg.Lang != "" {
+	// The config's language counts only when neither --lang nor PM_LANG
+	// named one pm speaks: the same order as Resolve.
+	if !i18n.Supported(a.lang) && !i18n.Supported(os.Getenv("PM_LANG")) && cfg.Lang != "" {
 		i18n.Set(cfg.Lang)
 	}
 	if a.cmd == "check" {
@@ -145,14 +147,14 @@ func run(argv []string) int {
 			tray.Alert(cfg.Name, i18n.T("cli.log_failed", err))
 			return 1
 		}
-		fmt.Fprintln(os.Stderr, "journal :", err)
+		fmt.Fprintln(os.Stderr, i18n.T("cli.log_error", err))
 		pressKey()
 		return 1
 	}
 	defer log.Close()
 	log.Infof("pm %s — %s (%s)", version, a.cmd, cfg.Path)
 	if cfg.Profile != "" {
-		log.Infof("profil %s", cfg.Profile)
+		log.Info(i18n.T("run.profile", cfg.Profile))
 	}
 
 	restart := config.RestartNever

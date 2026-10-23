@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -77,7 +76,7 @@ func (c *Config) expand() error {
 	// The name may use variables itself; ${name} then gives the expanded value.
 	name, err := e.expand(c.Name)
 	if err != nil {
-		return fmt.Errorf("name : %w", err)
+		return i18n.Errorf("config.name", err)
 	}
 	c.Name = name
 	vars["name"] = name
