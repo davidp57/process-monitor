@@ -137,7 +137,7 @@ Points à connaître :
 - **Variables** : `${nom}` lit `vars`, qui peuvent se référencer entre elles. Sont aussi disponibles `${profile}`, `${name}`, `${config_dir}` (dossier du fichier de config) et `${env:NOM}`. Une variable inconnue est une erreur.
 - **Clés inconnues** : une faute de frappe dans une clé est une erreur, jamais une option ignorée.
 - **Chemins** : entre apostrophes `'...'` YAML ne transforme pas les `\`. Entre guillemets `"..."`, il faut les doubler.
-- **Chemins relatifs** : résolus depuis le dossier du fichier de config. Pour `command` et le programme d'un `exec`, un nom seul (`cmd`, `notepad`) est cherché dans le `PATH`, un chemin (`toolspp.exe`) part du dossier de la config.
+- **Chemins relatifs** : résolus depuis le dossier du fichier de config. Pour `command` et le programme d'un `exec`, un nom seul (`cmd`, `notepad`) est cherché dans le `PATH`, un chemin (`tools\app.exe`) part du dossier de la config.
 - **`track`** : un nom de process seul, extension comprise (`dcs.exe`).
 - **`sync`** : un même fichier ne peut apparaître que dans une seule ligne, côté profil comme côté live.
 - **Un seul document** : un `---` qui couperait le fichier en deux est une erreur, pas une seconde moitié ignorée.
