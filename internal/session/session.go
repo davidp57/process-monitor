@@ -165,11 +165,23 @@ func (s *Session) Run(ctx context.Context) error {
 		return err
 	}
 
-	h := &hooks.Runner{Log: s.log, Backup: c.BackupEnabled(), Timeout: c.Hooks.Timeout.D()}
+	h := &hooks.Runner{Log: s.log, Backup: c.BackupEnabled(), Timeout: c.Hooks.Timeout.D(), Dir: filepath.Dir(c.Path)}
 	s.hooks = h
-	if err := h.Before(ctx, c); err != nil {
+	undo, err := h.Before(ctx, c)
+	if err != nil {
 		s.update(func(st *State) { st.Status = Finished })
+		if ctx.Err() != nil {
+			return fmt.Errorf("session annulée avant le lancement : fichiers live remis en état, rien n'a été lancé")
+		}
 		return fmt.Errorf("actions de départ en échec, %s n'a pas été lancé : %w", c.Command, err)
+	}
+	// Stopped or detached while the files were being copied: nothing runs
+	// yet, so there is nothing to detach from. Cancel instead of launching
+	// a program only to leave it without its copy-back.
+	if s.cancelledBeforeLaunch(ctx) {
+		undo()
+		s.update(func(st *State) { st.Status = Finished })
+		return fmt.Errorf("session annulée avant le lancement : fichiers live remis en état, rien n'a été lancé")
 	}
 
 	runErr, detached := s.loop(ctx)
@@ -242,6 +254,25 @@ func (s *Session) checkRunning(names []string) error {
 		}
 	}
 	return nil
+}
+
+// cancelledBeforeLaunch reports whether the user asked to stop or detach
+// before the first launch. Other pending commands (pause, restart) mean
+// nothing yet and are dropped.
+func (s *Session) cancelledBeforeLaunch(ctx context.Context) bool {
+	if ctx.Err() != nil {
+		return true
+	}
+	for {
+		select {
+		case cmd := <-s.cmds:
+			if cmd == cmdKill || cmd == cmdDetach {
+				return true
+			}
+		default:
+			return false
+		}
+	}
 }
 
 // killOnExit stops the processes listed in kill_on_exit, wherever they run:

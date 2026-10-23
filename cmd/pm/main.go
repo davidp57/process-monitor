@@ -133,12 +133,13 @@ func run(argv []string) int {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go interrupts(log, cancel)
+	go interrupts(log, cancel, func() session.Status { return s.State().Status })
 	err = s.Run(ctx)
 	code := s.State().ExitCode
+	detached := s.State().Status == session.Detached
 	if err != nil {
 		log.Errorf("%v", err)
-	} else if s.State().Status == session.Detached {
+	} else if detached {
 		log.Warnf("pm s'arrête, le programme continue sans surveillance")
 	} else if code != 0 && a.cmd == "run" {
 		log.Warnf("session terminée, le programme a rendu le code %d", code)
@@ -149,29 +150,40 @@ func run(argv []string) int {
 	if rc := exitCode(err, log); rc != 0 || a.cmd != "run" {
 		return rc
 	}
+	if detached {
+		return 1 // pm run without its copy-back is not a success
+	}
 	return code // pm run passes the program's exit code on
 }
 
-// interrupts detaches on a second Ctrl+C within five seconds: one stray
-// keystroke must not cost the copy-back of a profile. Closing the console
-// window cannot be held off; it is logged so the journal says why the
-// after hooks are missing.
-func interrupts(log *logx.Logger, detach context.CancelFunc) {
+// interrupts acts on a second Ctrl+C within five seconds: one stray
+// keystroke must not cost the copy-back of a profile. What the second one
+// does depends on the moment, and the message says which. Closing the
+// console window cannot be held off; it is logged so the journal says why
+// the after hooks are missing.
+func interrupts(log *logx.Logger, stop context.CancelFunc, status func() session.Status) {
 	ch := make(chan os.Signal, 2)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 	var last time.Time
 	for sig := range ch {
 		if sig == syscall.SIGTERM {
 			log.Errorf("fenêtre fermée : pm est coupé, les actions de fin ne seront PAS exécutées")
-			detach()
+			stop()
 			continue
 		}
 		if time.Since(last) < 5*time.Second {
-			detach()
+			stop()
 			continue
 		}
 		last = time.Now()
-		log.Warnf("Ctrl+C encore une fois dans les 5 s pour détacher : le programme continuera, les actions de fin ne seront PAS exécutées")
+		switch status() {
+		case session.Starting:
+			log.Warnf("Ctrl+C encore une fois dans les 5 s pour annuler : rien ne sera lancé, les fichiers live seront remis comme avant")
+		case session.Restarting:
+			log.Warnf("Ctrl+C encore une fois dans les 5 s pour terminer sans relancer : rien ne tourne, les actions de fin seront exécutées")
+		default:
+			log.Warnf("Ctrl+C encore une fois dans les 5 s pour détacher : le programme continuera, les actions de fin ne seront PAS exécutées")
+		}
 	}
 }
 

@@ -2,8 +2,9 @@
 //
 // On Windows the program is placed in a Job Object, so every process it
 // spawns (a launcher handing over to the real game, for instance) stays in
-// view. When Track is set, the session follows that process by handle; it
-// ends when it exits, wherever it ended up.
+// view. When Track is set, the session follows that process by handle,
+// wherever it ended up; once it exits, the session waits a short handover
+// grace and for the launcher, not for other leftovers (ADR 0002).
 package proc
 
 import (

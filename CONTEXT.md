@@ -24,7 +24,7 @@ Without `track`, the session ends when every process of the job has exited.
 The followed process exiting while a process of the same name takes over (a launcher named like its target). pm waits a short grace before concluding the game is over.
 
 **Leftover**:
-A process the game started that still runs after it (a radio client). Not waited for; named in the log; stopped if listed in `kill_on_exit`.
+A process the game started that still runs after it (a radio client). Not waited for; named in the log; stopped if listed in `kill_on_exit`. In `pm watch`, every leftover of the job is stopped at the end of each run, before the restart.
 
 ## Files
 

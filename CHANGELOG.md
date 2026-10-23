@@ -14,7 +14,9 @@ A pull request adds its entry at the **end** of `[Unreleased]` and never touches
 - **Rewritten in Go as a single `pm.exe`** (breaking): the Python `process-monitor` 1.x is replaced. Two subcommands split its two jobs: `pm run` (actions before, launch, wait for the end, actions after) and `pm watch` (watchdog with a restart policy and a terminal interface), plus `pm check` to validate a config without running anything. New YAML format with profiles and variables; see the migration table in the README.
 - **The program runs in a Windows Job Object** and the real game process is followed by handle (`track`), including through a launcher that hands over, a process that leaves the job, or a same-name successor. Polling by name every half second is gone.
 - **Once the game has exited, pm waits for its launcher only**, not for what the game started on the side (a radio client): the copy-back no longer waits for SRS to be closed. See ADR 0002.
-- **`pm watch` runs the before actions again before every restart**, like 1.x did (the sync copies only once).
+- **`pm watch` runs the before actions again before every restart**, as 1.x ran its cleanup; the sync copies happen once per session (1.x also re-copied its initial copies at every restart), and a replay makes no new `.bak`.
+- **Cancelling before the launch** (double Ctrl+C or `q`×2 while the files are copied) launches nothing and puts the live files back; the console says what a second Ctrl+C will do.
+- **`pm run` exit code**: the program's own code; 1 when pm failed or detached; 2 for a config or usage error. Exec actions run in the config's folder.
 
 ### Added
 

@@ -23,6 +23,9 @@ type Runner struct {
 	Backup bool
 	// Timeout bounds each exec action; 0 means no limit.
 	Timeout time.Duration
+	// Dir is where exec actions run (the config's folder), so their
+	// relative arguments do not depend on where pm was started.
+	Dir string
 }
 
 // snapshot is a live file as it was before the profile was copied over it.
@@ -34,18 +37,26 @@ type snapshot struct {
 }
 
 // Before copies every sync pair in (profile -> live), then runs the before
-// actions. It stops at the first failure and puts the live files back as they
-// were: launching with half a profile in place is worse than not launching,
-// and leaving half a profile behind is no better.
-func (r *Runner) Before(ctx context.Context, c *config.Config) error {
+// actions. It stops at the first failure, or when ctx is cancelled, and puts
+// the live files back as they were: launching with half a profile in place is
+// worse than not launching, and leaving half a profile behind is no better.
+// On success it returns undo, which puts them back the same way: the session
+// calls it when it is cancelled before anything was launched.
+func (r *Runner) Before(ctx context.Context, c *config.Config) (undo func(), err error) {
 	var done []snapshot
-	fail := func(err error) error {
+	undo = func() {
 		for i := len(done) - 1; i >= 0; i-- {
 			r.restore(done[i])
 		}
-		return err
+	}
+	fail := func(err error) (func(), error) {
+		undo()
+		return nil, err
 	}
 	for _, p := range c.Sync {
+		if ctx.Err() != nil {
+			return fail(ctx.Err())
+		}
 		snap, err := take(p.Target)
 		if err != nil {
 			r.Log.Errorf("lecture de %s avant copie : %v", p.Target, err)
@@ -57,11 +68,14 @@ func (r *Runner) Before(ctx context.Context, c *config.Config) error {
 		done = append(done, snap)
 	}
 	for _, a := range c.Hooks.Before {
+		if ctx.Err() != nil {
+			return fail(ctx.Err())
+		}
 		if err := r.run(ctx, a); err != nil {
 			return fail(err)
 		}
 	}
-	return nil
+	return undo, nil
 }
 
 // BeforeRestart runs the before actions again, without the sync copies
@@ -69,9 +83,13 @@ func (r *Runner) Before(ctx context.Context, c *config.Config) error {
 // so a crashed program starts as clean as the first time. Every action runs
 // and all failures are returned: a watchdog relaunches anyway.
 func (r *Runner) BeforeRestart(ctx context.Context, c *config.Config) error {
+	// No .bak on a replay: it would overwrite the one that holds the
+	// original file, taken at the first launch.
+	again := *r
+	again.Backup = false
 	var errs []error
 	for _, a := range c.Hooks.Before {
-		errs = append(errs, r.run(ctx, a))
+		errs = append(errs, again.run(ctx, a))
 	}
 	return errors.Join(errs...)
 }
@@ -166,6 +184,7 @@ func (r *Runner) exec(ctx context.Context, argv []string) error {
 		defer cancel()
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd.Dir = r.Dir
 	// A program the command started in the background keeps the output
 	// open; do not wait for it once the command itself has finished.
 	cmd.WaitDelay = 5 * time.Second

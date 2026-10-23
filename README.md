@@ -51,10 +51,15 @@ Déroulé : verrou de session → actions *avant* → lancement → attente de l
 La console affiche chaque étape.
 Si une action *avant* échoue, rien n'est lancé, et les fichiers live déjà remplacés par le profil sont remis comme ils étaient.
 Chaque commande `exec` est limitée à `hooks.timeout` (10 minutes par défaut). Un programme qu'elle laisse tourner en arrière-plan ne bloque pas pm.
-`pm run` rend le code de sortie du programme suivi, sauf si pm lui-même a rencontré une erreur (code 1).
+`pm run` rend le code de sortie du programme suivi ; 1 si pm a rencontré une erreur ou s'est détaché (la copie retour n'a pas eu lieu) ; 2 pour une erreur de config ou de ligne de commande.
 Si une action *après* échoue, les suivantes sont quand même exécutées, et la fenêtre reste ouverte (`exit.wait_key: on-error`, le défaut) pour qu'on voie l'erreur.
 
-**Ctrl+C** ne coupe pas tout de suite : un second Ctrl+C dans les 5 secondes détache pm, et le programme continue sans lui.
+**Ctrl+C** ne coupe pas tout de suite : il faut un second Ctrl+C dans les 5 secondes, et la console dit d'abord ce qu'il fera, selon le moment :
+
+- pendant les copies de départ, il **annule** : rien n'est lancé, les fichiers live sont remis comme avant ;
+- pendant que le programme tourne, il **détache** pm, et le programme continue sans lui ;
+- en `watch`, pendant le délai avant une relance, rien ne tourne : il **termine** la session, actions *après* comprises.
+
 Les actions *après* ne sont alors pas exécutées, et le journal le dit.
 Fermer la fenêtre de la console a le même effet, sans confirmation possible : **ne pas fermer la fenêtre de pm pendant la session**.
 
@@ -64,6 +69,7 @@ Relance le programme à chaque arrêt, selon `watch.restart`.
 Un arrêt moins de 10 secondes après le lancement compte comme un plantage en boucle : le premier attend `watch.delay`, chaque suivant double le délai, jusqu'à `watch.max_delay`.
 `watch.max_restarts` ne compte que les relances automatiques, pas celles demandées avec `r`.
 Les lignes `sync` sont copiées une fois au début et recopiées une fois à la fin de la session.
+À chaque fin de lancement, pm arrête ce qui reste du groupe de process avant de relancer, pour que les restes ne s'empilent pas d'un lancement à l'autre.
 Les autres actions *avant* (un nettoyage, par exemple) sont rejouées avant chaque relance, comme en 1.x ; les actions *après* ne s'exécutent qu'à la fin.
 
 Touches de l'interface :
@@ -73,7 +79,7 @@ Touches de l'interface :
 | `p` | met en pause / reprend le programme (tous ses process) |
 | `r` | arrête et relance le programme |
 | `k` | arrête le programme, exécute les actions *après*, quitte |
-| `q` deux fois | détache : pm quitte, le programme continue, les actions *après* ne sont **pas** exécutées. Pendant le délai avant une relance, rien ne tourne : `q` deux fois termine alors la session, actions *après* comprises |
+| `q` deux fois | détache : pm quitte, le programme continue, les actions *après* ne sont **pas** exécutées. Au démarrage, `q` deux fois annule (rien n'est lancé, fichiers live remis comme avant). Pendant le délai avant une relance, rien ne tourne : `q` deux fois termine alors la session, actions *après* comprises |
 | flèches, PgUp/PgDn | font défiler le journal |
 
 `--no-tui` remplace l'interface par un journal en texte simple, par exemple pour un lancement en service.
@@ -141,7 +147,7 @@ Points à connaître :
 - **Variables** : `${nom}` lit `vars`, qui peuvent se référencer entre elles. Sont aussi disponibles `${profile}`, `${name}`, `${config_dir}` (dossier du fichier de config) et `${env:NOM}`. Une variable inconnue est une erreur.
 - **Clés inconnues** : une faute de frappe dans une clé est une erreur, jamais une option ignorée.
 - **Chemins** : entre apostrophes `'...'` YAML ne transforme pas les `\`. Entre guillemets `"..."`, il faut les doubler.
-- **Chemins relatifs** : résolus depuis le dossier du fichier de config. Pour `command` et le programme d'un `exec`, un nom seul (`cmd`, `notepad`) est cherché dans le `PATH`, un chemin (`tools\app.exe`) part du dossier de la config.
+- **Chemins relatifs** : résolus depuis le dossier du fichier de config. Pour `command` et le programme d'un `exec`, un nom seul (`cmd`, `notepad`) est cherché dans le `PATH`, un chemin (`tools\app.exe`) part du dossier de la config. Une commande `exec` s'exécute elle-même dans le dossier de la config : ses arguments relatifs en partent aussi. Le programme lancé (`command`) part de `workdir`, ou à défaut du dossier courant de pm.
 - **`track`** : un nom de process seul, extension comprise (`dcs.exe`).
 - **`sync`** : un même fichier ne peut apparaître que dans une seule ligne, côté profil comme côté live.
 - **Un seul document** : un `---` qui couperait le fichier en deux est une erreur, pas une seconde moitié ignorée.
@@ -190,6 +196,7 @@ Comportements changés :
 - Une action *avant* en échec empêche le lancement (la 1.x le journalisait et lançait quand même).
 - `exit.wait_key` s'applique aussi à l'interface de `pm watch` (la 1.x ignorait `wait_keypress` en mode TUI).
 - La copie retour attend la fin du jeu et de son lanceur, pas celle des autres process qu'il a lancés (la 1.x n'attendait que le jeu).
+- En `pm watch`, chaque relance rejoue les actions *avant* mais pas les copies `sync` ; la 1.x recopiait aussi ses `initial_file_copies` à chaque relance, ce qui écrasait les réglages modifiés pendant le lancement précédent.
 
 ## Développement
 

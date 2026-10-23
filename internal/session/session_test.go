@@ -284,7 +284,7 @@ func TestDetachDuringRestartDelayRunsAfterHooks(t *testing.T) {
 	}
 }
 
-// Like 1.x: the before actions (a cleanup) run again before every restart,
+// The before actions (a cleanup) run again before every restart, as in 1.x;
 // the sync copies only once.
 func TestWatchReplaysBeforeActionsOnRestart(t *testing.T) {
 	d := t.TempDir()
@@ -328,6 +328,31 @@ func TestKillOnExitStopsListedProcesses(t *testing.T) {
 	}
 }
 
+// Detaching (or a double Ctrl+C) before the launch cancels the session:
+// nothing is launched and the live files are put back.
+func TestDetachBeforeLaunchCancels(t *testing.T) {
+	d := t.TempDir()
+	prof, live, launched := filepath.Join(d, "prof"), filepath.Join(d, "live"), filepath.Join(d, "launched")
+	put(t, prof, "profile")
+	put(t, live, "other")
+	put(t, launched, "")
+	c := newConfig(t, "append:"+launched)
+	c.Sync = []config.SyncPair{{Source: prof, Target: live}}
+	log, _ := logger(t)
+	s := New(c, log, config.RestartNever)
+	s.Detach() // pressed while the files are being copied
+	err := runWithin(t, s, 15*time.Second)
+	if err == nil || !strings.Contains(err.Error(), "annulée") {
+		t.Errorf("err = %v", err)
+	}
+	if read(t, launched) != "" {
+		t.Error("le programme a été lancé")
+	}
+	if read(t, live) != "other" {
+		t.Errorf("live = %q, pas remis en état", read(t, live))
+	}
+}
+
 func TestKillRunsAfterHooksDetachSkipsThem(t *testing.T) {
 	for _, detach := range []bool{false, true} {
 		d := t.TempDir()
@@ -337,10 +362,12 @@ func TestKillRunsAfterHooksDetachSkipsThem(t *testing.T) {
 		c.Hooks.After = []config.Action{{Delete: marker}}
 		log, _ := logger(t)
 		s := New(c, log, config.RestartAlways)
+		pid := make(chan int, 1)
 		go func() {
 			for s.State().PID == 0 {
 				time.Sleep(50 * time.Millisecond)
 			}
+			pid <- s.State().PID
 			if detach {
 				s.Detach()
 			} else {
@@ -357,8 +384,10 @@ func TestKillRunsAfterHooksDetachSkipsThem(t *testing.T) {
 		if !detach && statErr == nil {
 			t.Error("arrêté : les actions de fin n'ont pas tourné")
 		}
-		if detach {
-			exec.Command("taskkill", "/F", "/IM", filepath.Base(c.Command)).Run()
+		if detach { // still running on purpose: stop it by the PID we started
+			if p, err := os.FindProcess(<-pid); err == nil {
+				p.Kill()
+			}
 		}
 	}
 }

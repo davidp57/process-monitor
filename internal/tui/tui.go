@@ -234,6 +234,8 @@ func (m *model) footer() string {
 		return key.Render("une touche") + dim.Render(" pour fermer")
 	case m.finished:
 		return dim.Render(fmt.Sprintf("fermeture dans %s — ", time.Until(m.closeAt).Round(time.Second))) + key.Render("q") + dim.Render(" fermer")
+	case m.confirmQ && m.s.State().Status == session.Starting:
+		return key.Render("q") + dim.Render(" encore une fois pour annuler : rien ne sera lancé, les fichiers live seront remis comme avant")
 	case m.confirmQ && m.s.State().Status == session.Restarting:
 		// Between two runs nothing is left to detach from: quitting ends the session.
 		return key.Render("q") + dim.Render(" encore une fois pour terminer sans relancer : les actions de fin seront exécutées")

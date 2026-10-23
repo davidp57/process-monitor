@@ -18,6 +18,7 @@ Two kinds, with opposite needs:
 - Every other process still running is **named in the log** and not waited for.
 - `kill_on_exit` lists image names to stop once the followed process has exited, wherever they run. David's DCS config lists `SR-ClientRadio.exe`.
 - Without `track` nothing changes: the session ends when the whole job has exited (SimAppPro's Electron children are the program).
+- In `pm watch` the job is terminated at the end of each run, before the restart: leftovers must not pile up across runs.
 
 ## Consequences
 

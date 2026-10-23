@@ -39,7 +39,7 @@ Resolve errors rather than silencing them. `-race` is not optional: `internal/pr
 - Write the failing test first, then the code.
 - New behaviour ships with its test; changed behaviour updates its test.
 - A test must be able to fail for the reason it names: assert the outcome (a marker file written at exit, the captured text, the process gone), not only that a call returned nil or that some time elapsed.
-- Process tests use copies of the test binary driven by `PM_HELPER` (see `internal/proc/proc_windows_test.go`); never a real program.
+- Process tests use copies of the test binary driven by `PM_HELPER` (see `internal/proc/proc_windows_test.go`), never a GUI program or one that outlives the test; `cmd /c` for a one-line shell action is fine.
 
 ---
 
