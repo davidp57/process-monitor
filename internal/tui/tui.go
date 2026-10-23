@@ -14,6 +14,8 @@ import (
 	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/logx"
 	"github.com/davidp57/process-monitor/internal/session"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 const maxLines = 2000
@@ -69,7 +71,7 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger) error {
 		defer close(ended)
 		err := s.Run(ctx)
 		if err != nil {
-			log.Errorf("session terminée en erreur : %v", err) // reaches both the file and the screen
+			log.Error(i18n.T("run.ended_error", err)) // reaches both the file and the screen
 		}
 		prog.Send(doneMsg{err})
 	}()
@@ -77,7 +79,7 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger) error {
 	log.SetSink(nil)
 	if err != nil {
 		// The interface is gone: do not leave the session running behind pm's back.
-		log.Errorf("interface en échec (%v) : session détachée", err)
+		log.Error(i18n.T("tui.failed", err))
 		s.Detach()
 		<-ended
 		return err
@@ -189,33 +191,33 @@ func (m *model) header() string {
 	if c.Profile != "" {
 		name += " / " + c.Profile
 	}
-	status := string(st.Status)
+	status := i18n.T("status." + string(st.Status))
 	if style, ok := byStatus[st.Status]; ok {
 		status = style.Render(status)
 	}
-	rows := [][2]string{{"Statut", status}}
+	rows := [][2]string{{i18n.T("tui.status"), status}}
 	if st.PID != 0 {
 		rows = append(rows, [2]string{"PID", fmt.Sprint(st.PID)})
 	}
 	if !st.StartedAt.IsZero() && st.Status != session.Restarting {
-		rows = append(rows, [2]string{"Depuis", time.Since(st.StartedAt).Round(time.Second).String()})
+		rows = append(rows, [2]string{i18n.T("tui.since"), time.Since(st.StartedAt).Round(time.Second).String()})
 	}
 	if !st.NextStart.IsZero() && st.Status == session.Restarting {
-		rows = append(rows, [2]string{"Relance dans", time.Until(st.NextStart).Round(time.Second).String()})
+		rows = append(rows, [2]string{i18n.T("tui.restart_in"), time.Until(st.NextStart).Round(time.Second).String()})
 	}
-	rows = append(rows, [2]string{"Relances", fmt.Sprint(st.Restarts)})
+	rows = append(rows, [2]string{i18n.T("tui.restarts"), fmt.Sprint(st.Restarts)})
 	if st.Ready != "" {
-		rows = append(rows, [2]string{"Démarrage", st.Ready})
+		rows = append(rows, [2]string{i18n.T("tui.ready"), i18n.T(st.Ready)})
 	}
 	if st.LastExit != "" {
-		rows = append(rows, [2]string{"Dernière fin", st.LastExit})
+		rows = append(rows, [2]string{i18n.T("tui.last_exit"), st.LastExit})
 	}
-	rows = append(rows, [2]string{"Programme", c.Command})
+	rows = append(rows, [2]string{i18n.T("tui.program"), c.Command})
 	if c.Track != "" {
-		rows = append(rows, [2]string{"Suivi", c.Track})
+		rows = append(rows, [2]string{i18n.T("tui.follows"), c.Track})
 	}
 	if m.logPath != "" {
-		rows = append(rows, [2]string{"Journal", m.logPath})
+		rows = append(rows, [2]string{i18n.T("tui.log"), m.logPath})
 	}
 	var b strings.Builder
 	for i, r := range rows {
@@ -231,26 +233,26 @@ func (m *model) header() string {
 func (m *model) footer() string {
 	switch {
 	case m.finished && m.waitKey:
-		return key.Render("une touche") + dim.Render(" pour fermer")
+		return key.Render(i18n.T("tui.any_key")) + dim.Render(i18n.T("tui.to_close"))
 	case m.finished:
-		return dim.Render(fmt.Sprintf("fermeture dans %s — ", time.Until(m.closeAt).Round(time.Second))) + key.Render("q") + dim.Render(" fermer")
+		return dim.Render(i18n.T("tui.closing_in", time.Until(m.closeAt).Round(time.Second))) + key.Render("q") + dim.Render(i18n.T("tui.close"))
 	case m.confirmQ && m.s.State().Status == session.Starting:
-		return key.Render("q") + dim.Render(" encore une fois pour annuler : rien ne sera lancé, les fichiers live seront remis comme avant")
+		return key.Render("q") + dim.Render(i18n.T("tui.q_cancel"))
 	case m.confirmQ && m.s.State().Status == session.Restarting:
 		// Between two runs nothing is left to detach from: quitting ends the session.
-		return key.Render("q") + dim.Render(" encore une fois pour terminer sans relancer : les actions de fin seront exécutées")
+		return key.Render("q") + dim.Render(i18n.T("tui.q_end"))
 	case m.confirmQ:
-		return key.Render("q") + dim.Render(" encore une fois pour détacher : le programme continue, les actions de fin ne seront PAS exécutées")
+		return key.Render("q") + dim.Render(i18n.T("tui.q_detach"))
 	}
-	pause := "pause"
+	pause := i18n.T("tui.key_pause")
 	if m.s.State().Status == session.Paused {
-		pause = "reprendre"
+		pause = i18n.T("tui.key_resume")
 	}
 	return strings.Join([]string{
 		key.Render("p") + dim.Render(" "+pause),
-		key.Render("r") + dim.Render(" relancer"),
-		key.Render("k") + dim.Render(" arrêter et finir"),
-		key.Render("q") + dim.Render(" détacher"),
+		key.Render("r") + dim.Render(" "+i18n.T("tui.key_restart")),
+		key.Render("k") + dim.Render(i18n.T("tui.key_stop")),
+		key.Render("q") + dim.Render(i18n.T("tui.key_detach")),
 	}, dim.Render("  ·  "))
 }
 

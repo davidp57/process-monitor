@@ -3,7 +3,6 @@ package tray
 import (
 	"context"
 	"errors"
-	"fmt"
 	"image"
 	"sync"
 	"time"
@@ -14,6 +13,8 @@ import (
 	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/logx"
 	"github.com/davidp57/process-monitor/internal/session"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 // Run shows the session as a notification-area icon until it ends. It must
@@ -61,19 +62,19 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool, 
 		status := systray.AddMenuItem("", "")
 		status.Disable()
 		systray.AddSeparator()
-		openLog := systray.AddMenuItem("Ouvrir le journal", log.Path)
+		openLog := systray.AddMenuItem(i18n.T("tray.open_log"), log.Path)
 		if log.Path == "" {
 			openLog.Disable()
 		}
 		var pause, resume, restart *systray.MenuItem
 		if watch {
-			pause = systray.AddMenuItem("Mettre en pause", "")
-			resume = systray.AddMenuItem("Reprendre", "")
-			restart = systray.AddMenuItem("Relancer", "")
+			pause = systray.AddMenuItem(i18n.T("tray.pause"), "")
+			resume = systray.AddMenuItem(i18n.T("tray.resume"), "")
+			restart = systray.AddMenuItem(i18n.T("tray.restart"), "")
 		}
 		systray.AddSeparator()
-		stop := systray.AddMenuItem("Arrêter et finir", "Arrête le programme, puis exécute les actions de fin")
-		detach := systray.AddMenuItem("Détacher…", "pm s'arrête, le programme continue")
+		stop := systray.AddMenuItem(i18n.T("tray.stop"), i18n.T("tray.stop_hint"))
+		detach := systray.AddMenuItem(i18n.T("tray.detach"), i18n.T("tray.detach_hint"))
 
 		var last View
 		show := func() {
@@ -98,7 +99,7 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool, 
 		go func() {
 			err := s.Run(ctx)
 			if err != nil {
-				log.Errorf("session terminée en erreur : %v", err)
+				log.Error(i18n.T("run.ended_error", err))
 			}
 			mu.Lock()
 			runErr, done = err, true
@@ -138,7 +139,7 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool, 
 					err, _ := result()
 					switch {
 					case failed():
-						msg := fmt.Sprintf("Le programme s'est terminé avec le code %d.", s.State().ExitCode)
+						msg := i18n.T("tray.exit_code", s.State().ExitCode)
 						if err != nil {
 							msg = err.Error()
 						}
@@ -148,7 +149,7 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool, 
 						alert(cfg.Name, msg)
 					case err != nil: // cancelled by the user: nothing to report
 					case cfg.Exit.WaitKey == config.WaitKeyAlways:
-						inform(cfg.Name, "Session terminée.")
+						inform(cfg.Name, i18n.T("tray.session_over"))
 					default:
 						time.Sleep(cfg.Exit.Delay.D()) // the final state stays visible meanwhile
 					}
@@ -219,6 +220,6 @@ func shellOpen(path string) {
 	verb, _ := windows.UTF16PtrFromString("open")
 	file, _ := windows.UTF16PtrFromString(path)
 	if err := windows.ShellExecute(0, verb, file, nil, nil, windows.SW_SHOWNORMAL); err != nil {
-		alert("journal", fmt.Sprintf("Impossible d'ouvrir %s : %v", path, err))
+		alert("log", i18n.T("tray.open_failed", path, err))
 	}
 }

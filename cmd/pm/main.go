@@ -20,20 +20,11 @@ import (
 	"github.com/davidp57/process-monitor/internal/session"
 	"github.com/davidp57/process-monitor/internal/tray"
 	"github.com/davidp57/process-monitor/internal/tui"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 var version = "dev" // set by the release build: -ldflags "-X main.version=x.y.z"
-
-const usage = `pm %s — lance un programme et l'encadre.
-
-  pm run   <config.yaml> [--profile NOM] [--tray]            actions avant → lancement → attente de la fin → actions après
-  pm watch <config.yaml> [--profile NOM] [--tray|--no-tui]  garde le programme en vie (relance), actions avant/après la session
-
-  --tray : une icône dans la zone de notification à la place de la fenêtre console (ou ui: tray dans la config)
-  --icon FICHIER : l'image de cette icône, .ico (32 bits ou PNG) ou .png ; ou icon: dans la config
-  pm check <config.yaml> [--profile NOM]            valide la config et affiche ce qui sera fait
-  pm version
-`
 
 func main() {
 	os.Exit(run(os.Args[1:]))
@@ -42,14 +33,24 @@ func main() {
 type args struct {
 	cmd, path, profile string
 	noTUI, tray        bool
-	icon               string
+	icon, lang         string
+}
+
+// langFlag finds --lang before the arguments are parsed.
+func langFlag(argv []string) string {
+	for i, arg := range argv {
+		if arg == "--lang" && i+1 < len(argv) {
+			return argv[i+1]
+		}
+	}
+	return ""
 }
 
 // parse accepts flags before or after the config path.
 func parse(argv []string) (args, error) {
 	var a args
 	if len(argv) == 0 {
-		return a, errors.New("commande manquante")
+		return a, errors.New(i18n.T("cli.no_command"))
 	}
 	a.cmd = argv[0]
 	rest := argv[1:]
@@ -57,7 +58,7 @@ func parse(argv []string) (args, error) {
 		switch arg := rest[i]; {
 		case arg == "--profile" || arg == "-p":
 			if i+1 >= len(rest) {
-				return a, fmt.Errorf("%s attend un nom de profil", arg)
+				return a, i18n.Errorf("cli.profile_value", arg)
 			}
 			i++
 			a.profile = rest[i]
@@ -67,47 +68,58 @@ func parse(argv []string) (args, error) {
 			a.noTUI = true
 		case arg == "--tray":
 			a.tray = true
+		case arg == "--lang":
+			if i+1 >= len(rest) {
+				return a, i18n.Errorf("cli.lang_value", arg)
+			}
+			i++
+			a.lang = rest[i]
 		case arg == "--icon":
 			if i+1 >= len(rest) {
-				return a, fmt.Errorf("%s attend un fichier .ico ou .png", arg)
+				return a, i18n.Errorf("cli.icon_value", arg)
 			}
 			i++
 			a.icon = rest[i]
 		case strings.HasPrefix(arg, "-"):
-			return a, fmt.Errorf("option inconnue %s", arg)
+			return a, i18n.Errorf("cli.unknown_option", arg)
 		case a.path == "":
 			a.path = arg
 		default:
-			return a, fmt.Errorf("argument en trop : %s", arg)
+			return a, i18n.Errorf("cli.extra_argument", arg)
 		}
 	}
 	return a, nil
 }
 
 func run(argv []string) int {
+	// The language comes first: parsing errors are already messages.
+	i18n.Set(i18n.Resolve(langFlag(argv), os.Getenv("PM_LANG"), "", i18n.SystemLanguage))
 	a, err := parse(argv)
 	if err == nil && a.cmd == "version" {
 		fmt.Println("pm", version)
 		return 0
 	}
 	if err == nil && a.cmd != "run" && a.cmd != "watch" && a.cmd != "check" {
-		err = fmt.Errorf("commande inconnue %q", a.cmd)
+		err = i18n.Errorf("cli.unknown_command", a.cmd)
 	}
 	if err == nil && a.path == "" {
-		err = errors.New("fichier de config manquant")
+		err = errors.New(i18n.T("cli.no_config"))
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "erreur : %v\n\n"+usage, err, version)
+		fmt.Fprint(os.Stderr, i18n.T("cli.usage_error", err)+"\n\n"+i18n.T("cli.usage", version))
 		return 2
 	}
 
 	cfg, err := config.Load(a.path, a.profile)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "erreur de config :", err)
+		fmt.Fprintln(os.Stderr, i18n.T("cli.config_error", err))
 		if a.cmd != "check" {
 			pressKey() // launched from a shortcut, the window would close before it can be read
 		}
 		return 2
+	}
+	if a.lang == "" && os.Getenv("PM_LANG") == "" && cfg.Lang != "" {
+		i18n.Set(cfg.Lang)
 	}
 	if a.cmd == "check" {
 		printPlan(cfg)
@@ -130,7 +142,7 @@ func run(argv []string) int {
 	log, err := logx.New(cfg.Log.Dir, prefix, cfg.Log.Keep, sink)
 	if err != nil {
 		if !console {
-			tray.Alert(cfg.Name, fmt.Sprintf("Journal impossible à créer, rien n'a été lancé : %v", err))
+			tray.Alert(cfg.Name, i18n.T("cli.log_failed", err))
 			return 1
 		}
 		fmt.Fprintln(os.Stderr, "journal :", err)
@@ -171,11 +183,11 @@ func run(argv []string) int {
 	if err != nil {
 		log.Errorf("%v", err)
 	} else if detached {
-		log.Warnf("pm s'arrête, le programme continue sans surveillance")
+		log.Warn(i18n.T("run.detached"))
 	} else if code != 0 && a.cmd == "run" {
-		log.Warnf("session terminée, le programme a rendu le code %d", code)
+		log.Warn(i18n.T("run.ended_code", code))
 	} else {
-		log.Infof("session terminée")
+		log.Info(i18n.T("run.ended"))
 	}
 	finish(cfg, err != nil || log.Errors() > 0)
 	return finalCode(a, s, err, log)
@@ -194,7 +206,7 @@ func trayImage(a args, cfg *config.Config, log *logx.Logger) image.Image {
 	}
 	img, err := tray.LoadImage(path)
 	if err != nil {
-		log.Warnf("icône non utilisée : %v", err)
+		log.Warn(i18n.T("run.icon_unused", err))
 		return nil
 	}
 	return img
@@ -223,7 +235,7 @@ func interrupts(log *logx.Logger, stop context.CancelFunc, status func() session
 	var last time.Time
 	for sig := range ch {
 		if sig == syscall.SIGTERM {
-			log.Errorf("fenêtre fermée : pm est coupé, les actions de fin ne seront PAS exécutées")
+			log.Error(i18n.T("run.window_closed"))
 			stop()
 			continue
 		}
@@ -234,11 +246,11 @@ func interrupts(log *logx.Logger, stop context.CancelFunc, status func() session
 		last = time.Now()
 		switch status() {
 		case session.Starting:
-			log.Warnf("Ctrl+C encore une fois dans les 5 s pour annuler : rien ne sera lancé, les fichiers live seront remis comme avant")
+			log.Warn(i18n.T("run.ctrlc_cancel"))
 		case session.Restarting:
-			log.Warnf("Ctrl+C encore une fois dans les 5 s pour terminer sans relancer : rien ne tourne, les actions de fin seront exécutées")
+			log.Warn(i18n.T("run.ctrlc_end"))
 		default:
-			log.Warnf("Ctrl+C encore une fois dans les 5 s pour détacher : le programme continuera, les actions de fin ne seront PAS exécutées")
+			log.Warn(i18n.T("run.ctrlc_detach"))
 		}
 	}
 }
@@ -264,68 +276,68 @@ func pressKey() {
 	if !interactive() {
 		return
 	}
-	fmt.Print("Entrée pour fermer…")
+	fmt.Print(i18n.T("cli.press_enter"))
 	_, _ = bufio.NewReader(os.Stdin).ReadString('\n')
 }
 
 func printPlan(c *config.Config) {
-	fmt.Printf("config  : %s\n", c.Path)
+	fmt.Print(i18n.T("plan.config", c.Path))
 	if c.Profile != "" {
-		fmt.Printf("profil  : %s\n", c.Profile)
+		fmt.Print(i18n.T("plan.profile", c.Profile))
 	}
 	if len(c.Profiles) > 0 {
-		fmt.Printf("session : %s (verrou partagé par tous les profils)\n", c.Name)
+		fmt.Print(i18n.T("plan.session_shared", c.Name))
 	} else {
-		fmt.Printf("session : %s\n", c.Name)
+		fmt.Print(i18n.T("plan.session", c.Name))
 	}
-	fmt.Printf("lance   : %s %s\n", c.Command, strings.Join(c.Args, " "))
+	fmt.Print(i18n.T("plan.launches", c.Command, strings.Join(c.Args, " ")))
 	if c.Workdir != "" {
-		fmt.Printf("dossier : %s\n", c.Workdir)
+		fmt.Print(i18n.T("plan.workdir", c.Workdir))
 	}
-	fmt.Printf("suit    : %s\n", c.ProcessName())
-	fmt.Printf("si déjà lancé : %s\n", c.IfRunning)
+	fmt.Print(i18n.T("plan.follows", c.ProcessName()))
+	fmt.Print(i18n.T("plan.if_running", c.IfRunning))
 	if c.Ready != nil {
-		fmt.Printf("prêt quand : %s existe (délai %s)\n", c.Ready.File, c.Ready.Timeout.D())
+		fmt.Print(i18n.T("plan.ready", c.Ready.File, c.Ready.Timeout.D()))
 	}
-	fmt.Printf("journaux : %s (%d gardés)\n", c.Log.Dir, c.Log.Keep)
+	fmt.Print(i18n.T("plan.logs", c.Log.Dir, c.Log.Keep))
 	missing := 0
-	fmt.Println("\navant :")
+	fmt.Println("\n" + i18n.T("plan.before"))
 	for _, p := range c.Sync {
 		mark := ""
 		if _, err := os.Stat(p.Source); err != nil {
-			mark = "   ← SOURCE ABSENTE"
+			mark = i18n.T("plan.source_missing")
 			missing++
 		}
-		fmt.Printf("  copie  %s\n      -> %s%s\n", p.Source, p.Target, mark)
+		fmt.Print(i18n.T("plan.copy", p.Source, p.Target) + mark + "\n")
 	}
 	for _, a := range c.Hooks.Before {
 		mark := ""
 		if a.Copy != nil {
 			if _, err := os.Stat(a.Copy.From); err != nil {
-				mark = "   ← SOURCE ABSENTE"
+				mark = i18n.T("plan.source_missing")
 				missing++
 			}
 		}
 		fmt.Println("  " + describe(a) + mark)
 	}
-	fmt.Println("après :")
+	fmt.Println(i18n.T("plan.after"))
 	for _, p := range c.Sync {
-		fmt.Printf("  copie  %s\n      -> %s\n", p.Target, p.Source)
+		fmt.Println(i18n.T("plan.copy", p.Target, p.Source))
 	}
 	for _, a := range c.Hooks.After {
 		fmt.Println("  " + describe(a))
 	}
 	if missing > 0 {
-		fmt.Printf("\n%d source(s) absente(s) : pm run échouerait avant de lancer quoi que ce soit.\n", missing)
+		fmt.Print(i18n.T("plan.missing_total", missing))
 	}
 }
 
 func describe(a config.Action) string {
 	switch {
 	case a.Copy != nil:
-		return fmt.Sprintf("copie  %s\n      -> %s", a.Copy.From, a.Copy.To)
+		return strings.TrimPrefix(i18n.T("plan.copy", a.Copy.From, a.Copy.To), "  ")
 	case a.Delete != "":
-		return "suppr. " + a.Delete
+		return i18n.T("plan.delete", a.Delete)
 	default:
 		return "exec   " + strings.Join(a.Exec, " ")
 	}

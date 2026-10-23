@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 type Level string
@@ -59,10 +61,10 @@ func New(dir, prefix string, keep int, sink func(Line)) (*Logger, error) {
 	}
 	l.file = f
 	if dropped, err := prune(dir, prefix, keep); err != nil {
-		l.Warnf("nettoyage des anciens journaux : %v", err)
+		l.Warn(i18n.T("log.prune_failed", err))
 	} else {
 		for _, p := range dropped {
-			l.Infof("ancien journal supprimé : %s", filepath.Base(p))
+			l.Info(i18n.T("log.pruned", filepath.Base(p)))
 		}
 	}
 	return l, nil
@@ -92,6 +94,11 @@ func (l *Logger) log(level Level, format string, args ...any) {
 		sink(line)
 	}
 }
+
+// Info, Warn and Error log a message already formatted (from the catalog).
+func (l *Logger) Info(msg string)  { l.log(Info, "%s", msg) }
+func (l *Logger) Warn(msg string)  { l.log(Warn, "%s", msg) }
+func (l *Logger) Error(msg string) { l.log(Error, "%s", msg) }
 
 func (l *Logger) Infof(format string, args ...any)  { l.log(Info, format, args...) }
 func (l *Logger) Warnf(format string, args ...any)  { l.log(Warn, format, args...) }

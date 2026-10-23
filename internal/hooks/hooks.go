@@ -15,6 +15,8 @@ import (
 
 	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/logx"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 // Runner executes hooks and logs each step.
@@ -59,7 +61,7 @@ func (r *Runner) Before(ctx context.Context, c *config.Config) (undo func(), err
 		}
 		snap, err := take(p.Target)
 		if err != nil {
-			r.Log.Errorf("lecture de %s avant copie : %v", p.Target, err)
+			r.Log.Error(i18n.T("hooks.read_before_copy", p.Target, err))
 			return fail(err)
 		}
 		if err := r.copyFile(p.Source, p.Target); err != nil {
@@ -114,10 +116,10 @@ func (r *Runner) restore(s snapshot) {
 		err = os.Remove(s.path)
 	}
 	if err != nil {
-		r.Log.Errorf("remise en état de %s : %v", s.path, err)
+		r.Log.Error(i18n.T("hooks.restore_failed", s.path, err))
 		return
 	}
-	r.Log.Infof("remis en état : %s", s.path)
+	r.Log.Info(i18n.T("hooks.restored", s.path))
 }
 
 // After copies every sync pair back (live -> profile), then runs the after
@@ -150,14 +152,14 @@ func (r *Runner) copyFile(from, to string) error {
 		r.Log.Errorf("copie %s -> %s : %v", from, to, err)
 		return err
 	}
-	r.Log.Infof("copié %s -> %s", from, to)
+	r.Log.Info(i18n.T("hooks.copied", from, to))
 	return nil
 }
 
 func (r *Runner) delete(path string) error {
 	info, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
-		r.Log.Infof("rien à supprimer : %s", path)
+		r.Log.Info(i18n.T("hooks.nothing_to_delete", path))
 		return nil
 	}
 	if err != nil {
@@ -173,7 +175,7 @@ func (r *Runner) delete(path string) error {
 		r.Log.Errorf("suppression %s : %v", path, err)
 		return err
 	}
-	r.Log.Infof("supprimé %s", path)
+	r.Log.Info(i18n.T("hooks.deleted", path))
 	return nil
 }
 
@@ -194,7 +196,7 @@ func (r *Runner) exec(ctx context.Context, argv []string) error {
 		err = nil
 	}
 	if ctx.Err() == context.DeadlineExceeded {
-		err = fmt.Errorf("délai de %s dépassé", r.Timeout)
+		err = i18n.Errorf("hooks.timeout", r.Timeout)
 	}
 	for _, line := range strings.Split(strings.TrimRight(string(out), "\r\n"), "\n") {
 		if line != "" {
@@ -223,7 +225,7 @@ func copyFile(from, to string, backup bool) error {
 		return err
 	}
 	if info.IsDir() {
-		return fmt.Errorf("%s est un dossier", from)
+		return i18n.Errorf("hooks.is_dir", from)
 	}
 	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
 		return err

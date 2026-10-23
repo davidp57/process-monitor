@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 var pngMagic = []byte("\x89PNG\r\n\x1a\n")
@@ -29,7 +31,7 @@ func LoadImage(path string) (image.Image, error) {
 	case ".ico":
 		img, err = decodeICO(data)
 	default:
-		return nil, fmt.Errorf("%s : seuls .ico et .png sont lus", path)
+		return nil, i18n.Errorf("icon.bad_type", path)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("%s : %w", path, err)
@@ -39,11 +41,11 @@ func LoadImage(path string) (image.Image, error) {
 
 func decodeICO(data []byte) (image.Image, error) {
 	if len(data) < 6 || binary.LittleEndian.Uint16(data[0:]) != 0 || binary.LittleEndian.Uint16(data[2:]) != 1 {
-		return nil, errors.New("pas un fichier ICO")
+		return nil, errors.New(i18n.T("icon.not_ico"))
 	}
 	count := int(binary.LittleEndian.Uint16(data[4:]))
 	if count == 0 || len(data) < 6+16*count {
-		return nil, errors.New("fichier ICO tronqué")
+		return nil, errors.New(i18n.T("icon.truncated"))
 	}
 	best, bestSize := -1, 0
 	for i := 0; i < count; i++ {
@@ -59,7 +61,7 @@ func decodeICO(data []byte) (image.Image, error) {
 	length := int(binary.LittleEndian.Uint32(entry[8:]))
 	offset := int(binary.LittleEndian.Uint32(entry[12:]))
 	if offset < 0 || length < 0 || offset+length > len(data) {
-		return nil, errors.New("image ICO hors du fichier")
+		return nil, errors.New(i18n.T("icon.outside"))
 	}
 	img := data[offset : offset+length]
 	if bytes.HasPrefix(img, pngMagic) {
@@ -72,17 +74,17 @@ func decodeICO(data []byte) (image.Image, error) {
 // height doubled for the AND mask, which the alpha channel makes useless).
 func decodeDIB(b []byte) (image.Image, error) {
 	if len(b) < 40 || binary.LittleEndian.Uint32(b) < 40 {
-		return nil, errors.New("image ICO illisible")
+		return nil, errors.New(i18n.T("icon.unreadable"))
 	}
 	w := int(int32(binary.LittleEndian.Uint32(b[4:])))
 	h := int(int32(binary.LittleEndian.Uint32(b[8:]))) / 2
 	bpp := binary.LittleEndian.Uint16(b[14:])
 	if bpp != 32 {
-		return nil, fmt.Errorf("image ICO en %d bits : seules les images 32 bits ou PNG sont lues", bpp)
+		return nil, i18n.Errorf("icon.depth", bpp)
 	}
 	px := b[binary.LittleEndian.Uint32(b):]
 	if w <= 0 || h <= 0 || len(px) < w*h*4 {
-		return nil, errors.New("image ICO tronquée")
+		return nil, errors.New(i18n.T("icon.image_truncated"))
 	}
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	opaque := true // old icons leave the alpha byte at 0 everywhere

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 var varRef = regexp.MustCompile(`\$\{([^}]+)\}`)
@@ -22,7 +24,7 @@ func (e *expander) lookup(key string) (string, error) {
 	if env, ok := strings.CutPrefix(key, "env:"); ok {
 		v, found := os.LookupEnv(env)
 		if !found {
-			return "", fmt.Errorf("variable d'environnement %s absente", env)
+			return "", i18n.Errorf("config.env_missing", env)
 		}
 		return v, nil
 	}
@@ -31,10 +33,10 @@ func (e *expander) lookup(key string) (string, error) {
 	}
 	raw, ok := e.vars[key]
 	if !ok {
-		return "", fmt.Errorf("variable ${%s} non définie", key)
+		return "", i18n.Errorf("config.var_undefined", key)
 	}
 	if e.visiting[key] {
-		return "", fmt.Errorf("variable ${%s} définie en boucle", key)
+		return "", i18n.Errorf("config.var_loop", key)
 	}
 	e.visiting[key] = true
 	v, err := e.expand(raw)
@@ -63,7 +65,7 @@ func (c *Config) expand() error {
 	for k, v := range c.Vars {
 		switch k {
 		case "profile", "name", "config_dir":
-			return fmt.Errorf("vars : %q est réservé (fourni par pm)", k)
+			return i18n.Errorf("config.var_reserved", k)
 		}
 		vars[k] = v
 	}

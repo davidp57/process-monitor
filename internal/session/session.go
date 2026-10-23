@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +18,8 @@ import (
 	"github.com/davidp57/process-monitor/internal/lock"
 	"github.com/davidp57/process-monitor/internal/logx"
 	"github.com/davidp57/process-monitor/internal/proc"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 // A run shorter than this counts as a crash loop: the restart delay doubles.
@@ -31,13 +32,13 @@ const trackGrace = 10 * time.Second
 type Status string
 
 const (
-	Starting   Status = "démarrage"
-	Running    Status = "en cours"
-	Paused     Status = "en pause"
-	Restarting Status = "relance"
-	Stopping   Status = "arrêt"
-	Finished   Status = "terminé"
-	Detached   Status = "détaché"
+	Starting   Status = "starting"
+	Running    Status = "running"
+	Paused     Status = "paused"
+	Restarting Status = "restarting"
+	Stopping   Status = "stopping"
+	Finished   Status = "finished"
+	Detached   Status = "detached"
 )
 
 // State is a snapshot for display.
@@ -125,7 +126,13 @@ func (s *Session) send(c command) {
 
 // ErrCancelled ends a session the user cancelled before anything was
 // launched: not a failure, but not a success either (pm run exits 1).
-var ErrCancelled = errors.New("session annulée avant le lancement : fichiers live remis en état, rien n'a été lancé")
+var ErrCancelled error = cancelled{}
+
+// cancelled translates its message when it is read, not when pm starts:
+// the language is chosen after package initialisation.
+type cancelled struct{}
+
+func (cancelled) Error() string { return i18n.T("session.cancelled") }
 
 func (s *Session) restartHandled() {
 	s.mu.Lock()
@@ -161,9 +168,9 @@ func (s *Session) Run(ctx context.Context) error {
 		if err != nil {
 			var busy *lock.Busy
 			if errors.As(err, &busy) {
-				return fmt.Errorf("%w. Rien n'a été copié ni lancé", busy)
+				return i18n.Errorf("session.busy", busy)
 			}
-			return fmt.Errorf("verrou de session : %w", err)
+			return i18n.Errorf("session.lock_failed", err)
 		}
 		defer lk.Release()
 	}
@@ -180,7 +187,7 @@ func (s *Session) Run(ctx context.Context) error {
 		if ctx.Err() != nil {
 			return ErrCancelled
 		}
-		return fmt.Errorf("actions de départ en échec, %s n'a pas été lancé : %w", c.Command, err)
+		return i18n.Errorf("session.before_failed", c.Command, err)
 	}
 	// Stopped or detached while the files were being copied: nothing runs
 	// yet, so there is nothing to detach from. Cancel instead of launching
@@ -196,7 +203,7 @@ func (s *Session) Run(ctx context.Context) error {
 	if detached {
 		s.update(func(st *State) { st.Status = Detached })
 		if len(c.Sync) > 0 || len(c.Hooks.After) > 0 {
-			s.log.Warnf("session détachée : %s tourne toujours, les actions de fin (copies retour comprises) ne sont PAS exécutées", c.ProcessName())
+			s.log.Warn(i18n.T("session.detached", c.ProcessName()))
 		}
 		return runErr
 	}
@@ -207,17 +214,17 @@ func (s *Session) Run(ctx context.Context) error {
 		pids, err := proc.FindByName(c.ProcessName())
 		if err != nil || len(pids) > 0 {
 			s.update(func(st *State) { st.Status = Finished })
-			why := fmt.Sprintf("tourne encore (pid %v) sans être suivi", pids)
+			why := i18n.T("session.unfollowed", pids)
 			if err != nil {
-				why = fmt.Sprintf("n'a pas pu être recherché (%v)", err)
+				why = i18n.T("session.unsearchable", err)
 			}
-			return errors.Join(runErr, fmt.Errorf("%s %s : actions de fin NON exécutées, pour ne rien recopier pendant qu'il tourne", c.ProcessName(), why))
+			return errors.Join(runErr, i18n.Errorf("session.safety_net", c.ProcessName(), why))
 		}
 	}
 	afterErr := h.After(context.WithoutCancel(ctx), c)
 	s.update(func(st *State) { st.Status = Finished })
 	if afterErr != nil {
-		afterErr = fmt.Errorf("actions de fin : %w", afterErr)
+		afterErr = i18n.Errorf("session.after_failed", afterErr)
 	}
 	return errors.Join(runErr, afterErr)
 }
@@ -236,7 +243,7 @@ func (s *Session) handleAlreadyRunning() error {
 	// Killed: make sure nothing came back in between.
 	for _, name := range names {
 		if pids, err := proc.FindByName(name); err != nil || len(pids) > 0 {
-			return fmt.Errorf("%s toujours présent après l'arrêt (pid %v, %v) : rien n'a été copié ni lancé", name, pids, err)
+			return i18n.Errorf("session.survived_kill", name, pids, err)
 		}
 	}
 	return nil
@@ -246,18 +253,18 @@ func (s *Session) checkRunning(names []string) error {
 	for _, name := range names {
 		pids, err := proc.FindByName(name)
 		if err != nil {
-			return fmt.Errorf("recherche de %s : %w", name, err)
+			return i18n.Errorf("session.search_failed", name, err)
 		}
 		if len(pids) == 0 {
 			continue
 		}
 		if s.cfg.IfRunning == config.IfRunningAbort {
-			return fmt.Errorf("%s tourne déjà (pid %v) hors de cette session : rien n'a été copié ni lancé. Ferme-le, ou mets if_running: kill", name, pids)
+			return i18n.Errorf("session.already_running", name, pids)
 		}
 		n, err := proc.KillByName(name, 10*time.Second)
-		s.log.Infof("%d instance(s) existante(s) de %s arrêtée(s)", n, name)
+		s.log.Info(i18n.T("session.killed_existing", n, name))
 		if err != nil {
-			return fmt.Errorf("arrêt des instances existantes de %s : %w", name, err)
+			return i18n.Errorf("session.kill_existing_failed", name, err)
 		}
 	}
 	return nil
@@ -290,7 +297,7 @@ func (s *Session) killOnExit() {
 		if err != nil {
 			s.log.Errorf("kill_on_exit %s : %v", name, err)
 		} else if n > 0 {
-			s.log.Infof("kill_on_exit : %d instance(s) de %s arrêtée(s)", n, name)
+			s.log.Info(i18n.T("session.kill_on_exit", n, name))
 		}
 	}
 }
@@ -318,13 +325,13 @@ func (s *Session) start() (proc.Process, error) {
 	if c.Ready != nil {
 		// A ready file left by a crash would make the program look ready at once.
 		if err := os.Remove(c.Ready.File); err == nil {
-			s.log.Infof("ancien fichier de démarrage supprimé : %s", c.Ready.File)
+			s.log.Info(i18n.T("session.stale_ready_removed", c.Ready.File))
 		} else if !errors.Is(err, os.ErrNotExist) {
 			s.readyUsable = false
-			s.log.Warnf("ancien fichier de démarrage impossible à supprimer (%v) : le démarrage ne sera pas suivi", err)
+			s.log.Warn(i18n.T("session.stale_ready_kept", err))
 		}
 	}
-	s.log.Infof("lancement de %s %s", c.Command, strings.Join(c.Args, " "))
+	s.log.Info(i18n.T("session.launching", c.Command, strings.Join(c.Args, " ")))
 	return proc.Start(proc.Spec{
 		Command:    c.Command,
 		Args:       c.Args,
@@ -344,7 +351,7 @@ func (s *Session) watchReady(done <-chan struct{}) {
 	if r == nil || !s.readyUsable {
 		return
 	}
-	s.update(func(st *State) { st.Ready = "en attente" })
+	s.update(func(st *State) { st.Ready = "ready.waiting" })
 	deadline := time.Now().Add(r.Timeout.D())
 	t := time.NewTicker(250 * time.Millisecond)
 	defer t.Stop()
@@ -355,13 +362,13 @@ func (s *Session) watchReady(done <-chan struct{}) {
 		case <-t.C:
 		}
 		if _, err := os.Stat(r.File); err == nil {
-			s.update(func(st *State) { st.Ready = "prêt" })
-			s.log.Infof("démarrage terminé (%s présent)", r.File)
+			s.update(func(st *State) { st.Ready = "ready.done" })
+			s.log.Info(i18n.T("session.ready", r.File))
 			return
 		}
 		if time.Now().After(deadline) {
-			s.update(func(st *State) { st.Ready = "délai dépassé" })
-			s.log.Warnf("%s toujours absent après %s : le programme démarre mal ou a changé de comportement", r.File, r.Timeout.D())
+			s.update(func(st *State) { st.Ready = "ready.timeout" })
+			s.log.Warn(i18n.T("session.ready_timeout", r.File, r.Timeout.D()))
 			return
 		}
 	}
@@ -375,9 +382,9 @@ func (s *Session) loop(ctx context.Context) (err error, detached bool) {
 	quick := 0 // consecutive quick crashes, for the backoff
 	for crashes, first := 0, true; ; first = false {
 		if !first && len(c.Hooks.Before) > 0 {
-			s.log.Infof("actions avant rejouées avant la relance")
+			s.log.Info(i18n.T("session.replay_before"))
 			if err := s.hooks.BeforeRestart(ctx, c); err != nil {
-				s.log.Warnf("actions avant en échec, relance quand même : %v", err)
+				s.log.Warn(i18n.T("session.replay_failed", err))
 			}
 		}
 		p, startErr := s.start()
@@ -387,7 +394,7 @@ func (s *Session) loop(ctx context.Context) (err error, detached bool) {
 		killed, restartAsked := false, false
 
 		if startErr != nil {
-			s.log.Errorf("lancement impossible : %v", startErr)
+			s.log.Error(i18n.T("session.launch_failed", startErr))
 			res = proc.Result{ExitCode: -1, Err: startErr}
 		} else {
 			s.update(func(st *State) {
@@ -415,18 +422,18 @@ func (s *Session) loop(ctx context.Context) (err error, detached bool) {
 		}
 
 		ran := time.Since(begin).Round(time.Second)
-		summary := fmt.Sprintf("code %d après %s", res.ExitCode, ran)
+		summary := i18n.T("session.exit_summary", res.ExitCode, ran)
 		if res.Err != nil {
 			summary = res.Err.Error()
 		}
 		s.update(func(st *State) { st.LastExit, st.ExitCode = summary, res.ExitCode })
 		switch {
 		case res.Err != nil:
-			s.log.Errorf("fin de session : %s", summary)
+			s.log.Error(i18n.T("session.ended_error", summary))
 		case killed:
-			s.log.Infof("%s arrêté à la demande", c.ProcessName())
+			s.log.Info(i18n.T("session.stopped_on_request", c.ProcessName()))
 		default:
-			s.log.Infof("%s s'est terminé : %s", c.ProcessName(), summary)
+			s.log.Info(i18n.T("session.program_exited", c.ProcessName(), summary))
 		}
 
 		switch {
@@ -441,7 +448,7 @@ func (s *Session) loop(ctx context.Context) (err error, detached bool) {
 		case s.restart == config.RestartOnFailure && res.ExitCode == 0 && res.Err == nil:
 			return nil, false
 		case c.Watch.MaxRestarts > 0 && crashes >= c.Watch.MaxRestarts:
-			return fmt.Errorf("abandon après %d relances", c.Watch.MaxRestarts), false
+			return i18n.Errorf("session.gave_up", c.Watch.MaxRestarts), false
 		}
 		crashes++
 
@@ -456,10 +463,10 @@ func (s *Session) loop(ctx context.Context) (err error, detached bool) {
 		}
 		next := time.Now().Add(delay)
 		s.update(func(st *State) { st.Status, st.NextStart = Restarting, next })
-		s.log.Infof("relance dans %s", delay)
+		s.log.Info(i18n.T("session.restart_in", delay))
 		// Nothing runs during the delay: detaching then is just ending, after hooks included.
 		if cmd := s.pause(ctx, delay); cmd == cmdKill || cmd == cmdDetach {
-			s.log.Infof("relance annulée")
+			s.log.Info(i18n.T("session.restart_cancelled"))
 			return nil, false
 		}
 		s.update(func(st *State) { st.Restarts++ })
@@ -501,7 +508,7 @@ func (s *Session) supervise(ctx context.Context, p proc.Process) (res proc.Resul
 					s.log.Errorf("pause : %v", err)
 				} else {
 					s.update(func(st *State) { st.Status = Paused })
-					s.log.Infof("%s en pause", s.cfg.ProcessName())
+					s.log.Info(i18n.T("session.paused", s.cfg.ProcessName()))
 				}
 			case cmdResume:
 				if err := p.Resume(); err != nil {
@@ -514,10 +521,10 @@ func (s *Session) supervise(ctx context.Context, p proc.Process) (res proc.Resul
 				if s.State().Status == Paused {
 					_ = p.Resume() // a suspended process may not die cleanly
 				}
-				s.log.Infof("arrêt de %s demandé", s.cfg.ProcessName())
+				s.log.Info(i18n.T("session.stop_asked", s.cfg.ProcessName()))
 				s.update(func(st *State) { st.Status = Stopping })
 				if err := p.Kill(); err != nil {
-					s.log.Errorf("arrêt : %v", err)
+					s.log.Error(i18n.T("session.stop_failed", err))
 				}
 				killed, restart = cmd == cmdKill, cmd == cmdRestart
 			case cmdDetach:

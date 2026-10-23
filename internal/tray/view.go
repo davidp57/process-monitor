@@ -3,10 +3,11 @@
 package tray
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/davidp57/process-monitor/internal/session"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 // Color is the state the icon shows at a glance.
@@ -20,7 +21,7 @@ const (
 )
 
 func (c Color) String() string {
-	return [...]string{"vert", "orange", "gris", "rouge"}[c]
+	return [...]string{"green", "orange", "grey", "red"}[c]
 }
 
 // View is what the icon and its menu show for one session state.
@@ -39,35 +40,35 @@ func ViewOf(name, profile string, st session.State, watch, failed bool) View {
 	active := st.Status == session.Running || st.Status == session.Paused || st.Status == session.Restarting
 	switch st.Status {
 	case session.Starting:
-		v.Status = "démarrage : copie des fichiers"
+		v.Status = i18n.T("tray.status_starting")
 	case session.Running:
 		v.Color = Green
-		v.Status = fmt.Sprintf("en cours, pid %d", st.PID)
+		v.Status = i18n.T("tray.status_running", st.PID)
 		if st.Ready != "" {
-			v.Status += " (" + st.Ready + ")"
+			v.Status += " (" + i18n.T(st.Ready) + ")"
 		}
 	case session.Paused:
 		v.Color = Grey
-		v.Status = fmt.Sprintf("en pause, pid %d", st.PID)
+		v.Status = i18n.T("tray.status_paused", st.PID)
 	case session.Restarting:
-		v.Status = "relance"
+		v.Status = i18n.T("status.restarting")
 		if !st.NextStart.IsZero() {
-			v.Status += " dans " + time.Until(st.NextStart).Round(time.Second).String()
+			v.Status += i18n.T("tray.restart_in", time.Until(st.NextStart).Round(time.Second))
 		}
 	case session.Stopping:
-		v.Status = "actions de fin en cours"
+		v.Status = i18n.T("tray.status_stopping")
 	case session.Finished, session.Detached:
 		v.Color = Green
-		v.Status = string(st.Status)
+		v.Status = i18n.T("status." + string(st.Status))
 	default:
-		v.Status = string(st.Status)
+		v.Status = i18n.T("status." + string(st.Status))
 	}
 	if failed { // whatever the state the session stopped in
 		v.Color = Red
-		v.Status += " en erreur"
+		v.Status += i18n.T("tray.in_error")
 	}
 	if st.Restarts > 0 {
-		v.Status += fmt.Sprintf(", %d relance(s)", st.Restarts)
+		v.Status += i18n.T("tray.restarts", st.Restarts)
 	}
 
 	v.CanPause = watch && st.Status == session.Running
@@ -90,11 +91,11 @@ func ViewOf(name, profile string, st session.State, watch, failed bool) View {
 func DetachQuestion(st session.Status) string {
 	switch st {
 	case session.Starting:
-		return "Annuler la session ? Rien ne sera lancé, les fichiers live seront remis comme avant."
+		return i18n.T("tray.ask_cancel")
 	case session.Restarting:
-		return "Terminer sans relancer ? Rien ne tourne : les actions de fin seront exécutées."
+		return i18n.T("tray.ask_end")
 	default:
-		return "Détacher pm ? Le programme continue sans surveillance, et les actions de fin (copies retour comprises) ne seront PAS exécutées."
+		return i18n.T("tray.ask_detach")
 	}
 }
 

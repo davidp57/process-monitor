@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 // Lock is a held session lock.
@@ -25,9 +27,9 @@ type Busy struct {
 
 func (b *Busy) Error() string {
 	if b.Owner == "" {
-		return "une autre session pm est déjà active"
+		return i18n.T("lock.busy")
 	}
-	return "une autre session pm est déjà active : " + b.Owner
+	return i18n.T("lock.busy_owner", b.Owner)
 }
 
 // Dir is where locks live.
