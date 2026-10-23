@@ -1,8 +1,8 @@
-# <a id="en"></a>pm — run a program and frame it
+# <a id="en"></a>Process Monitor
 
 > 🇫🇷 [Lire en français](#fr)
 
-`pm` is a single Windows executable, with no dependency:
+**Process Monitor** (`pm.exe`) is a single Windows executable, with no dependency, that runs a program and frames it:
 
 - **`pm run`** runs actions before a program starts and after it exits — copy a profile's files in and back, clean up, run a command;
 - **`pm watch`** keeps a program alive and restarts it when it stops;
@@ -38,11 +38,11 @@ License: MIT.
 
 ---
 
-# <a id="fr"></a>pm — lancer un programme et l'encadrer
+# <a id="fr"></a>Process Monitor
 
 > 🇬🇧 [Read in English](#en)
 
-`pm` est un exécutable Windows unique, sans dépendance :
+**Process Monitor** (`pm.exe`) est un exécutable Windows unique, sans dépendance, qui lance un programme et l'encadre :
 
 - **`pm run`** exécute des actions avant le lancement d'un programme et après sa fermeture : copier les fichiers d'un profil et les récupérer, nettoyer, lancer une commande ;
 - **`pm watch`** garde un programme en vie et le relance s'il s'arrête ;

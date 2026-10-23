@@ -38,12 +38,12 @@ jobs:
       - name: Every page in both languages
         run: |
           missing=0
-          for f in doc/*.md; do
+          for f in $(find doc -name '*.md'); do
             case "$f" in *.en.md) continue ;; esac
             en="${f%.md}.en.md"
             if [ ! -f "$en" ]; then echo "missing English page: $en"; missing=1; fi
           done
-          for f in doc/*.en.md; do
+          for f in $(find doc -name '*.en.md'); do
             fr="${f%.en.md}.md"
             if [ ! -f "$fr" ]; then echo "missing French page: $fr"; missing=1; fi
           done

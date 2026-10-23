@@ -22,6 +22,8 @@ The lock goes away with the pm process holding it, even after a crash: if it sta
 
 The game, or its launcher, was started without pm. pm refuses so as not to overwrite the settings in use: close the program, or set `if_running: kill` if that is what you want.
 
+The check goes by the program's name: a very common name (`cmd.exe`, `powershell.exe`) is nearly always "already running". Start the real program instead, or follow it with `track`.
+
 ## The copy-back did not happen {#no-copy-back}
 
 The log says why: session detached (double Ctrl+C, `q` twice, window closed), or the last safety net (the followed process still ran unfollowed).

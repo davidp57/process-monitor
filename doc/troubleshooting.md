@@ -22,6 +22,8 @@ Le verrou disparaît avec le process pm qui le tient, même après un plantage :
 
 Le jeu, ou son lanceur, a été lancé sans pm. pm refuse pour ne pas écraser les réglages en cours : fermer le programme, ou mettre `if_running: kill` si c'est voulu.
 
+La vérification se fait par le nom du programme : un nom très courant (`cmd.exe`, `powershell.exe`) est presque toujours « déjà lancé ». Lancer plutôt le vrai programme, ou suivre celui-ci avec `track`.
+
 ## Les copies retour n'ont pas eu lieu {#no-copy-back}
 
 Le journal dit pourquoi : session détachée (double Ctrl+C, `q` deux fois, fenêtre fermée), ou dernier filet (le process suivi tournait encore sans être suivi).

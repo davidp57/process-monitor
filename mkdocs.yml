@@ -1,4 +1,4 @@
-site_name: pm
+site_name: Process Monitor
 site_description: Run a program and frame it — before/after actions, watchdog, Windows
 site_url: https://davidp57.github.io/process-monitor/
 repo_url: https://github.com/davidp57/process-monitor
@@ -43,6 +43,11 @@ markdown_extensions:
   - attr_list
   - admonition
   - pymdownx.superfences
+  # The example pages include the files of examples/ as they are: the docs
+  # show the configs the tests load, and a missing file fails the build.
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
 
 plugins:
   - search:
@@ -61,6 +66,11 @@ plugins:
           build: true
           nav_translations:
             Accueil: Home
+            Fonctions: Features
+            Exemples: Examples
+            "DCS World par profils": DCS World with profiles
+            Garder SimAppPro en vie: Keep SimAppPro alive
+            Sauvegarder avant de lancer: Back up before starting
             Utiliser pm: Using pm
             "L'icône de notification": The notification icon
             Comment pm suit un programme: How pm follows a program
@@ -75,6 +85,11 @@ extra:
 nav:
   - Accueil: index.md
   - Installation: installation.md
+  - Fonctions: features.md
+  - Exemples:
+      - "DCS World par profils": examples/dcs.md
+      - Garder SimAppPro en vie: examples/simapppro.md
+      - Sauvegarder avant de lancer: examples/backup.md
   - Utiliser pm:
       - pm run: run.md
       - pm watch: watch.md
