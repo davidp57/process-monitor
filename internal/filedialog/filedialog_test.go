@@ -80,7 +80,7 @@ func TestPrepare(t *testing.T) {
 		} else {
 			var p *uint16
 			call(folder, mDisplayName, sigdnFileSysPath, uintptr(unsafe.Pointer(&p)))
-			if got := windows.UTF16PtrToString(p); !strings.EqualFold(got, dir) {
+			if got := windows.UTF16PtrToString(p); !strings.EqualFold(got, longPath(dir)) {
 				t.Errorf("%+v : dossier %q, attendu %q", c.o, got, dir)
 			}
 			windows.CoTaskMemFree(unsafe.Pointer(p))
@@ -88,4 +88,15 @@ func TestPrepare(t *testing.T) {
 		}
 		d.release()
 	}
+}
+
+// longPath is dir as Windows names it back: a temporary folder may be
+// given in its short form (C:\Users\RUNNER~1\...).
+func longPath(dir string) string {
+	in, _ := windows.UTF16PtrFromString(dir)
+	buf := make([]uint16, windows.MAX_LONG_PATH)
+	if n, err := windows.GetLongPathName(in, &buf[0], uint32(len(buf))); err == nil && n > 0 {
+		return windows.UTF16ToString(buf[:n])
+	}
+	return dir
 }
