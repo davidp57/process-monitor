@@ -25,10 +25,14 @@ C'est `pm` qui l'ouvre, car une page web n'apprend jamais où se trouve un fichi
 
 ## Sessions {#sessions}
 
+![L'onglet Sessions, le journal d'une session ouvert](img/gui-sessions.png)
+
 Toutes les sessions `pm run` et `pm watch` en cours, d'où qu'elles viennent (un raccourci, un terminal, l'interface) : leur état, leur PID, leur journal en direct.
 Les boutons font ce que fait l'[icône de notification](tray.md) : mettre en pause, reprendre, relancer (pour `pm watch`), **arrêter et finir** (le programme est arrêté, puis les actions de fin sont exécutées), **détacher** (`pm` s'arrête, le programme continue, les actions de fin ne sont pas exécutées).
 
 ## Configs {#configs}
+
+![Une config DCS : ses profils, le lancement, et l'aperçu de ce que ferait une session](img/gui-overview.png)
 
 L'interface liste :
 
@@ -53,6 +57,8 @@ Une config que `pm` refuse est marquée invalide, avec le message qui dit pourqu
 
 ## Modifier une config {#edit}
 
+![L'éditeur d'une config](img/gui-edit.png)
+
 Chaque clé de la [configuration](configuration.md) a son champ, rangé par thème : programme, session et affichage, variables, fichiers et actions, raccourcis, garder en vie, démarrage terminé, journaux, profils.
 Les clés que les formulaires ne montrent pas sont gardées telles quelles.
 
@@ -61,6 +67,8 @@ Sinon, l'ancienne version est gardée en `.bak` à côté.
 Les commentaires du fichier sont gardés ; la mise en page peut changer (guillemets, alignements).
 
 ## Nouvelle config {#wizard}
+
+![L'assistant : une question, et les réponses déjà données à droite](img/gui-wizard.png)
 
 L'[assistant](new.md) de `pm new`, dans la page : les mêmes questions, les mêmes étapes.
 Les réponses déjà données restent affichées à côté ; « Précédent » revient sur la dernière.

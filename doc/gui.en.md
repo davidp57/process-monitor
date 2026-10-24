@@ -25,10 +25,14 @@ Beside every field that takes a path, "Browse…" opens the Windows window to ch
 
 ## Sessions {#sessions}
 
+![The Sessions tab, a session's log open](img/gui-sessions.png)
+
 Every `pm run` and `pm watch` session running, wherever it was started (a shortcut, a terminal, the interface): its state, its PID, its log live.
 The buttons do what the [notification icon](tray.md) does: pause, resume, restart (for `pm watch`), **stop and finish** (the program is stopped, then the after actions run), **detach** (`pm` stops, the program goes on, the after actions do not run).
 
 ## Configs {#configs}
+
+![A DCS config: its profiles, launching, and the overview of what a session would do](img/gui-overview.png)
 
 The interface lists:
 
@@ -53,6 +57,8 @@ A config `pm` refuses is marked invalid, with the message saying why, and can be
 
 ## Editing a config {#edit}
 
+![A config's editor](img/gui-edit.png)
+
 Every key of the [configuration](configuration.md) has its field, grouped by theme: program, session and display, variables, files and actions, shortcuts, keep alive, ready, logs, profiles.
 The keys the forms do not show are kept as they are.
 
@@ -61,6 +67,8 @@ Otherwise the previous version is kept as `.bak` beside it.
 The file's comments are kept; its layout may change (quotes, alignment).
 
 ## New config {#wizard}
+
+![The wizard: a question, and the answers so far on the right](img/gui-wizard.png)
 
 The [wizard](new.md) of `pm new`, in the page: the same questions, the same steps.
 The answers already given stay shown beside it; "Back" returns to the last one.

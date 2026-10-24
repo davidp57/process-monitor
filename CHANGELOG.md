@@ -9,6 +9,8 @@ A pull request adds its entry at the **end** of `[Unreleased]` and never touches
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-10-24
+
 ### Added
 
 - **`pm new`, a configuration wizard** (#10): a few questions in the terminal, then a working config and its shortcuts, for the four use cases of the docs (DCS by profiles, another game by profiles, keep a program alive, back up before starting). Game profiles are learned by playing: the wizard starts the game for each profile, shows the files that changed as soon as the game closes, and carries the ones kept (DCS's login data `authdata.bin` is never touched); a profile can start from existing files (an older pm config, a folder laid out like the game, or files placed one by one), and a game left running is offered to be stopped; the original settings are put back before each profile and at the end. It never overwrites an existing config.
