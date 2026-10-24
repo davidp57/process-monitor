@@ -40,3 +40,8 @@ profiles:
     icon: ${saved}\Profiles\Icons\dcs.ico
 
 exit: { delay: 2s }
+
+# .\pm.exe shortcut dcs.yaml : un raccourci par profil, à côté de la config.
+shortcuts:
+  mode: run
+  name: DCS - ${profile}

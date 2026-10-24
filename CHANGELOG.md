@@ -9,6 +9,15 @@ A pull request adds its entry at the **end** of `[Unreleased]` and never touches
 
 ## [Unreleased]
 
+### Added
+
+- **`pm new`, a configuration wizard** (#10): a few questions in the terminal, then a working config and its shortcuts, for the four use cases of the docs (DCS by profiles, another game by profiles, keep a program alive, back up before starting). Game profiles are learned by playing: the wizard starts the game for each profile, shows the files that changed as soon as the game closes, and carries the ones kept (DCS's login data `authdata.bin` is never touched); a profile can start from existing files (an older pm config, a folder laid out like the game, or files placed one by one), and a game left running is offered to be stopped; the original settings are put back before each profile and at the end. It never overwrites an existing config.
+- **A menu on a double-click**: `pm.exe` started from Explorer with no arguments lists what it can do (create a config, its shortcuts, check it, run it), like `veaf-tools.exe`; from a terminal it still prints its usage.
+- **`pm shortcut` and the `shortcuts:` section** (#9): one Windows shortcut per profile, pointing at the running `pm.exe`, minimized with `ui: tray`, with the profile's `.ico` or the program's icon; an existing shortcut is kept as `.lnk.old`. New built-in variables `${desktop}` and `${start_menu}` (`desktop` and `start_menu` are now reserved names in `vars`).
+### Fixed
+
+- **Stopping a game from the notification icon no longer reports an error.** The followed process was terminated twice, by the job and then by its own handle while it was dying, and Windows answered "Access is denied"; it is now terminated on its own only when it left the job. And a run stopped on request no longer shows "the program exited with code 1": that code is the one Windows gives a terminated process.
+
 ## [2.0.0] — 2026-10-23
 
 ### Changed

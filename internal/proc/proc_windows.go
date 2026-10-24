@@ -23,6 +23,7 @@ var (
 	ntSuspendProcess = ntdll.NewProc("NtSuspendProcess")
 	ntResumeProcess  = ntdll.NewProc("NtResumeProcess")
 	getConsoleWindow = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetConsoleWindow")
+	isProcessInJob   = windows.NewLazySystemDLL("kernel32.dll").NewProc("IsProcessInJob")
 )
 
 const (
@@ -463,13 +464,26 @@ func (p *winProcess) Kill() error {
 	}
 	// Hold the lock: follow() may close this handle at any moment.
 	p.mu.Lock()
-	if h := p.tracked; h != 0 {
+	// The tracked process is stopped on its own only when it left the job:
+	// in it, ending the job ends it, and terminating a process already
+	// dying fails with "Access is denied".
+	if h := p.tracked; h != 0 && !p.inJob(h) {
 		if ev, _ := windows.WaitForSingleObject(h, 0); ev != windows.WAIT_OBJECT_0 {
 			errs = append(errs, windows.TerminateProcess(h, 1))
 		}
 	}
 	p.mu.Unlock()
 	return errors.Join(errs...)
+}
+
+// inJob reports whether h belongs to the session's job.
+func (p *winProcess) inJob(h windows.Handle) bool {
+	if p.job == 0 {
+		return false
+	}
+	var in int32
+	r, _, _ := isProcessInJob.Call(uintptr(h), uintptr(p.job), uintptr(unsafe.Pointer(&in)))
+	return r != 0 && in != 0
 }
 
 // handles returns every process of the session: the job members plus the

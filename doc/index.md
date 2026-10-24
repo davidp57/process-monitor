@@ -40,7 +40,13 @@ Le détail de chaque fonction et sa configuration sont sur la page [Fonctions](f
 ## Démarrage rapide {#quick-start}
 
 1. [Installer](installation.md) `pm.exe`.
-2. Écrire une config, en partant d'un [exemple](examples/dcs.md).
+2. Lancer l'[assistant](new.md), qui pose quelques questions et écrit la config et ses raccourcis :
+
+    ```powershell
+    .\pm.exe new
+    ```
+
+    Ou écrire la config à la main, en partant d'un [exemple](examples/dcs.md).
 3. Vérifier, puis lancer, dans PowerShell :
 
     ```powershell
@@ -48,4 +54,4 @@ Le détail de chaque fonction et sa configuration sont sur la page [Fonctions](f
     .\pm.exe run .\dcs.yaml --profile DEV
     ```
 
-Les trois commandes : `pm run` lance une fois avec ses actions avant et après, `pm watch` garde le programme en vie, `pm check` montre ce qui serait fait sans rien lancer.
+Les commandes : `pm run` lance une fois avec ses actions avant et après, `pm watch` garde le programme en vie, `pm check` montre ce qui serait fait sans rien lancer, `pm new` écrit une config en posant des questions, `pm shortcut` crée ses raccourcis.

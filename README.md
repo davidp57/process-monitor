@@ -6,7 +6,9 @@
 
 - **`pm run`** runs actions before a program starts and after it exits — copy a profile's files in and back, clean up, run a command;
 - **`pm watch`** keeps a program alive and restarts it when it stops;
-- **`pm check`** shows what a config would do, without running anything.
+- **`pm check`** shows what a config would do, without running anything;
+- **`pm new`** asks a few questions and writes a working config, game profiles learned by playing;
+- **`pm shortcut`** creates the Windows shortcuts a config describes.
 
 A session shows itself in a console, a terminal interface or an icon in the notification area, in French or English.
 
@@ -46,7 +48,9 @@ License: MIT.
 
 - **`pm run`** exécute des actions avant le lancement d'un programme et après sa fermeture : copier les fichiers d'un profil et les récupérer, nettoyer, lancer une commande ;
 - **`pm watch`** garde un programme en vie et le relance s'il s'arrête ;
-- **`pm check`** montre ce que ferait une config, sans rien lancer.
+- **`pm check`** montre ce que ferait une config, sans rien lancer ;
+- **`pm new`** pose quelques questions et écrit une config qui marche, les profils d'un jeu se réglant en jouant ;
+- **`pm shortcut`** crée les raccourcis Windows qu'une config décrit.
 
 Une session s'affiche dans une console, une interface en terminal ou une icône dans la zone de notification, en français ou en anglais.
 

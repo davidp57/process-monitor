@@ -32,6 +32,11 @@ func (e *expander) lookup(key string) (string, error) {
 	}
 	raw, ok := e.vars[key]
 	if !ok {
+		// Windows knows where these are; USERPROFILE does not (OneDrive moves the Desktop).
+		if v, found := knownFolder(key); found {
+			e.resolved[key] = v
+			return v, nil
+		}
 		return "", i18n.Errorf("config.var_undefined", key)
 	}
 	if e.visiting[key] {
@@ -63,7 +68,7 @@ func (c *Config) expand() error {
 	vars := map[string]string{}
 	for k, v := range c.Vars {
 		switch k {
-		case "profile", "name", "config_dir":
+		case "profile", "name", "config_dir", "desktop", "start_menu":
 			return i18n.Errorf("config.var_reserved", k)
 		}
 		vars[k] = v
@@ -142,6 +147,12 @@ func (c *Config) expand() error {
 	xa(c.Hooks.After)
 	xs(c.Hooks.Sync)
 	xp(&c.Log.Dir)
+	if c.Shortcuts != nil {
+		x(&c.Shortcuts.Name)
+		for i := range c.Shortcuts.Folders {
+			xp(&c.Shortcuts.Folders[i])
+		}
+	}
 	c.Vars = map[string]string{}
 	for k := range vars {
 		v, err := e.lookup(k)

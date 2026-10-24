@@ -18,3 +18,6 @@ hooks:
   after:
     - exec: [powershell, -NoProfile, -Command, 'Get-ChildItem ''${archives}\saves-*.zip'' | Sort-Object Name -Descending | Select-Object -Skip 10 | Remove-Item']
   timeout: 5m
+
+# .\pm.exe shortcut backup.yaml : un raccourci à côté de la config.
+shortcuts: { mode: run }

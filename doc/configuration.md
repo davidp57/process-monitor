@@ -45,11 +45,15 @@ profiles:                       # pm run ... --profile DEV
 log: { dir: '${config_dir}\logs', keep: 5 }
 watch: { restart: always, delay: 2s, max_delay: 1m, max_restarts: 0 }
 exit: { delay: 0s, wait_key: on-error }   # never | on-error | always
+shortcuts:                      # pour pm shortcut (voir la page pm shortcut)
+  mode: run                     # run ou watch : la commande que lance le raccourci
+  name: DCS - ${profile}        # défaut : ${name}, ou "${name} - ${profile}" avec des profils
+  folder: [${desktop}, ${start_menu}]  # un dossier ou une liste ; défaut : ${config_dir}
 ```
 
 ## Points à connaître {#rules}
 
-- **Variables** : `${nom}` lit `vars`, qui peuvent se référencer entre elles. Sont aussi disponibles `${profile}` (s'il y a des profils), `${name}`, `${config_dir}` (dossier du fichier de config) et `${env:NOM}`. Une variable inconnue est une erreur.
+- **Variables** : `${nom}` lit `vars`, qui peuvent se référencer entre elles. Sont aussi disponibles `${profile}` (s'il y a des profils), `${name}`, `${config_dir}` (dossier du fichier de config), `${desktop}` et `${start_menu}` (le Bureau et le menu Démarrer, tels que Windows les connaît) et `${env:NOM}`. Une variable inconnue est une erreur.
 - **Clés inconnues** : une faute de frappe dans une clé est une erreur, jamais une option ignorée.
 - **Chemins** : entre apostrophes `'...'` YAML ne transforme pas les `\` ; entre guillemets `"..."`, il faut les doubler.
 - **Chemins relatifs** : résolus depuis le dossier de la config. Pour `command` et le programme d'un `exec`, un nom seul (`cmd`) est cherché dans le `PATH`, un chemin (`tools\app.exe`) part du dossier de la config. Une commande `exec` s'exécute dans le dossier de la config ; le programme lancé part de `workdir`, ou à défaut du dossier courant.

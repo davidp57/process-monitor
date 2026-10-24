@@ -45,11 +45,15 @@ profiles:                       # pm run ... --profile DEV
 log: { dir: '${config_dir}\logs', keep: 5 }
 watch: { restart: always, delay: 2s, max_delay: 1m, max_restarts: 0 }
 exit: { delay: 0s, wait_key: on-error }   # never | on-error | always
+shortcuts:                      # for pm shortcut (see the pm shortcut page)
+  mode: run                     # run or watch: the command the shortcut runs
+  name: DCS - ${profile}        # default: ${name}, or "${name} - ${profile}" with profiles
+  folder: [${desktop}, ${start_menu}]  # one folder or a list; default: ${config_dir}
 ```
 
 ## Rules {#rules}
 
-- **Variables**: `${name}` reads `vars`, which may refer to each other. Also available: `${profile}` (when there are profiles), `${name}`, `${config_dir}` (the config file's folder) and `${env:NAME}`. An unknown variable is an error.
+- **Variables**: `${name}` reads `vars`, which may refer to each other. Also available: `${profile}` (when there are profiles), `${name}`, `${config_dir}` (the config file's folder), `${desktop}` and `${start_menu}` (the Desktop and the Start menu, as Windows knows them) and `${env:NAME}`. An unknown variable is an error.
 - **Unknown keys**: a typo in a key is an error, never an ignored option.
 - **Paths**: between single quotes `'...'` YAML leaves `\` alone; between double quotes `"..."`, they must be doubled.
 - **Relative paths**: resolved from the config's folder. For `command` and an `exec` program, a bare name (`cmd`) is looked up in `PATH`, a path (`tools\app.exe`) starts from the config's folder. An `exec` command runs in the config's folder; the launched program starts in `workdir`, or else the current folder.

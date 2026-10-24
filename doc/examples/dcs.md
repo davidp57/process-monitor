@@ -51,8 +51,16 @@ Ligne par ligne :
 
 ## Un raccourci par profil {#shortcuts}
 
+La section `shortcuts` de la config les décrit ; une commande les crée tous :
+
+```powershell
+.\pm.exe shortcut .\dcs.yaml
+```
+
+Chacun a ces réglages :
+
 - **Cible** : `C:\...\pm.exe run "C:\...\dcs.yaml" --profile DEV`
-- **Démarrer dans** : le dossier du profil
+- **Démarrer dans** : le dossier de la config
 - **Exécuter** : Réduite
 - **Icône** : la même que celle du profil (`Icons\dcs-dev.ico`)
 

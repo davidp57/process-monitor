@@ -6,6 +6,11 @@ pm runs on Windows. It is a single file, `pm.exe`, that needs nothing else.
 
 Every published version is on the repository's [Releases](https://github.com/davidp57/process-monitor/releases) page: download `pm.exe` and put it in a folder, next to your configs for instance.
 
+## The menu {#menu}
+
+A double-click on `pm.exe` opens a menu: create a config with the [wizard](new.md), create its [shortcuts](shortcut.md), check it, run it.
+No command line to type; started without arguments from a terminal, `pm.exe` shows its help as before.
+
 ## Build it yourself {#build}
 
 You need Go 1.27 or newer (`scoop install go`), then, in the repository folder:
@@ -18,7 +23,8 @@ A local build shows the version `dev` (`.\pm.exe version`).
 
 ## Start from a shortcut {#shortcut}
 
-A Windows shortcut is the simplest way to start a session:
+A Windows shortcut is the simplest way to start a session.
+[`pm shortcut`](shortcut.md) creates them from the config; by hand, these are the settings:
 
 - **Target**: the path of `pm.exe`, followed by the arguments, for example `run "C:\...\dcs.yaml" --profile DEV --tray`;
 - **Start in**: the profile's folder, or the config's;

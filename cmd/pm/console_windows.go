@@ -24,11 +24,17 @@ var (
 // terminal the console is shared with the shell, and pm keeps it. It reports
 // whether the console was released.
 func releaseConsole() bool {
-	var ids [2]uint32
-	n, _, _ := getConsoleProcessList.Call(uintptr(unsafe.Pointer(&ids[0])), uintptr(len(ids)))
-	if n != 1 {
+	if !consoleAlone() {
 		return false
 	}
 	r, _, _ := freeConsole.Call()
 	return r != 0
+}
+
+// consoleAlone reports whether pm is the only process of its console: it
+// was started from Explorer (a double-click, a shortcut), not from a shell.
+func consoleAlone() bool {
+	var ids [2]uint32
+	n, _, _ := getConsoleProcessList.Call(uintptr(unsafe.Pointer(&ids[0])), uintptr(len(ids)))
+	return n == 1
 }
