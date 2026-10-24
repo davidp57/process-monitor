@@ -43,8 +43,8 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool, 
 	}
 	// failed judges the outcome once the session has ended: an error other
 	// than the user's own cancellation, or, for pm run, a program that
-	// exited non-zero. Errors logged along the way and recovered from (a
-	// watch restart) do not count.
+	// exited non-zero on its own (not stopped from the menu). Errors logged
+	// along the way and recovered from (a watch restart) do not count.
 	failed := func() bool {
 		err, ended := result()
 		switch {
@@ -53,7 +53,7 @@ func Run(ctx context.Context, s *session.Session, log *logx.Logger, watch bool, 
 		case err != nil:
 			return !errors.Is(err, session.ErrCancelled)
 		default:
-			return !watch && s.State().ExitCode != 0
+			return !watch && s.State().ExitCode != 0 && !s.State().Stopped
 		}
 	}
 

@@ -325,6 +325,44 @@ func TestKillAndSuspend(t *testing.T) {
 	}
 }
 
+// Stopping a followed game that stayed in the job: ending the job ends it,
+// and terminating it again by its own handle while it dies gave "Access is
+// denied" (DCS, a stop from the tray). The stop must report no error.
+func TestKillFollowedGameInTheJob(t *testing.T) {
+	game := copySelf(t, "pm-test-kill.exe")
+	p := start(t, "launch:"+game+":sleep:20000:0", Spec{Track: "pm-test-kill.exe", TrackGrace: 5 * time.Second})
+	launcher := p.PID()
+	for deadline := time.Now().Add(5 * time.Second); p.PID() == launcher; time.Sleep(50 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("le jeu n'a jamais été suivi")
+		}
+	}
+	if err := p.Kill(); err != nil {
+		t.Errorf("kill : %v", err)
+	}
+	wait(t, p, 10*time.Second)
+}
+
+// The other side: a followed game that left the job is not ended with the
+// job, so it is still stopped by its own handle.
+func TestKillFollowedGameThatLeftTheJob(t *testing.T) {
+	game := copySelf(t, "pm-test-kill-escapee.exe")
+	p := start(t, "breakaway:"+game+":sleep:20000:0", Spec{Track: "pm-test-kill-escapee.exe", TrackGrace: 5 * time.Second})
+	launcher := p.PID()
+	for deadline := time.Now().Add(10 * time.Second); p.PID() == launcher; time.Sleep(50 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("le jeu n'a jamais été suivi")
+		}
+	}
+	if err := p.Kill(); err != nil {
+		t.Errorf("kill : %v", err)
+	}
+	wait(t, p, 10*time.Second)
+	if pids, _ := FindByName("pm-test-kill-escapee.exe"); len(pids) > 0 {
+		t.Errorf("le jeu tourne encore : %v", pids)
+	}
+}
+
 func TestPumpDrainsOverlongLines(t *testing.T) {
 	r, w := io.Pipe()
 	var got []string

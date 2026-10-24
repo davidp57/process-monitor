@@ -51,6 +51,9 @@ type State struct {
 	NextStart time.Time
 	LastExit  string
 	ExitCode  int // of the last run
+	// Stopped: the last run ended because the user stopped it. Its exit
+	// code is the one Windows gives a terminated process (1), not a failure.
+	Stopped bool
 }
 
 type command int
@@ -426,7 +429,7 @@ func (s *Session) loop(ctx context.Context) (err error, detached bool) {
 		if res.Err != nil {
 			summary = res.Err.Error()
 		}
-		s.update(func(st *State) { st.LastExit, st.ExitCode = summary, res.ExitCode })
+		s.update(func(st *State) { st.LastExit, st.ExitCode, st.Stopped = summary, res.ExitCode, killed })
 		switch {
 		case res.Err != nil:
 			s.log.Error(i18n.T("session.ended_error", summary))

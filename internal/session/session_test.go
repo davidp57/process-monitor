@@ -384,6 +384,10 @@ func TestKillRunsAfterHooksDetachSkipsThem(t *testing.T) {
 		if !detach && statErr == nil {
 			t.Error("arrêté : les actions de fin n'ont pas tourné")
 		}
+		// Stopped from the menu: the exit code of the terminated program is not a failure.
+		if st := s.State(); !detach && (!st.Stopped || st.ExitCode == 0) {
+			t.Errorf("arrêté : état %+v", st)
+		}
 		if detach { // still running on purpose: stop it by the PID we started
 			if p, err := os.FindProcess(<-pid); err == nil {
 				p.Kill()

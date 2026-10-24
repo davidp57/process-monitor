@@ -31,3 +31,6 @@ hooks:
     - delete: ${config_dir}\Scripts
     - delete: ${config_dir}\WWTHID.log
     - delete: ${config_dir}\WWTUSBHID.log
+
+# .\pm.exe shortcut simapppro.yaml : un raccourci sur le Bureau.
+shortcuts: { mode: watch, name: SimAppPro, folder: '${desktop}' }

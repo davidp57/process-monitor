@@ -94,20 +94,31 @@ func parse(argv []string) (args, error) {
 func run(argv []string) int {
 	// The language comes first: parsing errors are already messages.
 	i18n.Set(i18n.Resolve(langFlag(argv), os.Getenv("PM_LANG"), "", i18n.SystemLanguage))
+	// Double-clicked: no arguments, and a console window of its own. From
+	// a terminal, no arguments still shows the usage.
+	if len(argv) == 0 && interactive() && consoleAlone() {
+		return menu()
+	}
 	a, err := parse(argv)
 	if err == nil && a.cmd == "version" {
 		fmt.Println("pm", version)
 		return 0
 	}
-	if err == nil && a.cmd != "run" && a.cmd != "watch" && a.cmd != "check" {
+	switch {
+	case err != nil:
+	case a.cmd == "new":
+		return newConfig(a)
+	case a.cmd != "run" && a.cmd != "watch" && a.cmd != "check" && a.cmd != "shortcut":
 		err = i18n.Errorf("cli.unknown_command", a.cmd)
-	}
-	if err == nil && a.path == "" {
+	case a.path == "":
 		err = errors.New(i18n.T("cli.no_config"))
 	}
 	if err != nil {
 		fmt.Fprint(os.Stderr, i18n.T("cli.usage_error", err)+"\n\n"+i18n.T("cli.usage", version))
 		return 2
+	}
+	if a.cmd == "shortcut" {
+		return shortcuts(a)
 	}
 
 	cfg, err := config.Load(a.path, a.profile)
@@ -186,7 +197,7 @@ func run(argv []string) int {
 		log.Errorf("%v", err)
 	} else if detached {
 		log.Warn(i18n.T("run.detached"))
-	} else if code != 0 && a.cmd == "run" {
+	} else if code != 0 && a.cmd == "run" && !s.State().Stopped {
 		log.Warn(i18n.T("run.ended_code", code))
 	} else {
 		log.Info(i18n.T("run.ended"))

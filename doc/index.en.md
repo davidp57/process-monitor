@@ -40,7 +40,13 @@ Each feature and its configuration are detailed on the [Features](features.md) p
 ## Quick start {#quick-start}
 
 1. [Install](installation.md) `pm.exe`.
-2. Write a config, starting from an [example](examples/dcs.md).
+2. Run the [wizard](new.md), which asks a few questions and writes the config and its shortcuts:
+
+    ```powershell
+    .\pm.exe new
+    ```
+
+    Or write the config by hand, starting from an [example](examples/dcs.md).
 3. Check it, then run it, in PowerShell:
 
     ```powershell
@@ -48,4 +54,4 @@ Each feature and its configuration are detailed on the [Features](features.md) p
     .\pm.exe run .\dcs.yaml --profile DEV
     ```
 
-The three commands: `pm run` runs once with its before and after actions, `pm watch` keeps the program alive, `pm check` shows what would be done without running anything.
+The commands: `pm run` runs once with its before and after actions, `pm watch` keeps the program alive, `pm check` shows what would be done without running anything, `pm new` writes a config by asking questions, `pm shortcut` creates its shortcuts.

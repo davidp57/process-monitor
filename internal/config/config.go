@@ -46,6 +46,8 @@ type Config struct {
 	Watch    Watch              `yaml:"watch"`
 	Exit     Exit               `yaml:"exit"`
 	Profiles map[string]Profile `yaml:"profiles"`
+	// Shortcuts describes the Windows shortcuts pm shortcut creates.
+	Shortcuts *Shortcuts `yaml:"shortcuts"`
 
 	// Filled by Load, not by YAML.
 	Profile string     `yaml:"-"`
@@ -104,6 +106,32 @@ type Exit struct {
 	WaitKey string   `yaml:"wait_key"`
 }
 
+// Shortcuts is one shortcut per profile (or one without profiles).
+type Shortcuts struct {
+	// Mode is the pm command the shortcut runs: run or watch.
+	Mode string `yaml:"mode"`
+	// Name is the shortcut's file name, without .lnk.
+	Name string `yaml:"name"`
+	// Folders are where a shortcut is put: one folder, or several.
+	Folders Folders `yaml:"folder"`
+}
+
+// Folders is one folder or a list: folder: x, or folder: [x, y].
+type Folders []string
+
+func (f *Folders) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode {
+		*f = Folders{n.Value}
+		return nil
+	}
+	var list []string
+	if err := n.Decode(&list); err != nil {
+		return err
+	}
+	*f = list
+	return nil
+}
+
 // Profile overrides vars and the icon, and appends hooks.
 type Profile struct {
 	Vars  map[string]string `yaml:"vars"`
@@ -118,6 +146,9 @@ const (
 	RestartAlways    = "always"
 	RestartOnFailure = "on-failure"
 	RestartNever     = "never"
+
+	ModeRun   = "run"
+	ModeWatch = "watch"
 
 	UIConsole = "console"
 	UITray    = "tray"
@@ -205,6 +236,20 @@ func (c *Config) applyProfile(name string) error {
 	return nil
 }
 
+// Profiles lists the profile names of the config at path, sorted, without
+// loading it: a config with profiles does not load without one.
+func Profiles(path string) ([]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var c Config
+	if err := yaml.Unmarshal(data, &c); err != nil {
+		return nil, fmt.Errorf("%s : %w", path, err)
+	}
+	return c.ProfileNames(), nil
+}
+
 // ProfileNames returns the sorted profile names.
 func (c *Config) ProfileNames() []string {
 	names := make([]string, 0, len(c.Profiles))
@@ -248,6 +293,17 @@ func (c *Config) defaults() {
 	}
 	if c.Ready != nil && c.Ready.Timeout == 0 {
 		c.Ready.Timeout = Duration(2 * time.Minute)
+	}
+	if s := c.Shortcuts; s != nil {
+		if s.Name == "" {
+			s.Name = "${name}"
+			if len(c.Profiles) > 0 {
+				s.Name = "${name} - ${profile}"
+			}
+		}
+		if len(s.Folders) == 0 {
+			s.Folders = Folders{"${config_dir}"}
+		}
 	}
 }
 
@@ -297,6 +353,14 @@ func (c *Config) validate() error {
 	for i, a := range append(append([]Action{}, c.Hooks.Before...), c.Hooks.After...) {
 		if err := a.validate(); err != nil {
 			errs = append(errs, i18n.Errorf("config.action", i+1, err))
+		}
+	}
+	if s := c.Shortcuts; s != nil {
+		if s.Mode != ModeRun && s.Mode != ModeWatch {
+			errs = append(errs, i18n.Errorf("config.bad_shortcut_mode", s.Mode))
+		}
+		if s.Name == "" || strings.ContainsAny(s.Name, `\/:*?"<>|`) {
+			errs = append(errs, i18n.Errorf("config.bad_shortcut_name", s.Name))
 		}
 	}
 	if c.Track != "" && !processName(c.Track) {
