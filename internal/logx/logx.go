@@ -42,6 +42,32 @@ type Logger struct {
 	sink   func(Line)
 	errors int
 	Path   string
+
+	recent []Line // the last lines, for whoever subscribes late
+	subs   map[int]func(Line)
+	nextID int
+}
+
+// keepRecent is how many lines a late subscriber gets back.
+const keepRecent = 500
+
+// Subscribe adds a consumer of the lines to come, besides the sink, and
+// returns the recent lines so far. fn is called outside the logger's lock
+// and must not block. cancel removes it.
+func (l *Logger) Subscribe(fn func(Line)) (recent []Line, cancel func()) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.subs == nil {
+		l.subs = map[int]func(Line){}
+	}
+	id := l.nextID
+	l.nextID++
+	l.subs[id] = fn
+	return append([]Line(nil), l.recent...), func() {
+		l.mu.Lock()
+		delete(l.subs, id)
+		l.mu.Unlock()
+	}
 }
 
 // New opens <dir>/<prefix>-<timestamp>.log and keeps only the `keep` most
@@ -86,12 +112,22 @@ func (l *Logger) log(level Level, format string, args ...any) {
 	if l.file != nil {
 		fmt.Fprintf(l.file, "%s %s %s\n", line.Time.Format("2006-01-02 15:04:05.000"), line.Level, line.Text)
 	}
+	if l.recent = append(l.recent, line); len(l.recent) > keepRecent {
+		l.recent = l.recent[len(l.recent)-keepRecent:]
+	}
 	sink := l.sink
+	subs := make([]func(Line), 0, len(l.subs))
+	for _, fn := range l.subs {
+		subs = append(subs, fn)
+	}
 	l.mu.Unlock()
 	// Outside the lock: the TUI sink blocks until the interface takes the
 	// line, and the interface itself reads Errors().
 	if sink != nil {
 		sink(line)
+	}
+	for _, fn := range subs {
+		fn(line)
 	}
 }
 

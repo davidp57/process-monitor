@@ -41,6 +41,16 @@ func Dir() (string, error) {
 	return filepath.Join(base, "pm", "locks"), nil
 }
 
+// InfoPath is where the session holding the lock name says how to reach
+// it (its control channel).
+func InfoPath(name string) (string, error) {
+	dir, err := Dir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, sanitize(name)+".json"), nil
+}
+
 // Acquire takes the lock called name and records owner in it.
 func Acquire(name, owner string) (*Lock, error) {
 	dir, err := Dir()

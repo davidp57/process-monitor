@@ -213,13 +213,18 @@ func alert(title, text string) {
 	box(title, text, mbIconError)
 }
 
+// Open shows a file or a web address with the program Windows has for it.
+func Open(target string) error {
+	verb, _ := windows.UTF16PtrFromString("open")
+	file, _ := windows.UTF16PtrFromString(target)
+	return windows.ShellExecute(0, verb, file, nil, nil, windows.SW_SHOWNORMAL)
+}
+
 func shellOpen(path string) {
 	if path == "" {
 		return
 	}
-	verb, _ := windows.UTF16PtrFromString("open")
-	file, _ := windows.UTF16PtrFromString(path)
-	if err := windows.ShellExecute(0, verb, file, nil, nil, windows.SW_SHOWNORMAL); err != nil {
+	if err := Open(path); err != nil {
 		alert("log", i18n.T("tray.open_failed", path, err))
 	}
 }

@@ -4,7 +4,7 @@
 .\pm.exe new [config.yaml] [--lang fr|en]
 ```
 
-`pm new` (or a double-click on `pm.exe`, then "create a config") asks a few questions, one at a time, and writes a config that works, with its shortcuts.
+`pm new` (or the "New config" tab of the [interface](gui.md#wizard)) asks a few questions, one at a time, and writes a config that works, with its shortcuts.
 The config is written only after the final confirmation, which sums it all up in plain words.
 It is the simplest way to start with pm: no YAML to write.
 

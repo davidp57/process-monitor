@@ -8,8 +8,10 @@ Every published version is on the repository's [Releases](https://github.com/dav
 
 ## The menu {#menu}
 
-A double-click on `pm.exe` opens a menu: create a config with the [wizard](new.md), create its [shortcuts](shortcut.md), check it, run it.
+A double-click on `pm.exe` opens the [interface](gui.md) in the browser: the sessions running, the configs, the wizard.
 No command line to type; started without arguments from a terminal, `pm.exe` shows its help as before.
+
+`.\pm.exe menu` opens the same kind of menu as text, in the terminal: create a config with the [wizard](new.md), create its [shortcuts](shortcut.md), check it, run it.
 
 ## Build it yourself {#build}
 
@@ -33,4 +35,4 @@ A Windows shortcut is the simplest way to start a session.
 ## Language {#language}
 
 pm speaks French and English.
-It takes the first language set among: the `--lang fr|en` option, the `PM_LANG` environment variable, the config's `lang:` key, the Windows display language; failing that, English.
+It takes the first language set among: the `--lang fr|en` option, the `PM_LANG` environment variable, the config's `lang:` key, the language chosen in the [interface](gui.md) (kept in `%APPDATA%\pm\configs.json`), the Windows display language; failing that, English.

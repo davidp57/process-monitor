@@ -96,3 +96,16 @@ func normalize(v string) string {
 	}
 	return ""
 }
+
+// Prefixed returns the messages whose key starts with prefix, in the
+// current language: what the interface's page shows.
+func Prefixed(prefix string) map[string]string {
+	lang := Lang()
+	out := map[string]string{}
+	for k, v := range catalogs[lang] {
+		if strings.HasPrefix(k, prefix) {
+			out[k] = v
+		}
+	}
+	return out
+}

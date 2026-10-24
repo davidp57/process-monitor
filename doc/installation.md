@@ -8,8 +8,10 @@ Chaque version publiée est sur la page [Releases](https://github.com/davidp57/p
 
 ## Le menu {#menu}
 
-Un double-clic sur `pm.exe` ouvre un menu : créer une config avec l'[assistant](new.md), créer ses [raccourcis](shortcut.md), la vérifier, la lancer.
+Un double-clic sur `pm.exe` ouvre l'[interface](gui.md) dans le navigateur : les sessions en cours, les configs, l'assistant.
 Pas de ligne de commande à taper ; lancé sans argument depuis un terminal, `pm.exe` affiche son aide comme avant.
+
+`.\pm.exe menu` ouvre le même genre de menu en mode texte, dans le terminal : créer une config avec l'[assistant](new.md), créer ses [raccourcis](shortcut.md), la vérifier, la lancer.
 
 ## Compiler soi-même {#build}
 
@@ -33,4 +35,4 @@ Un raccourci Windows est la façon la plus simple de lancer une session.
 ## La langue {#language}
 
 pm parle français et anglais.
-Il prend la première langue définie parmi : l'option `--lang fr|en`, la variable d'environnement `PM_LANG`, la clé `lang:` de la config, la langue d'affichage de Windows ; à défaut, l'anglais.
+Il prend la première langue définie parmi : l'option `--lang fr|en`, la variable d'environnement `PM_LANG`, la clé `lang:` de la config, la langue choisie dans l'[interface](gui.md) (gardée dans `%APPDATA%\pm\configs.json`), la langue d'affichage de Windows ; à défaut, l'anglais.

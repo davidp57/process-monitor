@@ -148,3 +148,29 @@ func Write(l Link) (kept string, err error) {
 	}
 	return kept, save(l)
 }
+
+// Written is one shortcut written, or not.
+type Written struct {
+	Path string `json:"path"`
+	Args string `json:"args"`
+	Kept string `json:"kept,omitempty"` // the previous one, as .lnk.old
+	Err  string `json:"error,omitempty"`
+}
+
+// WriteAll writes every link, going on after a failure. inStartMenu tells
+// whether one went into the Start menu: from there, the player pins it to
+// the taskbar (Windows lets no program do it without asking).
+func WriteAll(links []Link) (out []Written, inStartMenu bool) {
+	startMenu := startMenuDir()
+	for _, l := range links {
+		kept, err := Write(l)
+		w := Written{Path: l.Path, Args: l.Args, Kept: kept}
+		if err != nil {
+			w.Err = err.Error()
+		} else if startMenu != "" && strings.EqualFold(filepath.Dir(l.Path), startMenu) {
+			inStartMenu = true
+		}
+		out = append(out, w)
+	}
+	return out, inStartMenu
+}

@@ -7,6 +7,7 @@
 - **`pm run`** runs actions before a program starts and after it exits — copy a profile's files in and back, clean up, run a command;
 - **`pm watch`** keeps a program alive and restarts it when it stops;
 - **`pm check`** shows what a config would do, without running anything;
+- **`pm gui`** (or a double-click on `pm.exe`) opens the interface in the browser: the sessions running and their controls, the configs, the wizard;
 - **`pm new`** asks a few questions and writes a working config, game profiles learned by playing;
 - **`pm shortcut`** creates the Windows shortcuts a config describes.
 
@@ -49,6 +50,7 @@ License: MIT.
 - **`pm run`** exécute des actions avant le lancement d'un programme et après sa fermeture : copier les fichiers d'un profil et les récupérer, nettoyer, lancer une commande ;
 - **`pm watch`** garde un programme en vie et le relance s'il s'arrête ;
 - **`pm check`** montre ce que ferait une config, sans rien lancer ;
+- **`pm gui`** (ou un double-clic sur `pm.exe`) ouvre l'interface dans le navigateur : les sessions en cours et leurs commandes, les configs, l'assistant ;
 - **`pm new`** pose quelques questions et écrit une config qui marche, les profils d'un jeu se réglant en jouant ;
 - **`pm shortcut`** crée les raccourcis Windows qu'une config décrit.
 

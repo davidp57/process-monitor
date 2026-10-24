@@ -13,6 +13,7 @@ import (
 	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/i18n"
 	"github.com/davidp57/process-monitor/internal/logx"
+	"github.com/davidp57/process-monitor/internal/registry"
 	"github.com/davidp57/process-monitor/internal/shortcut"
 	"github.com/davidp57/process-monitor/internal/tui"
 	"github.com/davidp57/process-monitor/internal/wizard"
@@ -87,6 +88,7 @@ func newConfig(a args) int {
 			}
 			w.Done(res)
 			if links, ok := res.([]shortcut.Link); ok {
+				registry.Remember(w.Plan().ConfigPath)
 				rc := writeShortcuts(links)
 				fmt.Println("\n" + i18n.T("wizard.created", w.Plan().ConfigPath))
 				return rc

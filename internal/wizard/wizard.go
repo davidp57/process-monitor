@@ -107,6 +107,10 @@ type Wizard struct {
 
 	original Snapshot
 	learned  map[string]map[string]string
+	// shown: what each answered question asked and what was answered, in
+	// words, in the order of history: the "your answers" of a front.
+	shown []Answered
+
 	// leftover: a previous pm new on this config was interrupted and left
 	// the original files saved. Seen once, when the config is chosen: the
 	// copies this run saves must not look like a leftover.
@@ -164,11 +168,37 @@ func (w *Wizard) Answer(values []string) error {
 	}
 	w.answers[s.ID] = kept
 	w.done[s.ID] = true
+	w.shown = append(w.shown, Answered{ID: s.ID, Prompt: q.Prompt, Answer: shownAnswer(q, kept)})
 	if s.ID == "config" {
 		w.leftover = w.env.Exists(filepath.Join(w.WizardDir(), manifestName))
 	}
 	w.history = append(w.history, s.ID)
 	return nil
+}
+
+// Answered is one question answered, as a front recalls it.
+type Answered struct {
+	ID     string `json:"id"`
+	Prompt string `json:"prompt"`
+	Answer string `json:"answer"`
+}
+
+// Answers are the questions answered so far, in order.
+func (w *Wizard) Answers() []Answered { return append([]Answered{}, w.shown...) }
+
+// shownAnswer is an answer in words: the labels of the options chosen.
+func shownAnswer(q *Question, values []string) string {
+	var out []string
+	for _, v := range values {
+		label := v
+		for _, o := range q.Options {
+			if o.Value == v && o.Label != "" {
+				label = o.Label
+			}
+		}
+		out = append(out, label)
+	}
+	return strings.Join(out, ", ")
 }
 
 func hasOption(opts []Option, v string) bool {
@@ -192,6 +222,7 @@ func (w *Wizard) Back() bool {
 	}
 	id := w.history[len(w.history)-1]
 	w.history = w.history[:len(w.history)-1]
+	w.shown = w.shown[:len(w.shown)-1]
 	delete(w.answers, id)
 	delete(w.done, id)
 	return true

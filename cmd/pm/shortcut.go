@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-
-	"golang.org/x/sys/windows"
 
 	"github.com/davidp57/process-monitor/internal/i18n"
+	"github.com/davidp57/process-monitor/internal/registry"
 	"github.com/davidp57/process-monitor/internal/shortcut"
 )
 
@@ -20,28 +18,24 @@ func shortcuts(a args) int {
 		fmt.Fprintln(os.Stderr, i18n.T("cli.config_error", err))
 		return 2
 	}
+	registry.Remember(a.path)
 	return writeShortcuts(links)
 }
 
 func writeShortcuts(links []shortcut.Link) int {
 	rc := 0
-	startMenu, _ := windows.KnownFolderPath(windows.FOLDERID_Programs, 0)
-	inStartMenu := false
-	for _, l := range links {
-		kept, err := shortcut.Write(l)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, i18n.T("shortcut.failed", l.Path, err))
+	written, inStartMenu := shortcut.WriteAll(links)
+	for _, w := range written {
+		if w.Err != "" {
+			fmt.Fprintln(os.Stderr, i18n.T("shortcut.failed", w.Path, w.Err))
 			rc = 1
 			continue
 		}
-		fmt.Println(i18n.T("shortcut.written", l.Path, l.Args))
-		if kept != "" {
-			fmt.Println(i18n.T("shortcut.kept", kept))
+		fmt.Println(i18n.T("shortcut.written", w.Path, w.Args))
+		if w.Kept != "" {
+			fmt.Println(i18n.T("shortcut.kept", w.Kept))
 		}
-		inStartMenu = inStartMenu || (startMenu != "" && strings.EqualFold(filepath.Dir(l.Path), startMenu))
 	}
-	// Windows lets no program pin to the taskbar without asking; from the
-	// Start menu, it is two clicks for the player.
 	if inStartMenu {
 		fmt.Println(i18n.T("shortcut.taskbar_hint"))
 	}
