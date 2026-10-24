@@ -27,6 +27,9 @@ func TestStart(t *testing.T) {
 		{Options{Start: filepath.Join(d, "missing", "x.exe")}, "", "x.exe"},
 		{Options{Start: file, Folder: true}, d, ""},
 		{Options{Start: filepath.Join(d, "missing", "x"), Folder: true}, "", ""},
+		{Options{Start: `\\127.0.0.1\share\x.exe`}, "", ""},
+		{Options{Start: `\\?\` + file}, "", ""},
+		{Options{Start: "x.exe"}, "", ""},
 	} {
 		if f, n := start(c.o); f != c.folder || n != c.name {
 			t.Errorf("%+v : %q %q, attendu %q %q", c.o, f, n, c.folder, c.name)

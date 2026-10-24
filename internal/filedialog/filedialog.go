@@ -201,8 +201,10 @@ func prepare(o Options) (*dialog, error) {
 
 // start is where the window opens: the folder typed, or the folder of
 // the file typed with its name filled in; nothing when neither exists.
+// Only a path on a local drive is looked at: even a look at
+// \\host\share sends the user's Windows credentials to that host.
 func start(o Options) (folder, name string) {
-	if o.Start == "" {
+	if !filepath.IsAbs(o.Start) || len(filepath.VolumeName(o.Start)) != 2 {
 		return "", ""
 	}
 	p := filepath.Clean(o.Start)
