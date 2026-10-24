@@ -213,3 +213,36 @@ pre.plan { background: var(--bg); border: 1px solid var(--line); border-radius: 
 .spinner { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--amber); border-radius: 50%; animation: spin 1s linear infinite; display: inline-block; flex: none; }
 .spinner.big { width: 30px; height: 30px; border-width: 3px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- overview: the profile's files and the program's, linked ---- */
+.overview { display: flex; flex-direction: column; gap: 14px; }
+.sync { display: grid; grid-template-columns: minmax(0, 1fr) 110px minmax(0, 1fr); row-gap: 6px; padding-bottom: 10px; }
+.sync .side-bg { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; margin-bottom: -10px; }
+.sync .side-head { padding: 10px 12px 4px; min-width: 0; }
+.sync .side-head .eyebrow { display: flex; align-items: center; gap: 6px; }
+.sync .dim { color: var(--ink-3); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.sync .file { display: flex; align-items: center; gap: 8px; margin: 0 10px; padding: 6px 9px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; position: relative; }
+.sync .file .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.sync .file svg.i { color: var(--ink-3); }
+.sync .file.bad { border-color: var(--bad); color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--panel)); }
+.sync .file.bad svg.i { color: var(--bad); }
+.sync .link { display: flex; align-items: center; padding: 0 4px; }
+.sync .legend { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; font-size: 11px; padding-bottom: 4px; color: var(--ink-3); }
+.sync .legend .in { color: var(--amber); }
+.sync .legend .in::after { content: " →"; }
+.sync .legend .back::before { content: "← "; }
+svg.arrows { width: 100%; height: 18px; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+svg.arrows .in { stroke: var(--amber); }
+svg.arrows .back { stroke: var(--ink-3); }
+svg.arrows.missing .in { stroke: var(--bad); stroke-dasharray: 4 3; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+.steps .step { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+.steps .step.now { border-color: color-mix(in srgb, var(--amber) 55%, var(--line)); }
+.steps ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.steps li { display: flex; gap: 8px; align-items: flex-start; min-width: 0; }
+.steps li span { overflow-wrap: anywhere; }
+.steps li svg.i { color: var(--ink-3); margin-top: 2px; }
+.steps li.bad, .steps li.bad svg.i { color: var(--bad); }
+.steps .hint { margin: 8px 0 0; }
+details.raw summary { cursor: pointer; color: var(--ink-3); font-size: 12.5px; margin-bottom: 8px; }
+@media (max-width: 900px) { .steps { grid-template-columns: 1fr; } .sync { grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1fr); } }

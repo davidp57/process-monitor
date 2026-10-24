@@ -13,7 +13,10 @@ import (
 // page to show it next to the profile.
 func icon(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
-	if ext := strings.ToLower(filepath.Ext(path)); ext != ".ico" && ext != ".png" {
+	// A local file only: opening \\host\share\x.ico would send the user's
+	// Windows credentials to that host.
+	local := filepath.IsAbs(path) && len(filepath.VolumeName(path)) == 2 // a drive letter
+	if ext := strings.ToLower(filepath.Ext(path)); !local || ext != ".ico" && ext != ".png" {
 		http.NotFound(w, r)
 		return
 	}

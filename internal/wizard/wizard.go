@@ -39,6 +39,9 @@ type Question struct {
 	Options  []Option
 	Default  []string
 	Optional bool // List and Multi: an empty answer is fine
+	// Pick is the file window a front may open to fill a Path or a List:
+	// program, file, folder, icon, newyaml or save (see gui).
+	Pick string
 
 	check func([]string) error
 }
@@ -285,36 +288,36 @@ func (w *Wizard) steps() []Step {
 	kase := w.one("case")
 	switch kase {
 	case CaseDCS:
-		if !ask("launcher", w.existing(i18n.T("wizard.q.dcs_launcher"), i18n.T("wizard.h.dcs_launcher"), dcsLauncher)) {
+		if !ask("launcher", w.existing(i18n.T("wizard.q.dcs_launcher"), i18n.T("wizard.h.dcs_launcher"), dcsLauncher, "program")) {
 			return out
 		}
-		if !ask("saved", w.existing(i18n.T("wizard.q.dcs_saved"), "", w.dcsSaved())) {
+		if !ask("saved", w.existing(i18n.T("wizard.q.dcs_saved"), "", w.dcsSaved(), "folder")) {
 			return out
 		}
 		if !ask("srs", Question{Kind: YesNo, Prompt: i18n.T("wizard.q.srs"), Options: yn(), Default: []string{"yes"}}) {
 			return out
 		}
 	case CaseGame:
-		if !ask("launcher", w.existing(i18n.T("wizard.q.launcher"), "", "")) {
+		if !ask("launcher", w.existing(i18n.T("wizard.q.launcher"), "", "", "program")) {
 			return out
 		}
 		if !ask("track", Question{Kind: Text, Prompt: i18n.T("wizard.q.track"), Help: i18n.T("wizard.h.track"),
 			Optional: true, check: checkProcessName}) {
 			return out
 		}
-		if !ask("roots", Question{Kind: List, Prompt: i18n.T("wizard.q.roots"), Help: i18n.T("wizard.h.roots"),
+		if !ask("roots", Question{Kind: List, Prompt: i18n.T("wizard.q.roots"), Help: i18n.T("wizard.h.roots"), Pick: "folder",
 			check: w.checkExisting}) {
 			return out
 		}
 	case CaseWatch, CaseBackup:
-		if !ask("program", w.existing(i18n.T("wizard.q.program"), "", "")) {
+		if !ask("program", w.existing(i18n.T("wizard.q.program"), "", "", "program")) {
 			return out
 		}
 		if kase == CaseWatch {
 			if !ask("kill_running", Question{Kind: YesNo, Prompt: i18n.T("wizard.q.kill_running"), Options: yn(), Default: []string{"yes"}}) {
 				return out
 			}
-			if !ask("clean", Question{Kind: List, Prompt: i18n.T("wizard.q.clean"), Help: i18n.T("wizard.h.clean"),
+			if !ask("clean", Question{Kind: List, Prompt: i18n.T("wizard.q.clean"), Help: i18n.T("wizard.h.clean"), Pick: "file",
 				Optional: true, check: checkAbsolute}) {
 				return out
 			}
@@ -322,10 +325,10 @@ func (w *Wizard) steps() []Step {
 				return out
 			}
 		} else {
-			if !ask("saves", w.existing(i18n.T("wizard.q.saves"), "", "")) {
+			if !ask("saves", w.existing(i18n.T("wizard.q.saves"), "", "", "folder")) {
 				return out
 			}
-			if !ask("archives", Question{Kind: Path, Prompt: i18n.T("wizard.q.archives"), check: checkAbsolute}) {
+			if !ask("archives", Question{Kind: Path, Prompt: i18n.T("wizard.q.archives"), Pick: "folder", check: checkAbsolute}) {
 				return out
 			}
 			if !ask("keep", Question{Kind: Text, Prompt: i18n.T("wizard.q.keep"), Default: []string{"10"}, check: checkCount}) {
@@ -338,7 +341,7 @@ func (w *Wizard) steps() []Step {
 		Default: []string{w.defaultName()}, check: checkFileName}) {
 		return out
 	}
-	if !ask("config", Question{Kind: Path, Prompt: i18n.T("wizard.q.config"), Default: []string{w.defaultConfig()},
+	if !ask("config", Question{Kind: Path, Prompt: i18n.T("wizard.q.config"), Pick: "newyaml", Default: []string{w.defaultConfig()},
 		check: w.checkNewConfig}) {
 		return out
 	}
@@ -401,7 +404,7 @@ func (w *Wizard) steps() []Step {
 		return out
 	}
 	if hasOption(optionsOf(w.answers["shortcuts"]), "other") {
-		if !ask("shortcuts_folder", Question{Kind: Path, Prompt: i18n.T("wizard.q.shortcuts_folder"), check: checkAbsolute}) {
+		if !ask("shortcuts_folder", Question{Kind: Path, Prompt: i18n.T("wizard.q.shortcuts_folder"), Pick: "folder", check: checkAbsolute}) {
 			return out
 		}
 	}
@@ -491,8 +494,8 @@ func (w *Wizard) dcsSaved() string {
 	return filepath.Join(w.env.Home, "Saved Games", "DCS")
 }
 
-func (w *Wizard) existing(prompt, help, def string) Question {
-	q := Question{Kind: Path, Prompt: prompt, Help: help, check: w.checkExisting}
+func (w *Wizard) existing(prompt, help, def, pick string) Question {
+	q := Question{Kind: Path, Prompt: prompt, Help: help, Pick: pick, check: w.checkExisting}
 	if def != "" {
 		q.Default = []string{def}
 	}

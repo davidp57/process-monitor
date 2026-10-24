@@ -65,7 +65,7 @@ func IconQuestion(profile, config, dir string, found []string) Question {
 
 // IconPath asks for an icon file typed by hand.
 func IconPath(profile string, exists func(string) bool) Question {
-	return Question{Kind: Path, Prompt: i18n.T("wizard.q.icon", profile), check: func(values []string) error {
+	return Question{Kind: Path, Prompt: i18n.T("wizard.q.icon", profile), Pick: "icon", check: func(values []string) error {
 		if !filepath.IsAbs(values[0]) {
 			return i18n.Errorf("wizard.not_absolute", values[0])
 		}

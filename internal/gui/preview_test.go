@@ -13,6 +13,7 @@ import (
 
 	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/control"
+	"github.com/davidp57/process-monitor/internal/filedialog"
 	"github.com/davidp57/process-monitor/internal/logx"
 	"github.com/davidp57/process-monitor/internal/registry"
 	"github.com/davidp57/process-monitor/internal/session"
@@ -37,14 +38,23 @@ func TestServeForPreview(t *testing.T) {
 	data, _ := os.ReadFile(self)
 	os.WriteFile(game, data, 0o755)
 	cfg := filepath.Join(d, "Profiles", "pm-dcs.yaml")
-	put(t, cfg, "# DCS by profile\nname: dcs\ncommand: '"+game+"'\nenv: { PM_HELPER: 'sleep:600000' }\nui: console\nprofiles:\n  DEV: {}\n  VR: {}\n")
+	put(t, cfg, "# DCS by profile\nname: dcs\ncommand: '"+game+"'\nenv: { PM_HELPER: 'sleep:600000' }\nui: console\n"+
+		"vars: { prof: '${config_dir}\\${profile}', live: '${config_dir}\\Saved Games\\DCS' }\n"+
+		"hooks:\n  sync:\n    - ${prof}\\options.lua <-> ${live}\\Config\\options.lua\n    - ${prof}\\Input <-> ${live}\\Config\\Input\n    - ${prof}\\Kneeboard <-> ${live}\\Kneeboard\n"+
+		"  before: [ { delete: '${live}\\Temp' } ]\n  after: [ { exec: [ backup.cmd, '${profile}' ] } ]\n"+
+		"profiles:\n  DEV: {}\n  VR: {}\n")
+	put(t, filepath.Join(d, "Profiles", "DEV", "options.lua"), "")
+	put(t, filepath.Join(d, "Profiles", "DEV", "Input", "joystick.lua"), "")
+	put(t, filepath.Join(d, "Profiles", "Saved Games", "DCS", "Config", "Input", "joystick.lua"), "")
 	put(t, filepath.Join(d, "Profiles", "Icons", "dcs-dev.ico"), "")
 	registry.Remember(cfg)
 	ln, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(port))
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := New(Options{Port: port, Token: "preview", Self: self, Defaults: func() []string { return nil }, Launch: func(args []string) error {
+	// No Windows file window on the desktop: "Browse" answers the game.
+	pick := func(filedialog.Options) (string, bool, error) { return game, true, nil }
+	srv := New(Options{Port: port, Token: "preview", Self: self, Defaults: func() []string { return nil }, Pick: pick, Launch: func(args []string) error {
 		// pm run as the test binary would run the tests again: start the
 		// game directly instead, a copy of the test binary that sleeps.
 		cmd := exec.Command(game)

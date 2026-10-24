@@ -153,7 +153,8 @@ func (s *Server) configRoutes(mux *http.ServeMux) {
 			fail(w, err)
 			return
 		}
-		writeJSON(w, map[string]string{"plan": c.Plan()})
+		o := c.Overview()
+		writeJSON(w, map[string]any{"plan": o.Text(), "overview": o})
 	})
 	mux.HandleFunc("GET /api/configs/logs", func(w http.ResponseWriter, r *http.Request) {
 		c, err := config.Load(r.URL.Query().Get("path"), r.URL.Query().Get("profile"))

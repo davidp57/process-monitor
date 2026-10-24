@@ -11,6 +11,7 @@ A **pm — interface** icon shows in the notification area: "Open the interface"
 When no page of the interface has been open for 30 seconds, it stops by itself, unless a wizard is under way: its game runs in the interface, and its original settings must be put back.
 The sessions running always go on when the interface stops.
 A second double-click on `pm.exe` opens the page of the interface already running, or starts a new one.
+When the interface running comes from another `pm.exe` (a previous version, or a copy elsewhere), it stops and the new one takes its place, unless a wizard is under way in it.
 
 Top right:
 
@@ -18,6 +19,9 @@ Top right:
 - the **settings**: `pm`'s **language** (French, English, or Windows'), which holds for the interface, the menus and every config without a `lang:` key (see [language](installation.md#language)), and the folders to look for configs in;
 - the keyboard shortcuts: `1`, `2`, `3` for the tabs, `/` to filter the configs, `Enter` to answer a wizard question, `Esc` to close a window;
 - a link to this documentation.
+
+Beside every field that takes a path, "Browse…" opens the Windows window to choose the file or the folder: a program, an icon, a config, a folder, or "Save as" for a config to create.
+`pm` opens it, since a web page never learns where a file given to it lives; if it does not show, it may be behind the browser.
 
 ## Sessions {#sessions}
 
@@ -39,7 +43,7 @@ The profile chosen also holds for the tabs below:
 
 | Tab | What it shows |
 |---|---|
-| Overview | what the session would do, as [`pm check`](run.md#check) |
+| Overview | what the session would do, as [`pm check`](run.md#check), drawn: the profile's files on the left, the program's on the right, linked by an arrow per pair (copied before the session, copied back after; a missing source in red), then the steps before, during and after; the text of `pm check` unfolds below |
 | Shortcuts | creates the shortcuts; when the config does not say yet, asks the mode, the folders, the display and an icon per profile (see [pm shortcut](shortcut.md)) |
 | Logs | the profile's logs, read in the page |
 | Edit | edits the config through forms |

@@ -3,6 +3,8 @@ package gui
 import (
 	"net/http"
 	"time"
+
+	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
 // The interface stops by itself once no page has been open for a while,
@@ -41,15 +43,35 @@ func (s *Server) alive(w http.ResponseWriter, r *http.Request) {
 // grace, and no wizard under way.
 func (s *Server) Idle(now time.Time, grace time.Duration) bool {
 	s.mu.Lock()
-	pages, last, wr := s.pages, s.lastPage, s.wizard
+	pages, last := s.pages, s.lastPage
 	s.mu.Unlock()
 	if pages > 0 || now.Sub(last) < grace {
 		return false
 	}
+	return !s.wizardUnderWay()
+}
+
+// wizardUnderWay reports a wizard started and not finished: stopping now
+// would leave the game's original files set aside.
+func (s *Server) wizardUnderWay() bool {
+	s.mu.Lock()
+	wr := s.wizard
+	s.mu.Unlock()
 	if wr == nil {
-		return true
+		return false
 	}
 	wr.mu.Lock()
 	defer wr.mu.Unlock()
-	return !wr.busy && wr.w.Next().ID == "" // finished: nothing left to put back
+	return wr.busy || wr.w.Next().ID != "" // finished: nothing left to put back
+}
+
+// quit stops this interface for another pm.exe to take its place, unless a
+// wizard is under way.
+func (s *Server) quit(w http.ResponseWriter, r *http.Request) {
+	if s.wizardUnderWay() || s.opt.Quit == nil {
+		fail(w, i18n.Errorf("gui.quit_refused"))
+		return
+	}
+	writeJSON(w, "ok")
+	go s.opt.Quit()
 }

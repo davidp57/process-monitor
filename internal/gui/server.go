@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidp57/process-monitor/internal/filedialog"
 	"github.com/davidp57/process-monitor/internal/i18n"
 	"github.com/davidp57/process-monitor/internal/registry"
 )
@@ -32,6 +33,11 @@ type Options struct {
 	// Defaults lists the folders looked into without being given; tests
 	// replace it, so they never see the machine's own configs.
 	Defaults func() []string
+	// Pick opens a Windows file or folder window; tests replace it, so
+	// they never open one.
+	Pick func(filedialog.Options) (string, bool, error)
+	// Quit stops the interface, when a newer pm.exe takes its place.
+	Quit func()
 }
 
 // Server serves the interface.
@@ -48,6 +54,9 @@ type Server struct {
 func New(opt Options) *Server {
 	if opt.Launch == nil {
 		opt.Launch = launch
+	}
+	if opt.Pick == nil {
+		opt.Pick = filedialog.Show
 	}
 	if opt.Defaults == nil {
 		self := opt.Self
@@ -111,6 +120,8 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/ping", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, "pm") })
 	mux.HandleFunc("GET /api/alive", s.alive)
 	mux.HandleFunc("GET /api/icon", icon)
+	mux.HandleFunc("POST /api/pick", s.pick)
+	mux.HandleFunc("POST /api/quit", s.quit)
 	mux.HandleFunc("POST /api/lang", func(w http.ResponseWriter, r *http.Request) {
 		var req struct{ Lang string }
 		if err := read(r, &req); err != nil {

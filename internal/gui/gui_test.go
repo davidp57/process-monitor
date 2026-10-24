@@ -19,6 +19,7 @@ import (
 
 	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/control"
+	"github.com/davidp57/process-monitor/internal/filedialog"
 	"github.com/davidp57/process-monitor/internal/i18n"
 	"github.com/davidp57/process-monitor/internal/logx"
 	"github.com/davidp57/process-monitor/internal/registry"
@@ -51,6 +52,8 @@ type harness struct {
 	base     string
 	client   *http.Client
 	launched [][]string
+	picked   []filedialog.Options // the windows asked for, none opened
+	pickPath string               // what the window answers; "" is Cancel
 }
 
 func start(t *testing.T) *harness {
@@ -64,7 +67,11 @@ func start(t *testing.T) *harness {
 	h := &harness{t: t, base: "http://127.0.0.1:" + strconv.Itoa(port)}
 	srv := New(Options{Port: port, Token: "secret", Self: `C:\pm\pm.exe`,
 		Launch:   func(args []string) error { h.launched = append(h.launched, args); return nil },
-		Defaults: func() []string { return nil }})
+		Defaults: func() []string { return nil },
+		Pick: func(o filedialog.Options) (string, bool, error) {
+			h.picked = append(h.picked, o)
+			return h.pickPath, h.pickPath != "", nil
+		}})
 	ts := &httptest.Server{Listener: ln, Config: &http.Server{Handler: srv.Handler()}}
 	ts.Start()
 	t.Cleanup(ts.Close)
@@ -199,9 +206,15 @@ func TestConfigs(t *testing.T) {
 	if len(h.launched) != 1 || strings.Join(h.launched[0], " ") != `C:\pm\pm.exe run `+cfg+` --profile VR` {
 		t.Errorf("lancé : %q", h.launched)
 	}
-	var plan struct{ Plan string }
+	var plan struct {
+		Plan     string
+		Overview config.Overview
+	}
 	if err := h.call("GET", "/api/configs/check?"+url.Values{"path": {cfg}, "profile": {"DEV"}}.Encode(), nil, &plan); err != nil || !strings.Contains(plan.Plan, "cmd.exe") {
 		t.Errorf("check : %v %q", err, plan.Plan)
+	}
+	if plan.Overview.Profile != "DEV" || !strings.HasSuffix(plan.Overview.Command, "cmd.exe") {
+		t.Errorf("aperçu : %+v", plan.Overview)
 	}
 
 	// Shortcuts: what is missing, then all of it at once.
@@ -537,5 +550,85 @@ func TestIdle(t *testing.T) {
 	srv.wizard = wr
 	if srv.Idle(later, 30*time.Second) {
 		t.Error("un assistant est en cours")
+	}
+}
+
+func TestPick(t *testing.T) {
+	h := start(t)
+	var r struct{ Path string }
+	h.pickPath = `C:\Program Files\Eagle Dynamics\DCS Worldin\dcs_updater.exe`
+	if err := h.call("POST", "/api/pick", map[string]string{"kind": "program", "start": `C:\Games`}, &r); err != nil || r.Path != h.pickPath {
+		t.Fatalf("%q %v", r.Path, err)
+	}
+	h.pickPath = "" // Cancel: nothing to fill in
+	if err := h.call("POST", "/api/pick", map[string]string{"kind": "newyaml"}, &r); err != nil || r.Path != "" {
+		t.Fatalf("annulé : %q %v", r.Path, err)
+	}
+	if err := h.call("POST", "/api/pick", map[string]string{"kind": "nope"}, nil); err == nil {
+		t.Error("type inconnu accepté")
+	}
+	if len(h.picked) != 2 {
+		t.Fatalf("%d fenêtres", len(h.picked))
+	}
+	prog, cfg := h.picked[0], h.picked[1]
+	if prog.Start != `C:\Games` || prog.Save || prog.Folder || prog.Filters[0].Pattern != "*.exe;*.bat;*.cmd" {
+		t.Errorf("programme : %+v", prog)
+	}
+	if !cfg.Save || cfg.Ext != "yaml" || cfg.Filters[0].Pattern != "*.yaml;*.yml" {
+		t.Errorf("config à créer : %+v", cfg)
+	}
+	for kind, folder := range map[string]bool{"folder": true, "icon": false, "file": false, "save": false, "yaml": false} {
+		o, err := pickOptions(kind, "")
+		if err != nil || o.Folder != folder || o.Save != (kind == "save") {
+			t.Errorf("%s : %+v %v", kind, o, err)
+		}
+	}
+}
+
+func TestQuitForANewerPm(t *testing.T) {
+	t.Cleanup(registry.UseFile(filepath.Join(t.TempDir(), "configs.json")))
+	quit := make(chan bool, 1)
+	srv := New(Options{Port: 1, Token: "x", Defaults: func() []string { return nil }, Quit: func() { quit <- true }})
+	post := func() int {
+		rec := httptest.NewRecorder()
+		srv.quit(rec, httptest.NewRequest("POST", "/api/quit", nil))
+		return rec.Code
+	}
+	wr, err := newWizard("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.wizard = wr // started, not finished: its original files are set aside
+	if post() == http.StatusOK {
+		t.Error("arrêtée pendant un assistant")
+	}
+	srv.wizard = nil
+	if post() != http.StatusOK {
+		t.Fatal("refusée sans assistant")
+	}
+	select {
+	case <-quit:
+	case <-time.After(5 * time.Second):
+		t.Fatal("jamais arrêtée")
+	}
+}
+
+func TestInstanceReplaced(t *testing.T) {
+	if !sameExe(instance{Exe: `C:\Games\PM.exe`}, `c:\games\pm.exe`) {
+		t.Error("même exe, casse différente")
+	}
+	if sameExe(instance{Exe: `C:\Games\pm.exe`}, `D:\dev\dist\pm-new.exe`) || sameExe(instance{}, `C:\Games\pm.exe`) {
+		t.Error("un autre exe, ou un pm trop ancien pour le dire, pris pour celui-ci")
+	}
+	// The old interface, stopping after the new one wrote its file, leaves it.
+	path := filepath.Join(t.TempDir(), "gui.json")
+	os.WriteFile(path, []byte(`{"port":2,"token":"t","pid":222}`), 0o600)
+	removeIfOurs(path, 111)
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("le fichier du nouveau a été effacé")
+	}
+	removeIfOurs(path, 222)
+	if _, err := os.Stat(path); err == nil {
+		t.Error("son propre fichier gardé")
 	}
 }

@@ -11,6 +11,7 @@ Une icône **pm — interface** apparaît dans la zone de notification : « Ouvr
 Quand plus aucune page de l'interface n'est ouverte depuis 30 secondes, elle s'arrête d'elle-même, sauf si un assistant est en cours : son jeu tourne dans l'interface, et ses réglages d'origine doivent être remis.
 Les sessions en cours, elles, continuent toujours quand l'interface s'arrête.
 Un second double-clic sur `pm.exe` rouvre la page de l'interface déjà lancée, ou en relance une.
+Si l'interface lancée vient d'un autre `pm.exe` (une version précédente, ou une copie ailleurs), elle s'arrête et le nouveau prend sa place, sauf si un assistant y est en cours.
 
 En haut à droite :
 
@@ -18,6 +19,9 @@ En haut à droite :
 - les **réglages** : la **langue** de `pm` (français, anglais, ou celle de Windows), qui vaut pour l'interface, les menus et chaque config qui n'a pas de clé `lang:` (voir [la langue](installation.md#language)), et les dossiers où chercher des configs ;
 - les raccourcis clavier : `1`, `2`, `3` pour les onglets, `/` pour filtrer les configs, `Entrée` pour répondre à une question de l'assistant, `Échap` pour fermer une fenêtre ;
 - un lien vers cette documentation.
+
+À côté de chaque champ qui attend un chemin, « Parcourir… » ouvre la fenêtre de Windows pour choisir le fichier ou le dossier : un programme, une icône, une config, un dossier, ou « Enregistrer sous » pour une config à créer.
+C'est `pm` qui l'ouvre, car une page web n'apprend jamais où se trouve un fichier qu'on lui donne ; si elle n'apparaît pas, elle est peut-être derrière le navigateur.
 
 ## Sessions {#sessions}
 
@@ -39,7 +43,7 @@ Le profil choisi vaut aussi pour les onglets en dessous :
 
 | Onglet | Ce qu'il montre |
 |---|---|
-| Aperçu | ce que ferait la session, comme [`pm check`](run.md#check) |
+| Aperçu | ce que ferait la session, comme [`pm check`](run.md#check), en dessin : les fichiers du profil à gauche, ceux du programme à droite, reliés par une flèche par paire (copié avant la session, recopié après ; une source absente en rouge), puis les étapes avant, pendant et après ; le texte de `pm check` reste dépliable en dessous |
 | Raccourcis | crée les raccourcis ; si la config ne le dit pas encore, demande le mode, les dossiers, l'affichage et une icône par profil (voir [pm shortcut](shortcut.md)) |
 | Journaux | les journaux du profil, à lire dans la page |
 | Modifier | modifie la config par formulaires |

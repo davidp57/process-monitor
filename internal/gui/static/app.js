@@ -80,6 +80,8 @@ const ICONS = {
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/>',
   file: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  terminal: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3"/>',
 };
 function icon(name) {
   const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -96,6 +98,26 @@ function btn(label, attrs, iconName) {
 function iconBtn(iconName, tip, onclick) {
   return el("button", { type: "button", class: "btn icon", tip, "aria-label": tip, onclick }, icon(iconName));
 }
+// browse opens the Windows file window and fills input with the path
+// chosen: pm opens it, as a page is never told where a file lives. kind is
+// what the field holds (program, file, folder, icon, yaml, newyaml, save),
+// or a function giving it.
+function browse(input, kind, then, labeled) {
+  const run = () => busy(b, async () => {
+    try {
+      const typed = input.value.trim() || (/^[a-z]:\\/i.test(input.placeholder) ? input.placeholder : "");
+      const r = await post("/api/pick", { kind: typeof kind === "function" ? kind() : kind, start: typed });
+      if (!r.path) return;
+      input.value = r.path;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      then ? then(r.path) : input.focus();
+    } catch (e) { failToast(e); }
+  });
+  const b = labeled ? btn(t("gui.browse"), { onclick: run }, "folder") : iconBtn("folder", t("gui.browse"), run);
+  return b;
+}
+function withBrowse(input, kind) { return el("div", { class: "row-line" }, el("div", { class: "grow" }, input), browse(input, kind, null, true)); }
 // busy shows a button working while fn runs.
 async function busy(button, fn) {
   const before = [...button.childNodes];
@@ -265,7 +287,7 @@ function folderSettings(data) {
         iconBtn("trash", t("gui.remove"), async () => {
           try { await post("/api/folders/remove", { path: f }); closeAll(); settings("folders"); refreshConfigs(); } catch (e) { failToast(e); }
         }))) : el("span", { class: "hint" }, t("gui.no_folder"))),
-    el("div", { class: "row-line" }, el("div", { class: "grow" }, input), addBtn),
+    el("div", { class: "row-line" }, el("div", { class: "grow" }, input), browse(input, "folder"), addBtn),
     el("div", { class: "eyebrow", style: "margin-top:18px" }, t("gui.default_folders")),
     el("p", { class: "hint" }, t("gui.default_folders_hint")),
     el("div", { class: "rows" }, data.defaults.map((f) => el("div", { class: "row-line muted" }, icon("folder"), el("span", { class: "mono" }, f)))));
@@ -404,7 +426,7 @@ function addConfig() {
     } catch (e) { failToast(e); }
   }) }, "plus");
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") ok.click(); });
-  d = dialog(t("gui.add_config"), field(t("gui.config_file"), null, t("gui.add_config_hint"), input), el("div", { class: "btn-row end" }, ok));
+  d = dialog(t("gui.add_config"), field(t("gui.config_file"), null, t("gui.add_config_hint"), withBrowse(input, "yaml")), el("div", { class: "btn-row end" }, ok));
 }
 
 function configDetail() {
@@ -481,9 +503,84 @@ function launchBlock(c) {
 function overview(c) {
   const box = el("div", {}, el("span", { class: "spinner" }));
   get("/api/configs/check?" + q({ path: c.path, profile: c.profiles.length ? S.profile : "" }))
-    .then((r) => box.replaceChildren(el("pre", { class: "plan" }, r.plan)))
+    .then((r) => box.replaceChildren(drawOverview(r.overview), el("details", { class: "raw" },
+      el("summary", {}, t("gui.ov_text")), el("pre", { class: "plan" }, r.plan))))
     .catch((e) => box.replaceChildren(failBanner(e)));
   return el("div", {}, el("p", { class: "intro" }, c.profiles.length ? t("gui.overview_intro_profile", S.profile) : t("gui.overview_intro")), box);
+}
+
+// The folder a list of paths shares, to name a box once rather than
+// repeat it on every line ("" when they share none).
+function commonDir(paths) {
+  if (!paths.length) return "";
+  const parts = paths.map((p) => p.split("\\").slice(0, -1));
+  let n = 0;
+  while (parts.every((x) => n < x.length && x[n].toLowerCase() === parts[0][n].toLowerCase())) n++;
+  return parts[0].slice(0, n).join("\\");
+}
+function rel(path, dir) { return dir && path.toLowerCase().startsWith(dir.toLowerCase() + "\\") ? path.slice(dir.length + 1) : path; }
+
+// One pair of arrows: copied over before the session (amber, to the
+// right), copied back after (grey, to the left); a missing source copies
+// nothing, its arrow is dashed red.
+function syncArrows(missing) {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  s.setAttribute("viewBox", "0 0 100 18");
+  s.setAttribute("preserveAspectRatio", "none");
+  s.setAttribute("class", "arrows" + (missing ? " missing" : ""));
+  s.setAttribute("aria-hidden", "true");
+  s.innerHTML = '<path class="in" d="M2 4H96M91 0.5L97 4L91 7.5"/>' + (missing ? "" : '<path class="back" d="M98 14H4M9 10.5L3 14L9 17.5"/>');
+  return s;
+}
+
+function drawOverview(o) {
+  const out = el("div", { class: "overview" });
+  if (o.sync.length) {
+    const left = commonDir(o.sync.map((p) => p.source));
+    const right = commonDir(o.sync.map((p) => p.target));
+    const n = o.sync.length;
+    const grid = el("div", { class: "sync", style: `grid-template-rows: auto repeat(${n}, auto)` });
+    const side = (col, ic, title, dir) => [
+      el("div", { class: "side-bg", style: `grid-column:${col};grid-row:1 / ${n + 2}` }),
+      el("div", { class: "side-head", style: `grid-column:${col};grid-row:1` },
+        el("div", { class: "eyebrow" }, icon(ic), title), dir ? el("div", { class: "mono dim", title: dir }, dir) : "")];
+    add(grid, side(1, "user", o.profile ? t("gui.ov_profile", o.profile) : t("gui.ov_config"), left));
+    add(grid, side(3, "play", t("gui.ov_program"), right));
+    grid.append(el("div", { class: "legend", style: "grid-column:2;grid-row:1" },
+      el("span", { class: "in" }, t("gui.ov_before")), el("span", { class: "back" }, t("gui.ov_after"))));
+    o.sync.forEach((p, i) => {
+      const row = i + 2;
+      const cell = (col, path, dir, isDir, bad) => el("div", { class: "file" + (bad ? " bad" : ""), title: path, style: `grid-column:${col};grid-row:${row}` },
+        icon(isDir ? "folder" : "file"), el("span", { class: "name" }, rel(path, dir) + (isDir ? "\\" : "")),
+        bad ? el("span", { class: "pill bad" }, t("gui.ov_absent")) : "");
+      grid.append(cell(1, p.source, left, p.sourceDir, p.missing),
+        el("div", { class: "link", style: `grid-column:2;grid-row:${row}` }, syncArrows(p.missing)),
+        cell(3, p.target, right, p.targetDir, false));
+    });
+    out.append(el("div", { class: "eyebrow", style: "margin-bottom:8px" }, t("gui.ov_sync")), grid);
+  }
+  if (o.missing) out.append(failBanner(new Error(t("gui.ov_missing", o.missing))));
+
+  const actions = (list) => list.map((a) => el("li", { class: a.missing ? "bad" : "", title: a.kind === "exec" ? a.args.join(" ") : a.kind === "delete" ? a.path : a.from + " → " + a.to },
+    icon({ copy: "copy", delete: "trash", exec: "terminal" }[a.kind]),
+    el("span", {}, a.kind === "exec" ? a.args.join(" ") : a.kind === "delete" ? base(a.path) : base(a.from) + " → " + base(a.to))));
+  const step = (n, title, items, cls) => el("div", { class: "step" + (cls ? " " + cls : "") },
+    el("div", { class: "eyebrow" }, n + " · " + title), items.length ? el("ul", {}, items) : el("p", { class: "hint" }, t("gui.ov_nothing")));
+  const syncLine = (key) => o.sync.length ? [el("li", {}, icon("copy"), el("span", {}, t(key, o.sync.length)))] : [];
+  const session = [
+    el("li", { title: [o.command, ...(o.args || [])].join(" ") }, icon("play"), el("span", {}, [base(o.command), ...(o.args || [])].join(" "))),
+    o.workdir && el("li", { title: o.workdir }, icon("folder"), el("span", {}, t("gui.ov_workdir", o.workdir))),
+    o.follows !== base(o.command) && el("li", {}, icon("eye"), el("span", {}, t("gui.ov_follows", o.follows))),
+    el("li", {}, icon("alert"), el("span", {}, o.ifRunning === "kill" ? t("gui.ov_if_kill") : t("gui.ov_if_abort"))),
+    o.ready && el("li", { title: o.ready.file }, icon("check"), el("span", {}, t("gui.ov_ready", base(o.ready.file), o.ready.timeout))),
+    o.shared && el("li", {}, icon("info"), el("span", {}, t("gui.ov_shared"))),
+    el("li", { title: o.logDir }, icon("log"), el("span", {}, t("gui.ov_logs", o.logKeep))),
+  ].filter(Boolean);
+  out.append(el("div", { class: "steps" },
+    step(1, t("gui.ov_step_before"), [...syncLine("gui.ov_copy_in"), ...actions(o.before)]),
+    step(2, t("gui.ov_step_session"), session, "now"),
+    step(3, t("gui.ov_step_after"), [...syncLine("gui.ov_copy_back"), ...actions(o.after)])));
+  return out;
 }
 
 function logsTab(c) {
@@ -529,20 +626,22 @@ function shortcutsTab(c) {
       return s;
     };
     if (!plan.hasSection) {
-      other = el("input", { type: "text", class: "mono", placeholder: t("gui.folder_path"), hidden: true });
+      other = el("input", { type: "text", class: "mono", placeholder: t("gui.folder_path") });
+      const otherRow = withBrowse(other, "folder");
+      otherRow.hidden = true;
       const checks = plan.folders.Options.map((o) => {
         const cb = el("input", { type: "checkbox", checked: folders.has(o.Value) });
         const row = el("label", { class: "check" + (cb.checked ? " on" : "") }, cb, el("span", {}, o.Label));
         cb.addEventListener("change", () => {
           cb.checked ? folders.add(o.Value) : folders.delete(o.Value);
           row.classList.toggle("on", cb.checked);
-          if (o.Value === "other") other.hidden = !cb.checked;
+          if (o.Value === "other") otherRow.hidden = !cb.checked;
         });
         return row;
       });
       parts.push(el("div", { class: "banner" }, icon("info"), el("span", { class: "grow" }, t("gui.no_section"))),
         field(t("gui.shortcut_mode"), "shortcuts.mode", t("gui.shortcut_mode_hint"), seg([["run", t("gui.mode_run")], ["watch", t("gui.mode_watch")]], () => mode, (v) => { mode = v; })),
-        field(plan.folders.Prompt, "shortcuts.folder", t("gui.shortcut_folders_hint"), el("div", { class: "rows" }, checks, other)));
+        field(plan.folders.Prompt, "shortcuts.folder", t("gui.shortcut_folders_hint"), el("div", { class: "rows" }, checks, otherRow)));
     }
     if (!plan.hasUI) {
       parts.push(field(t("gui.ui"), "ui", t("gui.ui_hint"), seg([["tray", t("gui.ui_tray")], ["console", t("gui.ui_console")]], () => ui, (v) => { ui = v; })));
@@ -594,9 +693,9 @@ function shortcutsTab(c) {
 // Every field: key, kind, label, help, options (for a choice: [value, label]).
 const FIELDS = () => [
   [t("gui.sec_program"), [
-    ["command", "text", t("gui.f_command"), t("gui.h_command")],
+    ["command", "path", t("gui.f_command"), t("gui.h_command"), "program"],
     ["args", "list", t("gui.f_args"), t("gui.h_args")],
-    ["workdir", "text", t("gui.f_workdir"), t("gui.h_workdir")],
+    ["workdir", "path", t("gui.f_workdir"), t("gui.h_workdir"), "folder"],
     ["track", "text", t("gui.f_track"), t("gui.h_track")],
     ["kill_on_exit", "list", t("gui.f_kill_on_exit"), t("gui.h_kill_on_exit")],
     ["if_running", "select", t("gui.f_if_running"), t("gui.h_if_running"), [["", t("gui.o_abort")], ["kill", t("gui.o_kill")]]],
@@ -620,7 +719,7 @@ const FIELDS = () => [
   [t("gui.sec_shortcuts"), [
     ["shortcuts.mode", "select", t("gui.f_sc_mode"), t("gui.h_sc_mode"), [["", t("gui.o_none")], ["run", t("gui.mode_run")], ["watch", t("gui.mode_watch")]]],
     ["shortcuts.name", "text", t("gui.f_sc_name"), t("gui.h_sc_name")],
-    ["shortcuts.folder", "list", t("gui.f_sc_folder"), t("gui.h_sc_folder")],
+    ["shortcuts.folder", "paths", t("gui.f_sc_folder"), t("gui.h_sc_folder"), "folder"],
   ]],
   [t("gui.sec_watch"), [
     ["watch.restart", "select", t("gui.f_restart"), t("gui.h_restart"), [["", t("gui.o_always")], ["on-failure", t("gui.o_on_failure")], ["never", t("gui.o_never")]]],
@@ -629,11 +728,11 @@ const FIELDS = () => [
     ["watch.max_restarts", "number", t("gui.f_max_restarts"), t("gui.h_max_restarts")],
   ]],
   [t("gui.sec_ready"), [
-    ["ready.file", "text", t("gui.f_ready_file"), t("gui.h_ready_file")],
+    ["ready.file", "path", t("gui.f_ready_file"), t("gui.h_ready_file"), "save"],
     ["ready.timeout", "text", t("gui.f_ready_timeout"), t("gui.h_ready_timeout")],
   ]],
   [t("gui.sec_log"), [
-    ["log.dir", "text", t("gui.f_log_dir"), t("gui.h_log_dir")],
+    ["log.dir", "path", t("gui.f_log_dir"), t("gui.h_log_dir"), "folder"],
     ["log.keep", "number", t("gui.f_log_keep"), t("gui.h_log_keep")],
     ["exit.delay", "text", t("gui.f_exit_delay"), t("gui.h_exit_delay")],
     ["exit.wait_key", "select", t("gui.f_wait_key"), t("gui.h_wait_key"), [["", t("gui.o_on_error")], ["never", t("gui.o_never")], ["always", t("gui.o_always")]]],
@@ -684,11 +783,19 @@ function widget(kind, value, options, dirty) {
       const i = watch(el("input", { type: "text", class: "mono", value: value ?? "" }));
       return [i, () => i.value.trim()];
     }
+    case "path": {
+      const i = watch(el("input", { type: "text", class: "mono", value: value ?? "" }));
+      return [withBrowse(i, options), () => i.value.trim()];
+    }
+    case "paths": {
+      const items = Array.isArray(value) ? value : value ? [value] : [];
+      return listOf(items.map(String), (v) => { const i = watch(el("input", { type: "text", class: "mono", value: v ?? "" })); return [withBrowse(i, options), () => i.value.trim()]; });
+    }
     case "icon": {
       const i = watch(el("input", { type: "text", class: "mono", value: value ?? "" }));
       const img = el("img", { class: "thumb", alt: "", hidden: !value, src: value ? "/api/icon?" + q({ path: value }) : "" });
       i.addEventListener("change", () => { img.hidden = !i.value; if (i.value) img.src = "/api/icon?" + q({ path: i.value }); });
-      return [el("div", { class: "row-line" }, img, el("div", { class: "grow" }, i)), () => i.value.trim()];
+      return [el("div", { class: "row-line" }, img, el("div", { class: "grow" }, i), browse(i, "icon")), () => i.value.trim()];
     }
     case "number": {
       const i = watch(el("input", { type: "text", value: value ?? "", inputmode: "numeric", style: "max-width:140px" }));
@@ -730,7 +837,12 @@ function widget(kind, value, options, dirty) {
         };
         sel.addEventListener("change", () => { type = sel.value; place(); dirty(); });
         place();
-        return [el("div", { class: "row-line" }, sel, el("div", { class: "grow" }, from), el("div", { class: "grow" }, to, args)), () => {
+        const fromB = browse(from, () => (type === "exec" ? "program" : "file"));
+        const toB = browse(to, "save");
+        const showTo = () => { toB.hidden = type !== "copy"; };
+        sel.addEventListener("change", showTo);
+        showTo();
+        return [el("div", { class: "row-line" }, sel, el("div", { class: "grow" }, from), fromB, el("div", { class: "grow" }, to, args), toB), () => {
           const v = from.value.trim();
           if (!v) return undefined;
           if (type === "copy") return { copy: { from: v, to: to.value.trim() } };
@@ -835,7 +947,7 @@ async function viewWizard() {
       el("p", { class: "intro" }, t("gui.wizard_intro")),
       el("ul", { class: "intro" }, el("li", {}, t("gui.wizard_point_a")), el("li", {}, t("gui.wizard_point_b")), el("li", {}, t("gui.wizard_point_c"))),
       el("details", {}, el("summary", { class: "hint", style: "cursor:pointer;margin-bottom:8px" }, t("gui.wizard_path_title")),
-        field(t("gui.config_file"), null, t("gui.wizard_path_hint"), path)),
+        field(t("gui.config_file"), null, t("gui.wizard_path_hint"), withBrowse(path, "newyaml"))),
       el("div", { class: "btn-row", style: "margin-top:12px" }, start)));
     return;
   }
@@ -967,13 +1079,13 @@ function questionCard(card, step, v) {
       return true;
     };
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); if (!addOne()) submit(); } });
-    content.push(list, el("div", { class: "row-line" }, el("div", { class: "grow" }, input), btn(t("gui.add"), { onclick: addOne }, "plus")),
+    content.push(list, el("div", { class: "row-line" }, el("div", { class: "grow" }, input), qn.Pick && browse(input, qn.Pick, () => { addOne(); input.focus(); }), btn(t("gui.add"), { onclick: addOne }, "plus")),
       el("span", { class: "hint" }, t("gui.list_hint")));
     read = () => { addOne(); return entries; };
     setTimeout(() => input.focus());
   } else {
     const input = el("input", { type: "text", class: qn.Kind === KIND.path ? "mono" : "", placeholder: def[0] || "" });
-    content.push(input);
+    content.push(qn.Pick ? withBrowse(input, qn.Pick) : input);
     if (def[0]) content.push(el("span", { class: "hint" }, t("gui.empty_default", def[0])));
     read = () => [input.value];
     setTimeout(() => input.focus());
