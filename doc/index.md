@@ -2,7 +2,11 @@
 
 **Process Monitor** lance un programme sous Windows et l'encadre : il prépare ce dont le programme a besoin avant de démarrer, le surveille pendant qu'il tourne, et range derrière lui quand il s'arrête.
 
-C'est un seul fichier, `pm.exe`, sans installation ni dépendance. On le lance d'un raccourci ou d'un terminal, avec un fichier de configuration qui décrit le programme et ce qu'il faut faire autour.
+C'est un seul fichier, `pm.exe`, sans installation ni dépendance.
+Un double-clic ouvre son [interface](gui.md) dans le navigateur : on y crée une config avec un assistant, on la lance, on suit ce qui tourne.
+On peut aussi le lancer d'un raccourci ou d'un terminal, avec un fichier de configuration qui décrit le programme et ce qu'il faut faire autour.
+
+![L'interface : une config DCS, ses profils, et ce que ferait une session](img/gui-overview.png)
 
 ## À quoi il sert {#use-cases}
 
