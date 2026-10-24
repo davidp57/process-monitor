@@ -727,6 +727,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../gui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../new/" class="md-nav__link">
         
   
@@ -1286,7 +1314,7 @@
 <h2 id="logs">Logs and language<a class="headerlink" href="#logs" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="nt">capture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                       </span><span class="c1"># the program's output into the log</span>
 <span class="nt">log</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> dir</span><span class="p">:</span><span class="w"> </span><span class="s">'${config_dir}\logs'</span><span class="p p-Indicator">,</span><span class="nt"> keep</span><span class="p">:</span><span class="w"> </span><span class="nv">5</span><span class="w"> </span><span class="p p-Indicator">}</span>
-<span class="nt">lang</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">en</span><span class="w">                            </span><span class="c1"># fr or en; --lang and PM_LANG win over it; with none, the Windows language</span>
+<span class="nt">lang</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">en</span><span class="w">                            </span><span class="c1"># fr or en; --lang and PM_LANG win over it; with none, the interface's setting, then Windows'</span>
 </code></pre></div>
 <p>Each session writes its log: steps, copies, errors, and the program's output with <code>capture</code>. Only the <code>keep</code> most recent are kept.</p>
 <h2 id="exit">End of the session<a class="headerlink" href="#exit" title="Permanent link">&para;</a></h2>

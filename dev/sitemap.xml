@@ -22,6 +22,13 @@
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/features/"/>
     </url>
     <url>
+        <loc>https://davidp57.github.io/process-monitor/dev/gui/</loc>
+        <lastmod>2026-10-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/gui/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/gui/"/>
+    </url>
+    <url>
         <loc>https://davidp57.github.io/process-monitor/dev/installation/</loc>
         <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
@@ -125,6 +132,13 @@
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/features/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devfeatures/"/>
+    </url>
+    <url>
+        <loc>https://davidp57.github.io/process-monitor/dev/en/gui/</loc>
+        <lastmod>2026-10-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/gui/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devgui/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/installation/</loc>

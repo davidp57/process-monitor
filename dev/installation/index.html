@@ -672,6 +672,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../gui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    L'interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../new/" class="md-nav__link">
         
   
@@ -1088,8 +1116,9 @@
 <h2 id="download">Télécharger<a class="headerlink" href="#download" title="Permanent link">&para;</a></h2>
 <p>Chaque version publiée est sur la page <a href="https://github.com/davidp57/process-monitor/releases">Releases</a> du dépôt : télécharger <code>pm.exe</code> et le poser dans un dossier, par exemple à côté de ses configs.</p>
 <h2 id="menu">Le menu<a class="headerlink" href="#menu" title="Permanent link">&para;</a></h2>
-<p>Un double-clic sur <code>pm.exe</code> ouvre un menu : créer une config avec l'<a href="../new/">assistant</a>, créer ses <a href="../shortcut/">raccourcis</a>, la vérifier, la lancer.
+<p>Un double-clic sur <code>pm.exe</code> ouvre l'<a href="../gui/">interface</a> dans le navigateur : les sessions en cours, les configs, l'assistant.
 Pas de ligne de commande à taper ; lancé sans argument depuis un terminal, <code>pm.exe</code> affiche son aide comme avant.</p>
+<p><code>.\pm.exe menu</code> ouvre le même genre de menu en mode texte, dans le terminal : créer une config avec l'<a href="../new/">assistant</a>, créer ses <a href="../shortcut/">raccourcis</a>, la vérifier, la lancer.</p>
 <h2 id="build">Compiler soi-même<a class="headerlink" href="#build" title="Permanent link">&para;</a></h2>
 <p>Il faut Go 1.27 ou plus récent (<code>scoop install go</code>), puis, dans le dossier du dépôt :</p>
 <div class="highlight"><pre><span></span><code><span class="n">go</span> <span class="n">build</span> <span class="n">-o</span> <span class="n">dist</span><span class="p">\</span><span class="n">pm</span><span class="p">.</span><span class="n">exe</span> <span class="p">.\</span><span class="n">cmd</span><span class="p">\</span><span class="n">pm</span>
@@ -1105,7 +1134,7 @@ Pas de ligne de commande à taper ; lancé sans argument depuis un terminal, <co
 </ul>
 <h2 id="language">La langue<a class="headerlink" href="#language" title="Permanent link">&para;</a></h2>
 <p>pm parle français et anglais.
-Il prend la première langue définie parmi : l'option <code>--lang fr|en</code>, la variable d'environnement <code>PM_LANG</code>, la clé <code>lang:</code> de la config, la langue d'affichage de Windows ; à défaut, l'anglais.</p>
+Il prend la première langue définie parmi : l'option <code>--lang fr|en</code>, la variable d'environnement <code>PM_LANG</code>, la clé <code>lang:</code> de la config, la langue choisie dans l'<a href="../gui/">interface</a> (gardée dans <code>%APPDATA%\pm\configs.json</code>), la langue d'affichage de Windows ; à défaut, l'anglais.</p>
 
 
 

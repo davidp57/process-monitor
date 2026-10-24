@@ -727,6 +727,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../gui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    L'interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../new/" class="md-nav__link">
         
   
@@ -1286,7 +1314,7 @@
 <h2 id="logs">Journaux et langue<a class="headerlink" href="#logs" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="nt">capture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                       </span><span class="c1"># la sortie du programme dans le journal</span>
 <span class="nt">log</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> dir</span><span class="p">:</span><span class="w"> </span><span class="s">'${config_dir}\logs'</span><span class="p p-Indicator">,</span><span class="nt"> keep</span><span class="p">:</span><span class="w"> </span><span class="nv">5</span><span class="w"> </span><span class="p p-Indicator">}</span>
-<span class="nt">lang</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fr</span><span class="w">                            </span><span class="c1"># fr ou en ; --lang et PM_LANG l'emportent ; sans rien, la langue de Windows</span>
+<span class="nt">lang</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fr</span><span class="w">                            </span><span class="c1"># fr ou en ; --lang et PM_LANG l'emportent ; sans rien, celle des réglages de l'interface, puis celle de Windows</span>
 </code></pre></div>
 <p>Chaque session écrit son journal : étapes, copies, erreurs, et la sortie du programme avec <code>capture</code>. Seuls les <code>keep</code> plus récents sont gardés.</p>
 <h2 id="exit">Fin de session<a class="headerlink" href="#exit" title="Permanent link">&para;</a></h2>

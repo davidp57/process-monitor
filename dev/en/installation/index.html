@@ -672,6 +672,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../gui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../new/" class="md-nav__link">
         
   
@@ -1088,8 +1116,9 @@
 <h2 id="download">Download<a class="headerlink" href="#download" title="Permanent link">&para;</a></h2>
 <p>Every published version is on the repository's <a href="https://github.com/davidp57/process-monitor/releases">Releases</a> page: download <code>pm.exe</code> and put it in a folder, next to your configs for instance.</p>
 <h2 id="menu">The menu<a class="headerlink" href="#menu" title="Permanent link">&para;</a></h2>
-<p>A double-click on <code>pm.exe</code> opens a menu: create a config with the <a href="../new/">wizard</a>, create its <a href="../shortcut/">shortcuts</a>, check it, run it.
+<p>A double-click on <code>pm.exe</code> opens the <a href="../gui/">interface</a> in the browser: the sessions running, the configs, the wizard.
 No command line to type; started without arguments from a terminal, <code>pm.exe</code> shows its help as before.</p>
+<p><code>.\pm.exe menu</code> opens the same kind of menu as text, in the terminal: create a config with the <a href="../new/">wizard</a>, create its <a href="../shortcut/">shortcuts</a>, check it, run it.</p>
 <h2 id="build">Build it yourself<a class="headerlink" href="#build" title="Permanent link">&para;</a></h2>
 <p>You need Go 1.27 or newer (<code>scoop install go</code>), then, in the repository folder:</p>
 <div class="highlight"><pre><span></span><code><span class="n">go</span> <span class="n">build</span> <span class="n">-o</span> <span class="n">dist</span><span class="p">\</span><span class="n">pm</span><span class="p">.</span><span class="n">exe</span> <span class="p">.\</span><span class="n">cmd</span><span class="p">\</span><span class="n">pm</span>
@@ -1105,7 +1134,7 @@ No command line to type; started without arguments from a terminal, <code>pm.exe
 </ul>
 <h2 id="language">Language<a class="headerlink" href="#language" title="Permanent link">&para;</a></h2>
 <p>pm speaks French and English.
-It takes the first language set among: the <code>--lang fr|en</code> option, the <code>PM_LANG</code> environment variable, the config's <code>lang:</code> key, the Windows display language; failing that, English.</p>
+It takes the first language set among: the <code>--lang fr|en</code> option, the <code>PM_LANG</code> environment variable, the config's <code>lang:</code> key, the language chosen in the <a href="../gui/">interface</a> (kept in <code>%APPDATA%\pm\configs.json</code>), the Windows display language; failing that, English.</p>
 
 
 

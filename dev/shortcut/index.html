@@ -572,6 +572,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../gui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    L'interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../new/" class="md-nav__link">
         
   
@@ -1034,7 +1062,7 @@ Avec <code>--profile</code>, seulement celui de ce profil.</p>
 <ul>
 <li><strong><code>name</code></strong> : par défaut <code>${name}</code>, ou <code>${name} - ${profile}</code> quand la config a des profils.</li>
 <li><strong><code>folder</code></strong> : un dossier, ou une liste pour poser chaque raccourci à plusieurs endroits (<code>[${desktop}, ${start_menu}]</code>) ; par défaut le dossier de la config (<code>${config_dir}</code>). Deux variables donnent les dossiers habituels : <code>${desktop}</code> (le Bureau) et <code>${start_menu}</code> (le menu Démarrer). Windows les connaît même quand le Bureau a été déplacé dans OneDrive.</li>
-<li>Sans section <code>shortcuts</code>, <code>pm shortcut</code> le dit et ne crée rien. Depuis le <a href="../installation/#menu">menu</a> (double-clic sur <code>pm.exe</code>), il propose de l'ajouter : deux questions (le mode, puis un ou plusieurs dossiers, à cocher), puis la section est écrite à la fin du fichier, sans toucher au reste.
+<li>Sans section <code>shortcuts</code>, <code>pm shortcut</code> le dit et ne crée rien. Depuis l'<a href="../gui/#configs">interface</a> ou le <a href="../installation/#menu">menu en terminal</a>, il propose de l'ajouter : deux questions (le mode, puis un ou plusieurs dossiers, à cocher), puis la section est écrite à la fin du fichier, sans toucher au reste.
   Si la config ne dit pas comment <code>pm</code> s'affiche (pas de clé <code>ui</code>), le menu le demande — icône de notification ou fenêtre console — et ajoute la ligne : c'est ce qui fait ouvrir le raccourci « Réduite ».
   Le menu propose aussi une icône à chaque profil qui n'en a pas, parmi les <code>.ico</code> trouvés à côté de la config : <code>DEV: {}</code> devient <code>DEV:</code> suivi d'une ligne <code>icon:</code>, et rien d'autre ne change.</li>
 </ul>

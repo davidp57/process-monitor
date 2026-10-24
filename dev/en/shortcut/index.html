@@ -572,6 +572,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../gui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../new/" class="md-nav__link">
         
   
@@ -1034,7 +1062,7 @@ With <code>--profile</code>, only that profile's.</p>
 <ul>
 <li><strong><code>name</code></strong>: by default <code>${name}</code>, or <code>${name} - ${profile}</code> when the config has profiles.</li>
 <li><strong><code>folder</code></strong>: one folder, or a list to put each shortcut in several places (<code>[${desktop}, ${start_menu}]</code>); by default the config's folder (<code>${config_dir}</code>). Two variables give the usual folders: <code>${desktop}</code> (the Desktop) and <code>${start_menu}</code> (the Start menu). Windows knows them even when the Desktop was moved into OneDrive.</li>
-<li>Without a <code>shortcuts</code> section, <code>pm shortcut</code> says so and creates nothing. From the <a href="../installation/#menu">menu</a> (double-click on <code>pm.exe</code>), it offers to add it: two questions (the mode, then one or several folders, ticked), then the section is written at the end of the file, the rest untouched.
+<li>Without a <code>shortcuts</code> section, <code>pm shortcut</code> says so and creates nothing. From the <a href="../gui/#configs">interface</a> or the <a href="../installation/#menu">terminal menu</a>, it offers to add it: two questions (the mode, then one or several folders, ticked), then the section is written at the end of the file, the rest untouched.
   When the config does not say how <code>pm</code> shows itself (no <code>ui</code> key), the menu asks — notification icon or console window — and adds the line: that is what makes the shortcut open "Minimized".
   The menu also offers an icon to each profile that has none, among the <code>.ico</code> files found next to the config: <code>DEV: {}</code> becomes <code>DEV:</code> followed by an <code>icon:</code> line, and nothing else changes.</li>
 </ul>
