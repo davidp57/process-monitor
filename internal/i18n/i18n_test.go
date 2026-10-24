@@ -57,6 +57,9 @@ func goFiles(t *testing.T) []string {
 
 var call = regexp.MustCompile(`i18n\.(?:T|Errorf)\("([^"]+)"`)
 
+// pageKey is a catalog key written in the interface's page.
+var pageKey = regexp.MustCompile(`"(gui\.[a-z_]+)"`)
+
 func TestEveryKeyUsedExists(t *testing.T) {
 	used := map[string]bool{}
 	for _, f := range goFiles(t) {
@@ -65,6 +68,21 @@ func TestEveryKeyUsedExists(t *testing.T) {
 			if strings.HasSuffix(m[1], ".") {
 				continue // a prefix completed at run time ("status." + id): see dynamic
 			}
+			used[m[1]] = true
+			if _, ok := catalogs["en"][m[1]]; !ok {
+				t.Errorf("%s : clé %q absente du catalogue", f, m[1])
+			}
+		}
+	}
+	// The interface's page names its keys as "gui.…" strings, in t() or in
+	// a table it reads with t() later.
+	pages, _ := filepath.Glob("../../internal/gui/static/*.js")
+	if len(pages) == 0 {
+		t.Fatal("page de l'interface introuvable")
+	}
+	for _, f := range pages {
+		src, _ := os.ReadFile(f)
+		for _, m := range pageKey.FindAllStringSubmatch(string(src), -1) {
 			used[m[1]] = true
 			if _, ok := catalogs["en"][m[1]]; !ok {
 				t.Errorf("%s : clé %q absente du catalogue", f, m[1])

@@ -66,9 +66,9 @@ func (w *Wizard) seedSteps(p string, ask func(string, Question) bool) bool {
 	}
 	switch w.one("seed:" + p) {
 	case seedFolder:
-		return ask("seed_dir:"+p, w.existing(i18n.T("wizard.q.seed_dir"), "", ""))
+		return ask("seed_dir:"+p, w.existing(i18n.T("wizard.q.seed_dir"), "", "", "folder"))
 	case seedConfig:
-		if !ask("seed_config:"+p, Question{Kind: Path, Prompt: i18n.T("wizard.q.seed_config"), check: w.checkOldConfig}) {
+		if !ask("seed_config:"+p, Question{Kind: Path, Prompt: i18n.T("wizard.q.seed_config"), Pick: "file", check: w.checkOldConfig}) {
 			return false
 		}
 		profiles, _ := w.env.Profiles(w.one("seed_config:" + p))
@@ -87,7 +87,7 @@ func (w *Wizard) seedSteps(p string, ask func(string, Question) bool) bool {
 		}
 		return ask("seed_profile:"+p, Question{Kind: Choice, Prompt: i18n.T("wizard.q.seed_profile"), Options: opts, Default: []string{def}})
 	case seedFiles:
-		if !ask("seed_files:"+p, Question{Kind: List, Prompt: i18n.T("wizard.q.seed_files"), check: w.checkExisting}) {
+		if !ask("seed_files:"+p, Question{Kind: List, Prompt: i18n.T("wizard.q.seed_files"), Pick: "file", check: w.checkExisting}) {
 			return false
 		}
 		for i, f := range w.answers["seed_files:"+p] {
@@ -96,7 +96,7 @@ func (w *Wizard) seedSteps(p string, ask func(string, Question) bool) bool {
 			if len(candidates) == 0 {
 				// Nothing of that name in the game: a path to type, the first watched folder suggested.
 				def := []string{filepath.Join(w.Roots()[0], filepath.Base(f))}
-				if !ask(id, Question{Kind: Path, Prompt: prompt, Help: i18n.T("wizard.h.seed_to_new"), Default: def, check: w.checkInRoots}) {
+				if !ask(id, Question{Kind: Path, Prompt: prompt, Help: i18n.T("wizard.h.seed_to_new"), Default: def, Pick: "save", check: w.checkInRoots}) {
 					return false
 				}
 				continue
@@ -110,7 +110,7 @@ func (w *Wizard) seedSteps(p string, ask func(string, Question) bool) bool {
 				return false
 			}
 			if w.one(id) == otherPath {
-				if !ask(id+":other", Question{Kind: Path, Prompt: prompt, check: w.checkInRoots}) {
+				if !ask(id+":other", Question{Kind: Path, Prompt: prompt, Pick: "save", check: w.checkInRoots}) {
 					return false
 				}
 			}

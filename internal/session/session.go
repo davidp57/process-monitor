@@ -81,6 +81,11 @@ type Session struct {
 	state          State
 	cur            proc.Process
 	restartPending bool
+
+	// Locked, when set, is called once the session's locks are held: from
+	// then on this session is the only one with its name, so it may say so
+	// (the control channel writes its address then, not before).
+	Locked func()
 }
 
 // New prepares a session. restart is config.RestartNever for pm run.
@@ -176,6 +181,9 @@ func (s *Session) Run(ctx context.Context) error {
 			return i18n.Errorf("session.lock_failed", err)
 		}
 		defer lk.Release()
+	}
+	if s.Locked != nil {
+		s.Locked()
 	}
 
 	if err := s.handleAlreadyRunning(); err != nil {

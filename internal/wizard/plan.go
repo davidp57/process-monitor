@@ -362,3 +362,16 @@ func (y *yamlWriter) kv(k, v string) { y.WriteString(k + ": " + quote(v) + "\n")
 
 // quote is a YAML single-quoted string: backslashes stay as they are.
 func quote(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
+
+// Versions are the kept copies of a file before and after a profile's
+// game, for the report to compare: the original, and what the game left;
+// "" when the file did not exist on that side.
+func (w *Wizard) Versions(profile, f string) (before, after string) {
+	if _, ok := w.original[f]; ok {
+		before = storePath(w.originalStore(), f)
+	}
+	if h := w.learned[profile][f]; h != "" {
+		after = storePath(w.ProfileStore(profile), f)
+	}
+	return before, after
+}

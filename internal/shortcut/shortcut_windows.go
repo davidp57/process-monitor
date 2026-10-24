@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
+	"golang.org/x/sys/windows"
 )
 
 // Window styles of a shortcut, as WScript.Shell names them.
@@ -98,4 +99,10 @@ func Read(path string) (Link, error) {
 		return nil
 	})
 	return l, err
+}
+
+// startMenuDir is the user's Start menu Programs folder, or "".
+func startMenuDir() string {
+	p, _ := windows.KnownFolderPath(windows.FOLDERID_Programs, 0)
+	return p
 }

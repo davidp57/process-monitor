@@ -4,7 +4,7 @@
 .\pm.exe new [config.yaml] [--lang fr|en]
 ```
 
-`pm new` (ou un double-clic sur `pm.exe`, puis « créer une config ») pose quelques questions, une à la fois, et écrit une config qui marche, avec ses raccourcis.
+`pm new` (ou l'onglet « Nouvelle config » de l'[interface](gui.md#wizard)) pose quelques questions, une à la fois, et écrit une config qui marche, avec ses raccourcis.
 La config n'est écrite qu'après la confirmation finale, qui résume tout en clair.
 Pour démarrer avec pm, c'est le plus simple : pas de YAML à écrire.
 

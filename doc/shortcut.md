@@ -20,7 +20,7 @@ shortcuts:
 
 - **`name`** : par défaut `${name}`, ou `${name} - ${profile}` quand la config a des profils.
 - **`folder`** : un dossier, ou une liste pour poser chaque raccourci à plusieurs endroits (`[${desktop}, ${start_menu}]`) ; par défaut le dossier de la config (`${config_dir}`). Deux variables donnent les dossiers habituels : `${desktop}` (le Bureau) et `${start_menu}` (le menu Démarrer). Windows les connaît même quand le Bureau a été déplacé dans OneDrive.
-- Sans section `shortcuts`, `pm shortcut` le dit et ne crée rien. Depuis le [menu](installation.md#menu) (double-clic sur `pm.exe`), il propose de l'ajouter : deux questions (le mode, puis un ou plusieurs dossiers, à cocher), puis la section est écrite à la fin du fichier, sans toucher au reste.
+- Sans section `shortcuts`, `pm shortcut` le dit et ne crée rien. Depuis l'[interface](gui.md#configs) ou le [menu en terminal](installation.md#menu), il propose de l'ajouter : deux questions (le mode, puis un ou plusieurs dossiers, à cocher), puis la section est écrite à la fin du fichier, sans toucher au reste.
   Si la config ne dit pas comment `pm` s'affiche (pas de clé `ui`), le menu le demande — icône de notification ou fenêtre console — et ajoute la ligne : c'est ce qui fait ouvrir le raccourci « Réduite ».
   Le menu propose aussi une icône à chaque profil qui n'en a pas, parmi les `.ico` trouvés à côté de la config : `DEV: {}` devient `DEV:` suivi d'une ligne `icon:`, et rien d'autre ne change.
 

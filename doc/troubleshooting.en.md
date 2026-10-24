@@ -40,4 +40,4 @@ pm reads `.png` files and `.ico` files in 32-bit or holding a PNG. A 256-colour 
 
 ## pm speaks the wrong language {#language}
 
-pm follows the Windows display language. To force it: `--lang fr`, the `PM_LANG` variable, or `lang: fr` in the config.
+pm follows the Windows display language. To force it: the language in the [interface](gui.md)'s settings (for all of pm), `lang: fr` in the config, the `PM_LANG` variable or `--lang fr`; the exact order is in [language](installation.md#language).

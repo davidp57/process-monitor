@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 		}
 		if sib := os.Getenv("PM_SIBLING"); sib != "" { // something else the game starts, like a radio client
 			other := exec.Command(sib)
-			other.Env = append(os.Environ(), "PM_HELPER=sleep:8000:0", "PM_SIBLING=")
+			other.Env = append(os.Environ(), "PM_HELPER=sleep:60000:0", "PM_SIBLING=") // far past the bound below: waiting for it shows
 			other.Start()
 		}
 		if kind == "linger" {
@@ -263,7 +263,9 @@ func TestTrackDoesNotWaitForOtherLeftovers(t *testing.T) {
 	t.Cleanup(func() { p.Kill() }) // the radio is still in the job
 	begin := time.Now()
 	r := wait(t, p, 20*time.Second)
-	if r.ExitCode != 7 || r.Err != nil || time.Since(begin) > 6*time.Second {
+	// About 5.5 s (the game, then the grace for a launcher); waiting for the
+	// radio would take 60 s. The bound leaves a loaded CI room.
+	if r.ExitCode != 7 || r.Err != nil || time.Since(begin) > 12*time.Second {
 		t.Errorf("result = %+v après %s (events %q)", r, time.Since(begin), events)
 	}
 	if !strings.Contains(strings.Join(events, "|"), "pm-test-radio.exe") {

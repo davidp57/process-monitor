@@ -16,7 +16,9 @@ import (
 	"time"
 
 	"github.com/davidp57/process-monitor/internal/config"
+	"github.com/davidp57/process-monitor/internal/control"
 	"github.com/davidp57/process-monitor/internal/logx"
+	"github.com/davidp57/process-monitor/internal/registry"
 	"github.com/davidp57/process-monitor/internal/session"
 	"github.com/davidp57/process-monitor/internal/tray"
 	"github.com/davidp57/process-monitor/internal/tui"
@@ -93,11 +95,11 @@ func parse(argv []string) (args, error) {
 
 func run(argv []string) int {
 	// The language comes first: parsing errors are already messages.
-	i18n.Set(i18n.Resolve(langFlag(argv), os.Getenv("PM_LANG"), "", i18n.SystemLanguage))
+	i18n.Set(i18n.Resolve(langFlag(argv), os.Getenv("PM_LANG"), "", userLanguage))
 	// Double-clicked: no arguments, and a console window of its own. From
 	// a terminal, no arguments still shows the usage.
 	if len(argv) == 0 && interactive() && consoleAlone() {
-		return menu()
+		return guiMain()
 	}
 	a, err := parse(argv)
 	if err == nil && a.cmd == "version" {
@@ -108,6 +110,10 @@ func run(argv []string) int {
 	case err != nil:
 	case a.cmd == "new":
 		return newConfig(a)
+	case a.cmd == "gui":
+		return guiMain()
+	case a.cmd == "menu":
+		return menu()
 	case a.cmd != "run" && a.cmd != "watch" && a.cmd != "check" && a.cmd != "shortcut":
 		err = i18n.Errorf("cli.unknown_command", a.cmd)
 	case a.path == "":
@@ -130,10 +136,12 @@ func run(argv []string) int {
 		return 2
 	}
 	// The config's language counts only when neither --lang nor PM_LANG
-	// named one pm speaks: the same order as Resolve.
+	// named one pm speaks: the same order as Resolve. It comes before the
+	// setting kept for every config.
 	if !i18n.Supported(a.lang) && !i18n.Supported(os.Getenv("PM_LANG")) && cfg.Lang != "" {
 		i18n.Set(cfg.Lang)
 	}
+	registry.Remember(cfg.Path) // for the interface's list of configs
 	if a.cmd == "check" {
 		printPlan(cfg)
 		return 0
@@ -173,6 +181,13 @@ func run(argv []string) int {
 		restart = cfg.Watch.Restart
 	}
 	s := session.New(cfg, log, restart)
+	// The control channel lets the interface see and drive this session.
+	// Without it the session still runs: the icon and the terminal remain.
+	if ctl, err := control.Serve(s, log, control.Info{Name: cfg.Name, Profile: cfg.Profile, Config: cfg.Path, Mode: a.cmd}); err != nil {
+		log.Warn(i18n.T("run.control_failed", err))
+	} else {
+		defer ctl.Close()
+	}
 
 	if useTUI {
 		err = tui.Run(context.Background(), s, log)
@@ -204,6 +219,15 @@ func run(argv []string) int {
 	}
 	finish(cfg, err != nil || log.Errors() > 0)
 	return finalCode(a, s, err, log)
+}
+
+// userLanguage is the language set in the interface (kept by pm for every
+// config without lang:), else Windows'.
+func userLanguage() string {
+	if l := registry.Lang(); l != "" {
+		return l
+	}
+	return i18n.SystemLanguage()
 }
 
 // trayImage loads the icon image: --icon, else the config's icon. A file
@@ -293,65 +317,4 @@ func pressKey() {
 	_, _ = bufio.NewReader(os.Stdin).ReadString('\n')
 }
 
-func printPlan(c *config.Config) {
-	fmt.Print(i18n.T("plan.config", c.Path))
-	if c.Profile != "" {
-		fmt.Print(i18n.T("plan.profile", c.Profile))
-	}
-	if len(c.Profiles) > 0 {
-		fmt.Print(i18n.T("plan.session_shared", c.Name))
-	} else {
-		fmt.Print(i18n.T("plan.session", c.Name))
-	}
-	fmt.Print(i18n.T("plan.launches", c.Command, strings.Join(c.Args, " ")))
-	if c.Workdir != "" {
-		fmt.Print(i18n.T("plan.workdir", c.Workdir))
-	}
-	fmt.Print(i18n.T("plan.follows", c.ProcessName()))
-	fmt.Print(i18n.T("plan.if_running", c.IfRunning))
-	if c.Ready != nil {
-		fmt.Print(i18n.T("plan.ready", c.Ready.File, c.Ready.Timeout.D()))
-	}
-	fmt.Print(i18n.T("plan.logs", c.Log.Dir, c.Log.Keep))
-	missing := 0
-	fmt.Println("\n" + i18n.T("plan.before"))
-	for _, p := range c.Sync {
-		mark := ""
-		if _, err := os.Stat(p.Source); err != nil {
-			mark = i18n.T("plan.source_missing")
-			missing++
-		}
-		fmt.Print(i18n.T("plan.copy", p.Source, p.Target) + mark + "\n")
-	}
-	for _, a := range c.Hooks.Before {
-		mark := ""
-		if a.Copy != nil {
-			if _, err := os.Stat(a.Copy.From); err != nil {
-				mark = i18n.T("plan.source_missing")
-				missing++
-			}
-		}
-		fmt.Println("  " + describe(a) + mark)
-	}
-	fmt.Println(i18n.T("plan.after"))
-	for _, p := range c.Sync {
-		fmt.Println(i18n.T("plan.copy", p.Target, p.Source))
-	}
-	for _, a := range c.Hooks.After {
-		fmt.Println("  " + describe(a))
-	}
-	if missing > 0 {
-		fmt.Print(i18n.T("plan.missing_total", missing))
-	}
-}
-
-func describe(a config.Action) string {
-	switch {
-	case a.Copy != nil:
-		return strings.TrimPrefix(i18n.T("plan.copy", a.Copy.From, a.Copy.To), "  ")
-	case a.Delete != "":
-		return i18n.T("plan.delete", a.Delete)
-	default:
-		return "exec   " + strings.Join(a.Exec, " ")
-	}
-}
+func printPlan(c *config.Config) { fmt.Print(c.Plan()) }

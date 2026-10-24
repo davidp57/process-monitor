@@ -20,7 +20,7 @@ shortcuts:
 
 - **`name`**: by default `${name}`, or `${name} - ${profile}` when the config has profiles.
 - **`folder`**: one folder, or a list to put each shortcut in several places (`[${desktop}, ${start_menu}]`); by default the config's folder (`${config_dir}`). Two variables give the usual folders: `${desktop}` (the Desktop) and `${start_menu}` (the Start menu). Windows knows them even when the Desktop was moved into OneDrive.
-- Without a `shortcuts` section, `pm shortcut` says so and creates nothing. From the [menu](installation.md#menu) (double-click on `pm.exe`), it offers to add it: two questions (the mode, then one or several folders, ticked), then the section is written at the end of the file, the rest untouched.
+- Without a `shortcuts` section, `pm shortcut` says so and creates nothing. From the [interface](gui.md#configs) or the [terminal menu](installation.md#menu), it offers to add it: two questions (the mode, then one or several folders, ticked), then the section is written at the end of the file, the rest untouched.
   When the config does not say how `pm` shows itself (no `ui` key), the menu asks — notification icon or console window — and adds the line: that is what makes the shortcut open "Minimized".
   The menu also offers an icon to each profile that has none, among the `.ico` files found next to the config: `DEV: {}` becomes `DEV:` followed by an `icon:` line, and nothing else changes.
 

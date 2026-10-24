@@ -128,7 +128,7 @@ The icon is green while the program runs, orange during the copies or before a r
 ```yaml
 capture: true                       # the program's output into the log
 log: { dir: '${config_dir}\logs', keep: 5 }
-lang: en                            # fr or en; --lang and PM_LANG win over it; with none, the Windows language
+lang: en                            # fr or en; --lang and PM_LANG win over it; with none, the interface's setting, then Windows'
 ```
 
 Each session writes its log: steps, copies, errors, and the program's output with `capture`. Only the `keep` most recent are kept.

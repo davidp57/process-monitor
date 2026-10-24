@@ -72,6 +72,7 @@ plugins:
             Garder SimAppPro en vie: Keep SimAppPro alive
             Sauvegarder avant de lancer: Back up before starting
             Utiliser pm: Using pm
+            "L'interface": The interface
             "pm new : l'assistant": "pm new: the wizard"
             "pm shortcut : les raccourcis": "pm shortcut: the shortcuts"
             "L'icône de notification": The notification icon
@@ -93,6 +94,7 @@ nav:
       - Garder SimAppPro en vie: examples/simapppro.md
       - Sauvegarder avant de lancer: examples/backup.md
   - Utiliser pm:
+      - "L'interface": gui.md
       - "pm new : l'assistant": new.md
       - pm run: run.md
       - pm watch: watch.md
