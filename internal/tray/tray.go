@@ -206,6 +206,9 @@ func inform(title, text string) {
 	box(title, text, mbIconInformation)
 }
 
+// Inform shows a message in a message box, for when pm has no console.
+func Inform(title, text string) { inform(title, text) }
+
 // Alert shows an error in a message box, for when pm has no console.
 func Alert(title, text string) { alert(title, text) }
 

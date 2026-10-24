@@ -172,10 +172,8 @@ func (l *Logger) Close() error {
 	return err
 }
 
-func prune(dir, prefix string, keep int) ([]string, error) {
-	if keep <= 0 {
-		return nil, nil
-	}
+// Files lists the logs New wrote in dir for prefix, oldest first.
+func Files(dir, prefix string) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -189,10 +187,21 @@ func prune(dir, prefix string, keep int) ([]string, error) {
 			logs = append(logs, filepath.Join(dir, n))
 		}
 	}
+	sort.Strings(logs) // timestamped names sort chronologically
+	return logs, nil
+}
+
+func prune(dir, prefix string, keep int) ([]string, error) {
+	if keep <= 0 {
+		return nil, nil
+	}
+	logs, err := Files(dir, prefix)
+	if err != nil {
+		return nil, err
+	}
 	if len(logs) <= keep {
 		return nil, nil
 	}
-	sort.Strings(logs) // timestamped names sort chronologically
 	var dropped []string
 	for _, p := range logs[:len(logs)-keep] {
 		if err := os.Remove(p); err != nil {

@@ -268,6 +268,7 @@
   "gui.profile_name": "Nom du profil",
   "gui.profiles_hint": "Chaque profil ajoute ses variables et ses fichiers à ceux de la config, et peut avoir son icône.",
   "gui.quit_refused": "Un assistant est en cours dans cette interface : elle ne s'arrête pas.",
+  "gui.quit_refused_hint": "Pour la quitter, abandonnez d'abord l'assistant dans la page : les réglages d'origine du jeu seront remis.",
   "gui.remove": "Retirer",
   "gui.remove_profile": "Supprimer ce profil",
   "gui.restart": "Relancer",

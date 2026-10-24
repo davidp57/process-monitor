@@ -632,3 +632,17 @@ func TestInstanceReplaced(t *testing.T) {
 		t.Error("son propre fichier gardé")
 	}
 }
+
+func TestLogsOfThisConfigOnly(t *testing.T) {
+	d := t.TempDir()
+	for _, n := range []string{"dcs-20261024-120000.log", "dcs-OB-20261024-120000.log", "dcs-20261024-130000.log", "dcs-notes.log"} {
+		os.WriteFile(filepath.Join(d, n), nil, 0o644)
+	}
+	var names []string
+	for _, f := range logFiles(&config.Config{Name: "dcs", Log: config.Log{Dir: d}}) {
+		names = append(names, f.Name)
+	}
+	if strings.Join(names, " ") != "dcs-20261024-130000.log dcs-20261024-120000.log" {
+		t.Errorf("journaux de dcs : %q", names)
+	}
+}

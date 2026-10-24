@@ -128,7 +128,7 @@ L'icône est verte quand le programme tourne, orange pendant les copies ou avant
 ```yaml
 capture: true                       # la sortie du programme dans le journal
 log: { dir: '${config_dir}\logs', keep: 5 }
-lang: fr                            # fr ou en ; --lang et PM_LANG l'emportent ; sans rien, la langue de Windows
+lang: fr                            # fr ou en ; --lang et PM_LANG l'emportent ; sans rien, celle des réglages de l'interface, puis celle de Windows
 ```
 
 Chaque session écrit son journal : étapes, copies, erreurs, et la sortie du programme avec `capture`. Seuls les `keep` plus récents sont gardés.

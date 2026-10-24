@@ -13,6 +13,7 @@ import (
 
 	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/i18n"
+	"github.com/davidp57/process-monitor/internal/logx"
 	"github.com/davidp57/process-monitor/internal/registry"
 	"github.com/davidp57/process-monitor/internal/shortcut"
 	"github.com/davidp57/process-monitor/internal/wizard"
@@ -201,7 +202,7 @@ func logFiles(c *config.Config) []logFile {
 	if c.Profile != "" {
 		prefix += "-" + c.Profile
 	}
-	matches, _ := filepath.Glob(filepath.Join(c.Log.Dir, prefix+"-*.log"))
+	matches, _ := logx.Files(c.Log.Dir, prefix) // not "dcs-OB-…" for "dcs"
 	out := []logFile{}
 	for _, m := range matches {
 		if info, err := os.Stat(m); err == nil {

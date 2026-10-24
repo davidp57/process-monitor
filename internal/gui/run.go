@@ -143,6 +143,13 @@ func Run(self string) error {
 				case <-openItem.ClickedCh:
 					open(in.url())
 				case <-quit.ClickedCh:
+					// Not in the middle of a wizard: the game's original
+					// files would stay set aside. Its page says how to give up.
+					if srv.wizardUnderWay() {
+						open(in.url())
+						tray.Inform(i18n.T("gui.tray_quit"), i18n.T("gui.quit_refused")+"\n"+i18n.T("gui.quit_refused_hint"))
+						continue
+					}
 					systray.Quit()
 					return
 				}

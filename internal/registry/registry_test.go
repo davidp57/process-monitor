@@ -1,8 +1,10 @@
 package registry
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -75,5 +77,22 @@ func TestLangSetting(t *testing.T) {
 	Remember(`C:\x.yaml`) // other changes keep it
 	if Lang() != "fr" {
 		t.Errorf("%q", Lang())
+	}
+}
+
+func TestChangesTogether(t *testing.T) {
+	t.Cleanup(UseFile(filepath.Join(t.TempDir(), "configs.json")))
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			Remember(fmt.Sprintf(`C:\cfg\%d.yaml`, i))
+		}()
+	}
+	wg.Wait()
+	r, err := Load()
+	if err != nil || len(r.Configs) != 20 {
+		t.Errorf("%d configs gardées sur 20 : %v", len(r.Configs), err)
 	}
 }

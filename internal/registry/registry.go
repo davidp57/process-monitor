@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // Registry is the content of configs.json.
@@ -104,8 +105,15 @@ func Remember(path string) {
 	_ = Change(func(r *Registry) { r.Configs = add(r.Configs, path) })
 }
 
+// changing keeps this process's changes one after the other: the
+// interface may remember a config while the page adds a folder, and both
+// load, change and save the same file.
+var changing sync.Mutex
+
 // Change loads the registry, applies fn and saves it.
 func Change(fn func(*Registry)) error {
+	changing.Lock()
+	defer changing.Unlock()
 	r, err := Load()
 	if err != nil {
 		return err

@@ -40,4 +40,4 @@ pm lit les `.png` et les `.ico` en 32 bits ou contenant un PNG. Un `.ico` en 256
 
 ## pm parle la mauvaise langue {#language}
 
-pm suit la langue d'affichage de Windows. Pour la forcer : `--lang fr`, la variable `PM_LANG`, ou `lang: fr` dans la config.
+pm suit la langue d'affichage de Windows. Pour la forcer : la langue des réglages de l'[interface](gui.md) (pour tout pm), `lang: fr` dans la config, la variable `PM_LANG` ou `--lang fr` ; l'ordre exact est dans [la langue](installation.md#language).

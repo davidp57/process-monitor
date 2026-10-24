@@ -268,6 +268,7 @@
   "gui.profile_name": "Profile name",
   "gui.profiles_hint": "Each profile adds its variables and files to the config's, and may have its icon.",
   "gui.quit_refused": "A wizard is under way in this interface: it does not stop.",
+  "gui.quit_refused_hint": "To quit it, first give up the wizard in the page: the game's original settings will be put back.",
   "gui.remove": "Remove",
   "gui.remove_profile": "Remove this profile",
   "gui.restart": "Restart",
