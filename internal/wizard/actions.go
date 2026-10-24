@@ -116,31 +116,15 @@ func (r *Runner) checkGame() error {
 	return nil
 }
 
-// StopGame stops the processes e found, once the player has asked for it,
-// and waits until they are gone.
+// StopGame stops the game e found, once the player has asked for it, and
+// waits until it is gone. By name, as it is now: the player may answer
+// minutes after e was found, and a PID found then may belong to another
+// program since; KillByName checks each process's name before stopping it.
 func (r *Runner) StopGame(e *Running) error {
-	for _, pid := range e.PIDs {
-		if p, err := os.FindProcess(pid); err == nil {
-			p.Kill()
-		}
+	if _, err := proc.KillByName(e.Name, 10*time.Second); err != nil {
+		return errors.Join(i18n.Errorf("wizard.stop_failed", e.Name, e.PIDs), err)
 	}
-	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
-		if pids, err := proc.FindByName(e.Name); err == nil && !overlap(pids, e.PIDs) {
-			return nil
-		}
-	}
-	return i18n.Errorf("wizard.stop_failed", e.Name, e.PIDs)
-}
-
-func overlap(a, b []int) bool {
-	for _, x := range a {
-		for _, y := range b {
-			if x == y {
-				return true
-			}
-		}
-	}
-	return false
+	return nil
 }
 
 // learn puts the original files back, plays the game for profile and keeps
