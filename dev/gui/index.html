@@ -1133,9 +1133,11 @@ Si l'interface lancée vient d'un autre <code>pm.exe</code> (une version précé
 <p>À côté de chaque champ qui attend un chemin, « Parcourir… » ouvre la fenêtre de Windows pour choisir le fichier ou le dossier : un programme, une icône, une config, un dossier, ou « Enregistrer sous » pour une config à créer.
 C'est <code>pm</code> qui l'ouvre, car une page web n'apprend jamais où se trouve un fichier qu'on lui donne ; si elle n'apparaît pas, elle est peut-être derrière le navigateur.</p>
 <h2 id="sessions">Sessions<a class="headerlink" href="#sessions" title="Permanent link">&para;</a></h2>
+<p><img alt="L'onglet Sessions, le journal d'une session ouvert" src="../img/gui-sessions.png" /></p>
 <p>Toutes les sessions <code>pm run</code> et <code>pm watch</code> en cours, d'où qu'elles viennent (un raccourci, un terminal, l'interface) : leur état, leur PID, leur journal en direct.
 Les boutons font ce que fait l'<a href="../tray/">icône de notification</a> : mettre en pause, reprendre, relancer (pour <code>pm watch</code>), <strong>arrêter et finir</strong> (le programme est arrêté, puis les actions de fin sont exécutées), <strong>détacher</strong> (<code>pm</code> s'arrête, le programme continue, les actions de fin ne sont pas exécutées).</p>
 <h2 id="configs">Configs<a class="headerlink" href="#configs" title="Permanent link">&para;</a></h2>
+<p><img alt="Une config DCS : ses profils, le lancement, et l'aperçu de ce que ferait une session" src="../img/gui-overview.png" /></p>
 <p>L'interface liste :</p>
 <ul>
 <li>les configs dont <code>pm</code> se souvient : chacune est notée dès que <code>pm</code> la lance, la vérifie, crée ses raccourcis ou la crée avec l'assistant ;</li>
@@ -1174,12 +1176,14 @@ Le profil choisi vaut aussi pour les onglets en dessous :</p>
 <p>« Oublier » retire la config de la liste.
 Une config que <code>pm</code> refuse est marquée invalide, avec le message qui dit pourquoi, et peut être corrigée dans « Modifier ».</p>
 <h2 id="edit">Modifier une config<a class="headerlink" href="#edit" title="Permanent link">&para;</a></h2>
+<p><img alt="L'éditeur d'une config" src="../img/gui-edit.png" /></p>
 <p>Chaque clé de la <a href="../configuration/">configuration</a> a son champ, rangé par thème : programme, session et affichage, variables, fichiers et actions, raccourcis, garder en vie, démarrage terminé, journaux, profils.
 Les clés que les formulaires ne montrent pas sont gardées telles quelles.</p>
 <p>À l'enregistrement, <code>pm</code> relit la nouvelle config avec chaque profil : s'il la refuse, rien n'est écrit et l'erreur s'affiche.
 Sinon, l'ancienne version est gardée en <code>.bak</code> à côté.
 Les commentaires du fichier sont gardés ; la mise en page peut changer (guillemets, alignements).</p>
 <h2 id="wizard">Nouvelle config<a class="headerlink" href="#wizard" title="Permanent link">&para;</a></h2>
+<p><img alt="L'assistant : une question, et les réponses déjà données à droite" src="../img/gui-wizard.png" /></p>
 <p>L'<a href="../new/">assistant</a> de <code>pm new</code>, dans la page : les mêmes questions, les mêmes étapes.
 Les réponses déjà données restent affichées à côté ; « Précédent » revient sur la dernière.
 Pour un jeu à profils, le jeu démarre quand on clique sur « Lancer le jeu », et son journal défile pendant la partie.

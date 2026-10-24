@@ -1133,9 +1133,11 @@ When the interface running comes from another <code>pm.exe</code> (a previous ve
 <p>Beside every field that takes a path, "Browse…" opens the Windows window to choose the file or the folder: a program, an icon, a config, a folder, or "Save as" for a config to create.
 <code>pm</code> opens it, since a web page never learns where a file given to it lives; if it does not show, it may be behind the browser.</p>
 <h2 id="sessions">Sessions<a class="headerlink" href="#sessions" title="Permanent link">&para;</a></h2>
+<p><img alt="The Sessions tab, a session's log open" src="../img/gui-sessions.png" /></p>
 <p>Every <code>pm run</code> and <code>pm watch</code> session running, wherever it was started (a shortcut, a terminal, the interface): its state, its PID, its log live.
 The buttons do what the <a href="../tray/">notification icon</a> does: pause, resume, restart (for <code>pm watch</code>), <strong>stop and finish</strong> (the program is stopped, then the after actions run), <strong>detach</strong> (<code>pm</code> stops, the program goes on, the after actions do not run).</p>
 <h2 id="configs">Configs<a class="headerlink" href="#configs" title="Permanent link">&para;</a></h2>
+<p><img alt="A DCS config: its profiles, launching, and the overview of what a session would do" src="../img/gui-overview.png" /></p>
 <p>The interface lists:</p>
 <ul>
 <li>the configs <code>pm</code> remembers: each is noted as soon as <code>pm</code> runs it, checks it, makes its shortcuts or creates it with the wizard;</li>
@@ -1174,12 +1176,14 @@ The profile chosen also holds for the tabs below:</p>
 <p>"Forget" removes the config from the list.
 A config <code>pm</code> refuses is marked invalid, with the message saying why, and can be fixed in "Edit".</p>
 <h2 id="edit">Editing a config<a class="headerlink" href="#edit" title="Permanent link">&para;</a></h2>
+<p><img alt="A config's editor" src="../img/gui-edit.png" /></p>
 <p>Every key of the <a href="../configuration/">configuration</a> has its field, grouped by theme: program, session and display, variables, files and actions, shortcuts, keep alive, ready, logs, profiles.
 The keys the forms do not show are kept as they are.</p>
 <p>On saving, <code>pm</code> reads the new config with every profile: if it refuses it, nothing is written and the error shows.
 Otherwise the previous version is kept as <code>.bak</code> beside it.
 The file's comments are kept; its layout may change (quotes, alignment).</p>
 <h2 id="wizard">New config<a class="headerlink" href="#wizard" title="Permanent link">&para;</a></h2>
+<p><img alt="The wizard: a question, and the answers so far on the right" src="../img/gui-wizard.png" /></p>
 <p>The <a href="../new/">wizard</a> of <code>pm new</code>, in the page: the same questions, the same steps.
 The answers already given stay shown beside it; "Back" returns to the last one.
 For a game with profiles, the game starts on "Start the game", and its log scrolls during the game.
