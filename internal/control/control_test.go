@@ -195,3 +195,30 @@ func TestStaleInfoIsRemoved(t *testing.T) {
 		t.Error("fichier laissé")
 	}
 }
+
+// A session that closes late (a key to press after an error) leaves the
+// info file of the session that took its name meanwhile.
+func TestCloseLeavesTheNextSessionsFile(t *testing.T) {
+	name := fmt.Sprintf("pm-control-next-%d", os.Getpid())
+	path, _ := lock.InfoPath(name)
+	os.MkdirAll(filepath.Dir(path), 0o755)
+	t.Cleanup(func() { os.Remove(path) })
+	old := &Server{info: Info{Name: name, Port: 1}, http: &http.Server{}}
+	old.publish()
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("pas publié")
+	}
+	next, _ := json.Marshal(Info{Name: name, Port: 2})
+	os.WriteFile(path, next, 0o600)
+	old.Close()
+	if now, err := os.ReadFile(path); err != nil || string(now) != string(next) {
+		t.Fatalf("le fichier de la session suivante a disparu : %q %v", now, err)
+	}
+	// Alone, it removes its own.
+	alone := &Server{info: Info{Name: name, Port: 3}, http: &http.Server{}}
+	alone.publish()
+	alone.Close()
+	if _, err := os.Stat(path); err == nil {
+		t.Error("son propre fichier laissé")
+	}
+}

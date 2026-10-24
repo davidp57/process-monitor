@@ -755,9 +755,26 @@ function prune(v) {
   }
   return v === "" || v === null ? undefined : v;
 }
-// splitArgs cuts a command line's arguments, keeping "quoted parts" whole.
-function splitArgs(s) { return (s.match(/"[^"]*"|\S+/g) || []).map((x) => x.replace(/^"(.*)"$/, "$1")); }
-function joinArgs(a) { return a.map((x) => (/\s/.test(x) ? `"${x}"` : x)).join(" "); }
+// splitArgs cuts a command line's arguments, keeping "quoted parts" whole;
+// inside quotes \" is a quote and \\ a backslash, elsewhere a backslash is
+// itself (C:\dir). joinArgs writes them back so that splitArgs gives the
+// same arguments, quotes and empty ones included.
+function splitArgs(s) {
+  const out = [];
+  let cur = null, quoted = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (quoted && c === "\\" && (s[i + 1] === '"' || s[i + 1] === "\\")) { cur += s[++i]; continue; }
+    if (c === '"') { quoted = !quoted; cur = cur ?? ""; continue; }
+    if (!quoted && /\s/.test(c)) { if (cur !== null) out.push(cur); cur = null; continue; }
+    cur = (cur ?? "") + c;
+  }
+  if (cur !== null) out.push(cur);
+  return out;
+}
+function joinArgs(a) {
+  return a.map((x) => (x === "" || /[\s"]/.test(x) ? '"' + x.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"' : x)).join(" ");
+}
 
 // widget returns [element, read()]; every change calls dirty().
 function widget(kind, value, options, dirty) {
@@ -830,7 +847,8 @@ function widget(kind, value, options, dirty) {
           .map(([k, l]) => el("option", { value: k, selected: k === type }, l)));
         const from = watch(el("input", { type: "text", class: "mono", value: a.copy?.from ?? a.delete ?? (a.exec ? a.exec[0] : "") }));
         const to = watch(el("input", { type: "text", class: "mono", value: a.copy?.to ?? "", placeholder: t("gui.a_to") }));
-        const args = watch(el("input", { type: "text", class: "mono", value: a.exec ? joinArgs(a.exec.slice(1)) : "", placeholder: t("gui.a_args") }));
+        const shown = a.exec ? joinArgs(a.exec.slice(1)) : "";
+        const args = watch(el("input", { type: "text", class: "mono", value: shown, placeholder: t("gui.a_args") }));
         const place = () => {
           from.placeholder = { copy: t("gui.a_from"), delete: t("gui.a_path"), exec: t("gui.a_command") }[type];
           to.hidden = type !== "copy"; args.hidden = type !== "exec";
@@ -846,7 +864,8 @@ function widget(kind, value, options, dirty) {
           const v = from.value.trim();
           if (!v) return undefined;
           if (type === "copy") return { copy: { from: v, to: to.value.trim() } };
-          if (type === "exec") return { exec: [v, ...splitArgs(args.value)] };
+          // Arguments left as they were are kept as they were, to the letter.
+          if (type === "exec") return { exec: [v, ...(a.exec && args.value === shown ? a.exec.slice(1) : splitArgs(args.value))] };
           return { delete: v };
         }];
       }, t("gui.add_action"));

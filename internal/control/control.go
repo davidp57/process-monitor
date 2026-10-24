@@ -8,6 +8,7 @@
 package control
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
@@ -66,6 +67,7 @@ type Server struct {
 
 	mu    sync.Mutex
 	path  string // the info file, once written
+	data  []byte // what was written in it
 	ended bool
 }
 
@@ -126,16 +128,20 @@ func (srv *Server) publish() {
 		return
 	}
 	if os.WriteFile(path, data, 0o600) == nil {
-		srv.path = path
+		srv.path, srv.data = path, data
 	}
 }
 
-// Close stops the channel and removes the info file.
+// Close stops the channel and removes the info file, unless another
+// session of the same name has written its own there since: this one may
+// close long after its lock was released, waiting for a key press.
 func (srv *Server) Close() {
 	srv.mu.Lock()
 	srv.ended = true
 	if srv.path != "" {
-		os.Remove(srv.path)
+		if now, err := os.ReadFile(srv.path); err == nil && bytes.Equal(now, srv.data) {
+			os.Remove(srv.path)
+		}
 	}
 	srv.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
