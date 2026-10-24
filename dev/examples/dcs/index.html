@@ -663,6 +663,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../new/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm new : l'assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../run/" class="md-nav__link">
         
   
@@ -699,6 +727,34 @@
     
   
     pm watch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../shortcut/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm shortcut : les raccourcis
   
 
     
@@ -1068,6 +1124,11 @@
 <span class="w">    </span><span class="nt">icon</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${saved}\Profiles\Icons\dcs.ico</span>
 
 <span class="nt">exit</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> delay</span><span class="p">:</span><span class="w"> </span><span class="nv">2s</span><span class="w"> </span><span class="p p-Indicator">}</span>
+
+<span class="c1"># .\pm.exe shortcut dcs.yaml : un raccourci par profil, à côté de la config.</span>
+<span class="nt">shortcuts</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">run</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DCS - ${profile}</span>
 </code></pre></div>
 <p>Ligne par ligne :</p>
 <ul>
@@ -1086,9 +1147,13 @@
 </code></pre></div>
 <p><code>pm check</code> signale un fichier de profil manquant avant qu'on lance quoi que ce soit.</p>
 <h2 id="shortcuts">Un raccourci par profil<a class="headerlink" href="#shortcuts" title="Permanent link">&para;</a></h2>
+<p>La section <code>shortcuts</code> de la config les décrit ; une commande les crée tous :</p>
+<div class="highlight"><pre><span></span><code><span class="p">.\</span><span class="n">pm</span><span class="p">.</span><span class="n">exe</span> <span class="n">shortcut</span> <span class="p">.\</span><span class="n">dcs</span><span class="p">.</span><span class="n">yaml</span>
+</code></pre></div>
+<p>Chacun a ces réglages :</p>
 <ul>
 <li><strong>Cible</strong> : <code>C:\...\pm.exe run "C:\...\dcs.yaml" --profile DEV</code></li>
-<li><strong>Démarrer dans</strong> : le dossier du profil</li>
+<li><strong>Démarrer dans</strong> : le dossier de la config</li>
 <li><strong>Exécuter</strong> : Réduite</li>
 <li><strong>Icône</strong> : la même que celle du profil (<code>Icons\dcs-dev.ico</code>)</li>
 </ul>

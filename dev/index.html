@@ -648,6 +648,34 @@
   
   
     <li class="md-nav__item">
+      <a href="new/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm new : l'assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="run/" class="md-nav__link">
         
   
@@ -684,6 +712,34 @@
     
   
     pm watch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="shortcut/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm shortcut : les raccourcis
   
 
     
@@ -1049,15 +1105,18 @@
 <h2 id="quick-start">Démarrage rapide<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
 <ol>
 <li><a href="installation/">Installer</a> <code>pm.exe</code>.</li>
-<li>Écrire une config, en partant d'un <a href="examples/dcs/">exemple</a>.</li>
 <li>
-<p>Vérifier, puis lancer, dans PowerShell :</p>
+<p>Lancer l'<a href="new/">assistant</a>, qui pose quelques questions et écrit la config et ses raccourcis :</p>
+<div class="highlight"><pre><span></span><code><span class="p">.\</span><span class="n">pm</span><span class="p">.</span><span class="n">exe</span> <span class="n">new</span>
+</code></pre></div>
+<p>Ou écrire la config à la main, en partant d'un <a href="examples/dcs/">exemple</a>.
+3. Vérifier, puis lancer, dans PowerShell :</p>
 <div class="highlight"><pre><span></span><code><span class="p">.\</span><span class="n">pm</span><span class="p">.</span><span class="n">exe</span> <span class="n">check</span> <span class="p">.\</span><span class="n">dcs</span><span class="p">.</span><span class="n">yaml</span> <span class="p">-</span><span class="n">-profile</span> <span class="n">DEV</span>
 <span class="p">.\</span><span class="n">pm</span><span class="p">.</span><span class="n">exe</span> <span class="n">run</span> <span class="p">.\</span><span class="n">dcs</span><span class="p">.</span><span class="n">yaml</span> <span class="p">-</span><span class="n">-profile</span> <span class="n">DEV</span>
 </code></pre></div>
 </li>
 </ol>
-<p>Les trois commandes : <code>pm run</code> lance une fois avec ses actions avant et après, <code>pm watch</code> garde le programme en vie, <code>pm check</code> montre ce qui serait fait sans rien lancer.</p>
+<p>Les commandes : <code>pm run</code> lance une fois avec ses actions avant et après, <code>pm watch</code> garde le programme en vie, <code>pm check</code> montre ce qui serait fait sans rien lancer, <code>pm new</code> écrit une config en posant des questions, <code>pm shortcut</code> crée ses raccourcis.</p>
 
 
 

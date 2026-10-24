@@ -2,182 +2,210 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/configuration/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/configuration/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/configuration/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/features/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/features/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/features/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/installation/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/installation/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/installation/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/migration/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/migration/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/migration/"/>
     </url>
     <url>
+        <loc>https://davidp57.github.io/process-monitor/dev/new/</loc>
+        <lastmod>2026-10-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/new/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/new/"/>
+    </url>
+    <url>
         <loc>https://davidp57.github.io/process-monitor/dev/run/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/run/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/run/"/>
     </url>
     <url>
+        <loc>https://davidp57.github.io/process-monitor/dev/shortcut/</loc>
+        <lastmod>2026-10-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/shortcut/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/shortcut/"/>
+    </url>
+    <url>
         <loc>https://davidp57.github.io/process-monitor/dev/tracking/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/tracking/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/tracking/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/tray/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/tray/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/tray/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/troubleshooting/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/troubleshooting/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/troubleshooting/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/watch/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/watch/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/watch/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/examples/backup/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/examples/backup/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/examples/backup/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/examples/dcs/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/examples/dcs/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/examples/dcs/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/examples/simapppro/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev/examples/simapppro/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/deven/examples/simapppro/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/dev"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/configuration/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/configuration/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devconfiguration/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/features/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/features/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devfeatures/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/installation/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/installation/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devinstallation/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/migration/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/migration/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devmigration/"/>
     </url>
     <url>
+        <loc>https://davidp57.github.io/process-monitor/dev/en/new/</loc>
+        <lastmod>2026-10-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/new/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devnew/"/>
+    </url>
+    <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/run/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/run/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devrun/"/>
     </url>
     <url>
+        <loc>https://davidp57.github.io/process-monitor/dev/en/shortcut/</loc>
+        <lastmod>2026-10-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/shortcut/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devshortcut/"/>
+    </url>
+    <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/tracking/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/tracking/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devtracking/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/tray/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/tray/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devtray/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/troubleshooting/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/troubleshooting/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devtroubleshooting/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/watch/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/watch/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devwatch/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/examples/backup/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/examples/backup/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devexamples/backup/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/examples/dcs/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/examples/dcs/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devexamples/dcs/"/>
     </url>
     <url>
         <loc>https://davidp57.github.io/process-monitor/dev/en/examples/simapppro/</loc>
-        <lastmod>2026-10-23</lastmod>
+        <lastmod>2026-10-24</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://davidp57.github.io/process-monitor/dev/en/examples/simapppro/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://davidp57.github.io/process-monitor/devexamples/simapppro/"/>

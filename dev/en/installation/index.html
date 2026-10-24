@@ -392,6 +392,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#menu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The menu
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -661,6 +672,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../new/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm new: the wizard
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../run/" class="md-nav__link">
         
   
@@ -697,6 +736,34 @@
     
   
     pm watch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../shortcut/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm shortcut: the shortcuts
   
 
     
@@ -953,6 +1020,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#menu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The menu
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1009,13 +1087,17 @@
 <p>pm runs on Windows. It is a single file, <code>pm.exe</code>, that needs nothing else.</p>
 <h2 id="download">Download<a class="headerlink" href="#download" title="Permanent link">&para;</a></h2>
 <p>Every published version is on the repository's <a href="https://github.com/davidp57/process-monitor/releases">Releases</a> page: download <code>pm.exe</code> and put it in a folder, next to your configs for instance.</p>
+<h2 id="menu">The menu<a class="headerlink" href="#menu" title="Permanent link">&para;</a></h2>
+<p>A double-click on <code>pm.exe</code> opens a menu: create a config with the <a href="../new/">wizard</a>, create its <a href="../shortcut/">shortcuts</a>, check it, run it.
+No command line to type; started without arguments from a terminal, <code>pm.exe</code> shows its help as before.</p>
 <h2 id="build">Build it yourself<a class="headerlink" href="#build" title="Permanent link">&para;</a></h2>
 <p>You need Go 1.27 or newer (<code>scoop install go</code>), then, in the repository folder:</p>
 <div class="highlight"><pre><span></span><code><span class="n">go</span> <span class="n">build</span> <span class="n">-o</span> <span class="n">dist</span><span class="p">\</span><span class="n">pm</span><span class="p">.</span><span class="n">exe</span> <span class="p">.\</span><span class="n">cmd</span><span class="p">\</span><span class="n">pm</span>
 </code></pre></div>
 <p>A local build shows the version <code>dev</code> (<code>.\pm.exe version</code>).</p>
 <h2 id="shortcut">Start from a shortcut<a class="headerlink" href="#shortcut" title="Permanent link">&para;</a></h2>
-<p>A Windows shortcut is the simplest way to start a session:</p>
+<p>A Windows shortcut is the simplest way to start a session.
+<a href="../shortcut/"><code>pm shortcut</code></a> creates them from the config; by hand, these are the settings:</p>
 <ul>
 <li><strong>Target</strong>: the path of <code>pm.exe</code>, followed by the arguments, for example <code>run "C:\...\dcs.yaml" --profile DEV --tray</code>;</li>
 <li><strong>Start in</strong>: the profile's folder, or the config's;</li>

@@ -570,6 +570,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../new/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm new: the wizard
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../run/" class="md-nav__link">
         
   
@@ -606,6 +634,34 @@
     
   
     pm watch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../shortcut/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm shortcut: the shortcuts
   
 
     
@@ -1006,10 +1062,14 @@
 <span class="nt">log</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> dir</span><span class="p">:</span><span class="w"> </span><span class="s">'${config_dir}\logs'</span><span class="p p-Indicator">,</span><span class="nt"> keep</span><span class="p">:</span><span class="w"> </span><span class="nv">5</span><span class="w"> </span><span class="p p-Indicator">}</span>
 <span class="nt">watch</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> restart</span><span class="p">:</span><span class="w"> </span><span class="nv">always</span><span class="p p-Indicator">,</span><span class="nt"> delay</span><span class="p">:</span><span class="w"> </span><span class="nv">2s</span><span class="p p-Indicator">,</span><span class="nt"> max_delay</span><span class="p">:</span><span class="w"> </span><span class="nv">1m</span><span class="p p-Indicator">,</span><span class="nt"> max_restarts</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="w"> </span><span class="p p-Indicator">}</span>
 <span class="nt">exit</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> delay</span><span class="p">:</span><span class="w"> </span><span class="nv">0s</span><span class="p p-Indicator">,</span><span class="nt"> wait_key</span><span class="p">:</span><span class="w"> </span><span class="nv">on-error</span><span class="w"> </span><span class="p p-Indicator">}</span><span class="w">   </span><span class="c1"># never | on-error | always</span>
+<span class="nt">shortcuts</span><span class="p">:</span><span class="w">                      </span><span class="c1"># for pm shortcut (see the pm shortcut page)</span>
+<span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">run</span><span class="w">                     </span><span class="c1"># run or watch: the command the shortcut runs</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DCS - ${profile}</span><span class="w">        </span><span class="c1"># default: ${name}, or "${name} - ${profile}" with profiles</span>
+<span class="w">  </span><span class="nt">folder</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">$</span><span class="p p-Indicator">{</span><span class="nv">desktop</span><span class="p p-Indicator">},</span><span class="w"> </span><span class="nv">$</span><span class="p p-Indicator">{</span><span class="nv">start_menu</span><span class="p p-Indicator">}]</span><span class="w">  </span><span class="c1"># one folder or a list; default: ${config_dir}</span>
 </code></pre></div>
 <h2 id="rules">Rules<a class="headerlink" href="#rules" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Variables</strong>: <code>${name}</code> reads <code>vars</code>, which may refer to each other. Also available: <code>${profile}</code> (when there are profiles), <code>${name}</code>, <code>${config_dir}</code> (the config file's folder) and <code>${env:NAME}</code>. An unknown variable is an error.</li>
+<li><strong>Variables</strong>: <code>${name}</code> reads <code>vars</code>, which may refer to each other. Also available: <code>${profile}</code> (when there are profiles), <code>${name}</code>, <code>${config_dir}</code> (the config file's folder), <code>${desktop}</code> and <code>${start_menu}</code> (the Desktop and the Start menu, as Windows knows them) and <code>${env:NAME}</code>. An unknown variable is an error.</li>
 <li><strong>Unknown keys</strong>: a typo in a key is an error, never an ignored option.</li>
 <li><strong>Paths</strong>: between single quotes <code>'...'</code> YAML leaves <code>\</code> alone; between double quotes <code>"..."</code>, they must be doubled.</li>
 <li><strong>Relative paths</strong>: resolved from the config's folder. For <code>command</code> and an <code>exec</code> program, a bare name (<code>cmd</code>) is looked up in <code>PATH</code>, a path (<code>tools\app.exe</code>) starts from the config's folder. An <code>exec</code> command runs in the config's folder; the launched program starts in <code>workdir</code>, or else the current folder.</li>

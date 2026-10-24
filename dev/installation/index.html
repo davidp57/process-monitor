@@ -392,6 +392,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#menu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Le menu
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -661,6 +672,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../new/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm new : l'assistant
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../run/" class="md-nav__link">
         
   
@@ -697,6 +736,34 @@
     
   
     pm watch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../shortcut/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm shortcut : les raccourcis
   
 
     
@@ -953,6 +1020,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#menu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Le menu
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#build" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1009,13 +1087,17 @@
 <p>pm tourne sous Windows. C'est un seul fichier, <code>pm.exe</code>, qui n'a besoin de rien d'autre.</p>
 <h2 id="download">Télécharger<a class="headerlink" href="#download" title="Permanent link">&para;</a></h2>
 <p>Chaque version publiée est sur la page <a href="https://github.com/davidp57/process-monitor/releases">Releases</a> du dépôt : télécharger <code>pm.exe</code> et le poser dans un dossier, par exemple à côté de ses configs.</p>
+<h2 id="menu">Le menu<a class="headerlink" href="#menu" title="Permanent link">&para;</a></h2>
+<p>Un double-clic sur <code>pm.exe</code> ouvre un menu : créer une config avec l'<a href="../new/">assistant</a>, créer ses <a href="../shortcut/">raccourcis</a>, la vérifier, la lancer.
+Pas de ligne de commande à taper ; lancé sans argument depuis un terminal, <code>pm.exe</code> affiche son aide comme avant.</p>
 <h2 id="build">Compiler soi-même<a class="headerlink" href="#build" title="Permanent link">&para;</a></h2>
 <p>Il faut Go 1.27 ou plus récent (<code>scoop install go</code>), puis, dans le dossier du dépôt :</p>
 <div class="highlight"><pre><span></span><code><span class="n">go</span> <span class="n">build</span> <span class="n">-o</span> <span class="n">dist</span><span class="p">\</span><span class="n">pm</span><span class="p">.</span><span class="n">exe</span> <span class="p">.\</span><span class="n">cmd</span><span class="p">\</span><span class="n">pm</span>
 </code></pre></div>
 <p>Une compilation locale affiche la version <code>dev</code> (<code>.\pm.exe version</code>).</p>
 <h2 id="shortcut">Lancer depuis un raccourci<a class="headerlink" href="#shortcut" title="Permanent link">&para;</a></h2>
-<p>Un raccourci Windows est la façon la plus simple de lancer une session :</p>
+<p>Un raccourci Windows est la façon la plus simple de lancer une session.
+<a href="../shortcut/"><code>pm shortcut</code></a> les crée à partir de la config ; à la main, ce sont les réglages suivants :</p>
 <ul>
 <li><strong>Cible</strong> : le chemin de <code>pm.exe</code>, suivi des arguments, par exemple <code>run "C:\...\dcs.yaml" --profile DEV --tray</code> ;</li>
 <li><strong>Démarrer dans</strong> : le dossier du profil, ou celui de la config ;</li>

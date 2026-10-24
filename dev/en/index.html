@@ -648,6 +648,34 @@
   
   
     <li class="md-nav__item">
+      <a href="new/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm new: the wizard
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="run/" class="md-nav__link">
         
   
@@ -684,6 +712,34 @@
     
   
     pm watch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="shortcut/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm shortcut: the shortcuts
   
 
     
@@ -1049,15 +1105,18 @@
 <h2 id="quick-start">Quick start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
 <ol>
 <li><a href="installation/">Install</a> <code>pm.exe</code>.</li>
-<li>Write a config, starting from an <a href="examples/dcs/">example</a>.</li>
 <li>
-<p>Check it, then run it, in PowerShell:</p>
+<p>Run the <a href="new/">wizard</a>, which asks a few questions and writes the config and its shortcuts:</p>
+<div class="highlight"><pre><span></span><code><span class="p">.\</span><span class="n">pm</span><span class="p">.</span><span class="n">exe</span> <span class="n">new</span>
+</code></pre></div>
+<p>Or write the config by hand, starting from an <a href="examples/dcs/">example</a>.
+3. Check it, then run it, in PowerShell:</p>
 <div class="highlight"><pre><span></span><code><span class="p">.\</span><span class="n">pm</span><span class="p">.</span><span class="n">exe</span> <span class="n">check</span> <span class="p">.\</span><span class="n">dcs</span><span class="p">.</span><span class="n">yaml</span> <span class="p">-</span><span class="n">-profile</span> <span class="n">DEV</span>
 <span class="p">.\</span><span class="n">pm</span><span class="p">.</span><span class="n">exe</span> <span class="n">run</span> <span class="p">.\</span><span class="n">dcs</span><span class="p">.</span><span class="n">yaml</span> <span class="p">-</span><span class="n">-profile</span> <span class="n">DEV</span>
 </code></pre></div>
 </li>
 </ol>
-<p>The three commands: <code>pm run</code> runs once with its before and after actions, <code>pm watch</code> keeps the program alive, <code>pm check</code> shows what would be done without running anything.</p>
+<p>The commands: <code>pm run</code> runs once with its before and after actions, <code>pm watch</code> keeps the program alive, <code>pm check</code> shows what would be done without running anything, <code>pm new</code> writes a config by asking questions, <code>pm shortcut</code> creates its shortcuts.</p>
 
 
 

@@ -16,7 +16,7 @@
         <link rel="prev" href="../simapppro/">
       
       
-        <link rel="next" href="../../run/">
+        <link rel="next" href="../../new/">
       
       
         
@@ -641,6 +641,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../new/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm new: the wizard
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../run/" class="md-nav__link">
         
   
@@ -677,6 +705,34 @@
     
   
     pm watch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../shortcut/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pm shortcut: the shortcuts
   
 
     
@@ -994,6 +1050,9 @@
 <span class="w">  </span><span class="nt">after</span><span class="p">:</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">exec</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">powershell</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">-NoProfile</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">-Command</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'Get-ChildItem</span><span class="nv"> </span><span class="se">''</span><span class="s">${archives}\saves-*.zip</span><span class="se">''</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">Sort-Object</span><span class="nv"> </span><span class="s">Name</span><span class="nv"> </span><span class="s">-Descending</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">Select-Object</span><span class="nv"> </span><span class="s">-Skip</span><span class="nv"> </span><span class="s">10</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">Remove-Item'</span><span class="p p-Indicator">]</span>
 <span class="w">  </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+
+<span class="c1"># .\pm.exe shortcut backup.yaml : un raccourci à côté de la config.</span>
+<span class="nt">shortcuts</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> mode</span><span class="p">:</span><span class="w"> </span><span class="nv">run</span><span class="w"> </span><span class="p p-Indicator">}</span>
 </code></pre></div>
 <ul>
 <li>The <code>exec</code> actions run PowerShell here. In a YAML single-quoted string, a quote is doubled (<code>''</code>); <code>${archives}</code> is replaced by Process Monitor before running.</li>
