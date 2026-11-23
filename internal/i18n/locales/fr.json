@@ -455,6 +455,7 @@
   "run.icon_unused": "icône non utilisée : %v",
   "run.profile": "profil %s",
   "run.window_closed": "fenêtre fermée : pm est coupé, les actions de fin ne seront PAS exécutées",
+  "session.affinity_kept": "affinité : session détachée, les autres process gardent leurs cœurs tant qu'ils tournent",
   "session.after_failed": "actions de fin : %w",
   "session.already_running": "%s tourne déjà (pid %v) hors de cette session : rien n'a été copié ni lancé. Ferme-le, ou mets if_running: kill",
   "session.before_failed": "actions de départ en échec, %s n'a pas été lancé : %w",
