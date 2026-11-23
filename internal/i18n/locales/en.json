@@ -28,6 +28,7 @@
   "config.affinity_missing": "%s: core(s) %s missing on this machine (its cores: %s)",
   "config.affinity_nothing": "affinity: give cores, others, or both",
   "config.affinity_others": "affinity.others: give cores and processes",
+  "config.affinity_program": "affinity.others.processes: %q is the launched or followed program; its cores are set by affinity.cores, before it starts",
   "config.affinity_system": "affinity: could not read this machine's cores: %w",
   "config.bad_affinity_process": "affinity.others.processes: %q must be a process name alone, extension included (e.g. vrserver.exe)",
   "config.bad_duration": "line %d: invalid duration %q (examples: 500ms, 2s, 1m)",

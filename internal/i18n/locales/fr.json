@@ -28,6 +28,7 @@
   "config.affinity_missing": "%s : cœur(s) %s absent de cette machine (cœurs présents : %s)",
   "config.affinity_nothing": "affinity : indiquer cores, others, ou les deux",
   "config.affinity_others": "affinity.others : indiquer cores et processes",
+  "config.affinity_program": "affinity.others.processes : %q est le programme lancé ou suivi ; ses cœurs se règlent par affinity.cores, avant son démarrage",
   "config.affinity_system": "affinity : cœurs de cette machine illisibles : %w",
   "config.bad_affinity_process": "affinity.others.processes : %q doit être un nom de process seul, extension comprise (ex. vrserver.exe)",
   "config.bad_duration": "ligne %d : durée invalide %q (exemples : 500ms, 2s, 1m)",

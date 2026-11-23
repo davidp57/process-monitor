@@ -93,6 +93,8 @@ func TestAffinityGuards(t *testing.T) {
 		"others list":   {"affinity: { others: { cores: 'a', processes: [x.exe] } }", "affinity.others.cores"},
 		"process path":  {"affinity: { others: { cores: 0, processes: ['C:\\x\\vr.exe'] } }", "nom de process seul"},
 		"process ext":   {"affinity: { others: { cores: 0, processes: [vrserver] } }", "nom de process seul"},
+		"the launcher":  {"affinity: { others: { cores: 0, processes: [A.exe] } }", "le programme"},
+		"the followed":  {"track: game.exe\naffinity: { others: { cores: 0, processes: [game.exe] } }", "le programme"},
 	}
 	if missing < 64 {
 		cases["missing core"] = struct{ yml, want string }{"affinity: { cores: " + strconv.Itoa(missing) + " }", "absent de cette machine"}

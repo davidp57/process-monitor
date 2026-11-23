@@ -326,7 +326,7 @@ func (s *Session) keepOthers() (stop func(restore bool)) {
 	if a == nil || a.Others == nil {
 		return func(bool) {}
 	}
-	k := &affinity.Keeper{Mask: a.Others.Mask, Names: a.Others.Processes, Event: func(m string) { s.log.Info(m) }}
+	k := &affinity.Keeper{Mask: a.Others.Mask, Names: a.Others.Processes, Program: a.Mask, Event: func(m string) { s.log.Info(m) }}
 	halt, done := make(chan struct{}), make(chan struct{})
 	go func() {
 		defer close(done)
@@ -346,7 +346,7 @@ func (s *Session) keepOthers() (stop func(restore bool)) {
 		<-done
 		if restore {
 			k.Restore()
-		} else {
+		} else if k.Held() {
 			s.log.Info(i18n.T("session.affinity_kept"))
 		}
 	}

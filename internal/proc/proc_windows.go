@@ -37,8 +37,7 @@ const (
 	jobMsgNewProcess        = 6
 
 	processAccess = windows.SYNCHRONIZE | windows.PROCESS_QUERY_LIMITED_INFORMATION |
-		windows.PROCESS_TERMINATE | windows.PROCESS_SUSPEND_RESUME | windows.PROCESS_SET_QUOTA |
-		windows.PROCESS_SET_INFORMATION
+		windows.PROCESS_TERMINATE | windows.PROCESS_SUSPEND_RESUME | windows.PROCESS_SET_QUOTA
 	stillActive = 259
 
 	// handoverGrace is how long, after the tracked process exits, a process
@@ -137,7 +136,7 @@ func Start(spec Spec) (Process, error) {
 	p.cmd = cmd
 	p.started = time.Now()
 
-	h, err := windows.OpenProcess(processAccess, false, uint32(cmd.Process.Pid))
+	h, err := windows.OpenProcess(processAccess|windows.PROCESS_SET_INFORMATION, false, uint32(cmd.Process.Pid))
 	if err != nil {
 		_ = cmd.Process.Kill()
 		return fail(i18n.Errorf("proc.open_failed", cmd.Process.Pid, err))

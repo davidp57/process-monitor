@@ -399,6 +399,14 @@ func (c *Config) validate() error {
 	}
 	if c.Affinity != nil {
 		errs = append(errs, c.Affinity.validate())
+		// Held by the keeper, the program would get new cores while it runs.
+		if o := c.Affinity.Others; o != nil {
+			for _, n := range o.Processes {
+				if strings.EqualFold(n, c.LauncherName()) || strings.EqualFold(n, c.Track) {
+					errs = append(errs, i18n.Errorf("config.affinity_program", n))
+				}
+			}
+		}
 	}
 	c.Sync = nil
 	targets, sources := map[string]string{}, map[string]string{}

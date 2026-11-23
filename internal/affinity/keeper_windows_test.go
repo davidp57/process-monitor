@@ -141,3 +141,33 @@ func TestRestoreLeavesAProcessChangedByOthers(t *testing.T) {
 		t.Fatalf("Restore overrode another change: %s", got)
 	}
 }
+
+// A process the program started was born on the program's cores: at the
+// end it gets every core, not the program's.
+func TestRestoreGivesEveryCoreToWhatInheritedTheProgramsCores(t *testing.T) {
+	sys, err := System()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sys.Count() < 3 {
+		t.Skip("needs three cores")
+	}
+	cmd := startHelper(t, copySelf(t, "pmaff-born.exe"))
+	h, err := windows.OpenProcess(keeperAccess, false, uint32(cmd.Process.Pid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer windows.CloseHandle(h)
+	if err := Set(h, 1); err != nil { // as if the program, on core 0, had started it
+		t.Fatal(err)
+	}
+	k := &Keeper{Mask: 2, Program: 1, Names: []string{"pmaff-born.exe"}}
+	k.Sweep()
+	if !k.Held() {
+		t.Fatal("Held = false after placing a process")
+	}
+	k.Restore()
+	if got := affinityOf(t, cmd.Process.Pid); got != sys {
+		t.Fatalf("after Restore: %s, want every core %s", got, sys)
+	}
+}

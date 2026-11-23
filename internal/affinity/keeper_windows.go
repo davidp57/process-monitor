@@ -19,6 +19,10 @@ import (
 type Keeper struct {
 	Mask  Mask
 	Names []string
+	// Program is the launched program's mask. A process first seen with it
+	// inherited it (the program started it): Restore gives it every core
+	// instead, not the program's.
+	Program Mask
 	// Event reports what was done, one line per process.
 	Event func(msg string)
 
@@ -30,6 +34,7 @@ type kept struct {
 	created  windows.Filetime // tells a process from a later one with the same PID
 	original Mask
 	failed   bool // told once, not tried again
+	told     bool // its placing was logged
 }
 
 const keeperAccess = windows.PROCESS_QUERY_LIMITED_INFORMATION | windows.PROCESS_SET_INFORMATION
@@ -78,7 +83,13 @@ func (k *Keeper) sweepOne(pid uint32, name string) {
 		return
 	}
 	if e == nil {
-		e = &kept{name: name, created: created, original: cur}
+		original := cur
+		if k.Program != 0 && cur == k.Program {
+			if sys, err := System(); err == nil {
+				original = sys
+			}
+		}
+		e = &kept{name: name, created: created, original: original}
 		k.seen[pid] = e
 	}
 	if cur == k.Mask {
@@ -89,9 +100,21 @@ func (k *Keeper) sweepOne(pid uint32, name string) {
 		k.event(i18n.T("affinity.others_failed", name, pid, err))
 		return
 	}
-	if cur == e.original {
+	if !e.told {
+		e.told = true
 		k.event(i18n.T("affinity.others_set", name, pid, k.Mask))
 	}
+}
+
+// Held reports whether a process has been placed on the mask and is still
+// running, as of the last sweep.
+func (k *Keeper) Held() bool {
+	for _, e := range k.seen {
+		if e.told && !e.failed {
+			return true
+		}
+	}
+	return false
 }
 
 // Restore gives the processes still running their original affinity back,
