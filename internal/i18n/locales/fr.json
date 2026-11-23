@@ -1,4 +1,10 @@
 {
+  "affinity.bad_part": "%q dans %q : attendu un cœur ou une plage de cœurs de 0 à 63 (ex. 0-11 ou 0-5,8)",
+  "affinity.empty": "liste de cœurs vide",
+  "affinity.others_failed": "affinité : %s (pid %d) n'a pas pu être placé sur ses cœurs : %v",
+  "affinity.others_set": "affinité : %s (pid %d) placé sur les cœurs %s",
+  "affinity.restore_failed": "affinité : %s (pid %d) n'a pas pu retrouver ses cœurs d'origine : %v",
+  "affinity.restored": "affinité : %s (pid %d) rendu à ses cœurs d'origine (%s)",
   "ask.keys_choice": "↑ ↓ pour choisir, Entrée pour valider · Échap : question précédente · Ctrl+C : abandonner",
   "ask.keys_list": "Entrée pour ajouter, Entrée sur une ligne vide pour finir · Retour arrière sur une ligne vide : retirer la dernière · Échap : question précédente",
   "ask.keys_multi": "↑ ↓ pour se déplacer, Espace pour cocher ou décocher, Entrée pour valider · Échap : question précédente",

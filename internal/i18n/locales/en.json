@@ -1,4 +1,10 @@
 {
+  "affinity.bad_part": "%q in %q: expected a core or a range of cores from 0 to 63 (e.g. 0-11 or 0-5,8)",
+  "affinity.empty": "empty core list",
+  "affinity.others_failed": "affinity: %s (pid %d) could not be placed on its cores: %v",
+  "affinity.others_set": "affinity: %s (pid %d) placed on cores %s",
+  "affinity.restore_failed": "affinity: %s (pid %d) could not get its original cores back: %v",
+  "affinity.restored": "affinity: %s (pid %d) given back its original cores (%s)",
   "ask.keys_choice": "↑ ↓ to choose, Enter to confirm · Esc: previous question · Ctrl+C: give up",
   "ask.keys_list": "Enter to add, Enter on an empty line to finish · Backspace on an empty line: remove the last one · Esc: previous question",
   "ask.keys_multi": "↑ ↓ to move, Space to tick or untick, Enter to confirm · Esc: previous question",
