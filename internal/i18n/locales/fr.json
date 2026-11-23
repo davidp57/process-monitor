@@ -416,6 +416,8 @@
   "plan.session_shared": "session : %s (verrou partagé par tous les profils)\n",
   "plan.source_missing": "   ← SOURCE ABSENTE",
   "plan.workdir": "dossier : %s\n",
+  "proc.affinity_failed": "affinité %s impossible à poser avant le lancement : %w",
+  "proc.affinity_not_inherited": "affinité : %s (pid %d) tourne sur les cœurs %s, pas sur %s : il n'a pas hérité de l'affinité (lancé par un autre programme ?). Laissé tel quel : la changer en cours de route ferait pire",
   "proc.assign_failed": "rattachement au Job Object impossible (%v), suivi du seul process lancé",
   "proc.handover": "relais : %s (pid %d) a pris la suite du pid %d",
   "proc.launcher_lingers": "%s s'est terminé, mais son lanceur tourne encore (%s) : attente de sa fin",

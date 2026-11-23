@@ -416,6 +416,8 @@
   "plan.session_shared": "session : %s (lock shared by every profile)\n",
   "plan.source_missing": "   ← SOURCE MISSING",
   "plan.workdir": "folder  : %s\n",
+  "proc.affinity_failed": "could not set affinity %s before the launch: %w",
+  "proc.affinity_not_inherited": "affinity: %s (pid %d) runs on cores %s, not %s: it did not inherit the affinity (started by another program?). Left as is: changing it while it runs would do worse",
   "proc.assign_failed": "cannot put the process in the Job Object (%v), following the launched process only",
   "proc.handover": "handover: %s (pid %d) took over from pid %d",
   "proc.launcher_lingers": "%s has exited, but its launcher still runs (%s): waiting for it",

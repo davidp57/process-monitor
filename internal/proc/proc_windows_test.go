@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/davidp57/process-monitor/internal/affinity"
 )
 
 // The test binary doubles as the supervised program, driven by PM_HELPER:
@@ -24,6 +26,8 @@ import (
 //	breakaway:EXE:MODE same, asking to leave the job
 //	linger:EXE:MODE   same, then stay 5 s
 //	tick:FILE         append a byte to FILE every 50 ms, forever
+//	affinity:FILE     write its own affinity mask to FILE at once, and to FILE.end 2 s later
+//	widen:EXE:MODE    start EXE with PM_HELPER=MODE on every core, then stay 1 s
 //
 // PM_MARK_CHILD (sleep) and PM_MARK_LAUNCHER (linger) name a file written
 // just before exiting, so a test can tell whether a process was still alive.
@@ -58,6 +62,26 @@ func TestMain(m *testing.M) {
 			}
 			time.Sleep(50 * time.Millisecond)
 		}
+	case "affinity":
+		m, _ := affinity.Get(windows.CurrentProcess())
+		os.WriteFile(a, []byte(m.String()), 0o644)
+		time.Sleep(2 * time.Second) // outlives the check of a tracked process's cores
+		m, _ = affinity.Get(windows.CurrentProcess())
+		os.WriteFile(a+".end", []byte(m.String()), 0o644)
+		os.Exit(0)
+	case "widen": // a launcher that does not pass its cores on
+		cmd := exec.Command(a)
+		cmd.Env = append(os.Environ(), "PM_HELPER="+b)
+		cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_SUSPENDED}
+		if err := cmd.Start(); err != nil {
+			os.Exit(99)
+		}
+		h, _ := windows.OpenProcess(windows.PROCESS_SET_INFORMATION|windows.PROCESS_SUSPEND_RESUME, false, uint32(cmd.Process.Pid))
+		all, _ := affinity.System()
+		affinity.Set(h, all)
+		ntResumeProcess.Call(uintptr(h))
+		time.Sleep(time.Second)
+		os.Exit(0)
 	case "launch", "breakaway", "linger":
 		exe, child := a, b
 		cmd := exec.Command(exe)
@@ -400,4 +424,68 @@ func TestFindAndKillByName(t *testing.T) {
 		t.Errorf("killed = %d, err = %v", n, err)
 	}
 	_ = cmd.Wait()
+}
+
+// oneCore is core 0 alone: a mask that differs from the machine's.
+func oneCore(t *testing.T) affinity.Mask {
+	t.Helper()
+	sys, err := affinity.System()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sys.Count() < 2 {
+		t.Skip("one core: no other mask to give")
+	}
+	return 1
+}
+
+func readMask(t *testing.T, file string) string {
+	t.Helper()
+	b, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatalf("the helper never wrote its mask: %v", err)
+	}
+	return string(b)
+}
+
+// The mask is set before the program runs its first instruction, and its
+// children inherit it: a launcher handing over to the game passes it on.
+func TestAffinityFromTheFirstInstructionAndInherited(t *testing.T) {
+	mask := oneCore(t)
+	dir := t.TempDir()
+	own, child := filepath.Join(dir, "own"), filepath.Join(dir, "child")
+	p := start(t, "affinity:"+own, Spec{Affinity: mask})
+	wait(t, p, 10*time.Second)
+	if got := readMask(t, own); got != mask.String() {
+		t.Errorf("launched program saw cores %s at start, want %s", got, mask)
+	}
+
+	game := copySelf(t, "pm-test-cores.exe")
+	p = start(t, "launch:"+game+":affinity:"+child, Spec{Affinity: mask, Track: "pm-test-cores.exe", TrackGrace: 5 * time.Second})
+	wait(t, p, 10*time.Second)
+	if got := readMask(t, child); got != mask.String() {
+		t.Errorf("the program's child saw cores %s at start, want %s", got, mask)
+	}
+}
+
+func TestAffinityNotInheritedIsReportedNotChanged(t *testing.T) {
+	mask := oneCore(t)
+	all, _ := affinity.System()
+	marker := filepath.Join(t.TempDir(), "child")
+	game := copySelf(t, "pm-test-wide.exe")
+	var mu sync.Mutex
+	var events []string
+	p := start(t, "widen:"+game+":affinity:"+marker, Spec{Affinity: mask, Track: "pm-test-wide.exe", TrackGrace: 5 * time.Second,
+		Event: func(m string) { mu.Lock(); events = append(events, m); mu.Unlock() }})
+	wait(t, p, 10*time.Second)
+	for _, f := range []string{marker, marker + ".end"} {
+		if got := readMask(t, f); got != all.String() {
+			t.Errorf("%s: the game's cores were changed to %s, want them left at %s", filepath.Base(f), got, all)
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if !strings.Contains(strings.Join(events, "|"), "pas hérité") {
+		t.Errorf("no warning: %q", events)
+	}
 }

@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
+	"github.com/davidp57/process-monitor/internal/affinity"
 	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
@@ -36,7 +37,8 @@ const (
 	jobMsgNewProcess        = 6
 
 	processAccess = windows.SYNCHRONIZE | windows.PROCESS_QUERY_LIMITED_INFORMATION |
-		windows.PROCESS_TERMINATE | windows.PROCESS_SUSPEND_RESUME | windows.PROCESS_SET_QUOTA
+		windows.PROCESS_TERMINATE | windows.PROCESS_SUSPEND_RESUME | windows.PROCESS_SET_QUOTA |
+		windows.PROCESS_SET_INFORMATION
 	stillActive = 259
 
 	// handoverGrace is how long, after the tracked process exits, a process
@@ -72,7 +74,10 @@ type winProcess struct {
 	tracked  windows.Handle
 	trackPID int
 	followed map[int]bool // PIDs already tracked; owned by follow()
-	pumps    sync.WaitGroup
+	// adoptedAt is when the tracked process was found; its cores are
+	// checked a moment later, once whoever started it is done setting it up.
+	adoptedAt time.Time // owned by follow()
+	pumps     sync.WaitGroup
 
 	mainExited chan struct{}
 	mainCode   int // valid once mainExited is closed
@@ -138,6 +143,16 @@ func Start(spec Spec) (Process, error) {
 		return fail(i18n.Errorf("proc.open_failed", cmd.Process.Pid, err))
 	}
 	p.mainH = h
+	// Before the first instruction: a program that reads its cores when it
+	// starts sees these, and every process it starts inherits them. Set on
+	// the process, not as a job limit, which would also lock in a program
+	// it starts that must run on other cores (a VR runtime).
+	if spec.Affinity != 0 {
+		if err := affinity.Set(h, spec.Affinity); err != nil {
+			_ = cmd.Process.Kill()
+			return fail(i18n.Errorf("proc.affinity_failed", spec.Affinity, err))
+		}
+	}
 	if p.job != 0 {
 		if err := windows.AssignProcessToJobObject(p.job, h); err != nil {
 			spec.event(i18n.T("proc.assign_failed", err))
@@ -257,6 +272,7 @@ func (p *winProcess) follow() {
 			}
 		}
 		if h := p.trackedHandle(); h != 0 {
+			p.checkAffinity(h)
 			if ev, _ := windows.WaitForSingleObject(h, 0); ev == windows.WAIT_OBJECT_0 {
 				// Not the end yet: it may have handed over to a process of
 				// the same name (a launcher named like its target).
@@ -413,7 +429,22 @@ func (p *winProcess) consider(pid int) bool {
 	p.mu.Unlock()
 	p.followed[pid] = true
 	p.spec.event(i18n.T("proc.tracked", p.spec.Track, pid))
+	p.adoptedAt = time.Now()
 	return true
+}
+
+// checkAffinity warns, once per tracked process, when it does not run on
+// the session's cores. It is not changed: a new process mask resets the
+// cores each thread chose, which is worse than leaving them.
+func (p *winProcess) checkAffinity(h windows.Handle) {
+	want := p.spec.Affinity
+	if want == 0 || p.adoptedAt.IsZero() || time.Since(p.adoptedAt) < time.Second {
+		return
+	}
+	p.adoptedAt = time.Time{}
+	if got, err := affinity.Get(h); err == nil && got != want {
+		p.spec.event(i18n.T("proc.affinity_not_inherited", p.spec.Track, p.PID(), got, want))
+	}
 }
 
 func (p *winProcess) trackedHandle() windows.Handle {
