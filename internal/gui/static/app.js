@@ -50,6 +50,7 @@ function add(parent, children) {
 
 // Icons drawn for pm (24×24, stroked), no icon font to license.
 const ICONS = {
+  cpu: '<rect x="7" y="7" width="10" height="10" rx="1"/><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/>',
   play: '<path d="M7 5l12 7-12 7z"/>',
   pause: '<path d="M8 5v14M16 5v14"/>',
   stop: '<rect x="6" y="6" width="12" height="12" rx="1"/>',
@@ -572,6 +573,10 @@ function drawOverview(o) {
     o.workdir && el("li", { title: o.workdir }, icon("folder"), el("span", {}, t("gui.ov_workdir", o.workdir))),
     o.follows !== base(o.command) && el("li", {}, icon("eye"), el("span", {}, t("gui.ov_follows", o.follows))),
     el("li", {}, icon("alert"), el("span", {}, o.ifRunning === "kill" ? t("gui.ov_if_kill") : t("gui.ov_if_abort"))),
+    o.affinity && o.affinity.cores && el("li", {}, icon("cpu"), el("span", {}, t("gui.ov_affinity", o.affinity.cores))),
+    o.affinity && o.affinity.othersCores && el("li", { title: o.affinity.processes.join(", ") }, icon("cpu"),
+      el("span", {}, t("gui.ov_affinity_others", o.affinity.processes.length, o.affinity.othersCores))),
+    o.affinity && o.affinity.shared && el("li", { class: "bad" }, icon("alert"), el("span", {}, t("gui.ov_affinity_shared", o.affinity.shared))),
     o.ready && el("li", { title: o.ready.file }, icon("check"), el("span", {}, t("gui.ov_ready", base(o.ready.file), o.ready.timeout))),
     o.shared && el("li", {}, icon("info"), el("span", {}, t("gui.ov_shared"))),
     el("li", { title: o.logDir }, icon("log"), el("span", {}, t("gui.ov_logs", o.logKeep))),
@@ -700,6 +705,11 @@ const FIELDS = () => [
     ["kill_on_exit", "list", t("gui.f_kill_on_exit"), t("gui.h_kill_on_exit")],
     ["if_running", "select", t("gui.f_if_running"), t("gui.h_if_running"), [["", t("gui.o_abort")], ["kill", t("gui.o_kill")]]],
     ["env", "map", t("gui.f_env"), t("gui.h_env")],
+  ]],
+  [t("gui.sec_affinity"), [
+    ["affinity.cores", "text", t("gui.f_aff_cores"), t("gui.h_aff_cores")],
+    ["affinity.others.cores", "text", t("gui.f_aff_others_cores"), t("gui.h_aff_others_cores")],
+    ["affinity.others.processes", "list", t("gui.f_aff_others"), t("gui.h_aff_others")],
   ]],
   [t("gui.sec_display"), [
     ["name", "text", t("gui.f_name"), t("gui.h_name")],
@@ -894,7 +904,9 @@ function editor(c) {
       const nameI = el("input", { type: "text", value: name ?? "", style: "max-width:240px", placeholder: t("gui.profile_name") });
       nameI.addEventListener("input", dirty);
       const parts = [["icon", "icon", t("gui.f_icon")], ["vars", "map", t("gui.f_vars")], ["hooks.sync", "list", t("gui.f_sync")],
-        ["hooks.before", "actions", t("gui.f_before")], ["hooks.after", "actions", t("gui.f_after")]].map(([k, kind, label]) => {
+        ["hooks.before", "actions", t("gui.f_before")], ["hooks.after", "actions", t("gui.f_after")],
+        ["affinity.cores", "text", t("gui.f_aff_cores")], ["affinity.others.cores", "text", t("gui.f_aff_others_cores")],
+        ["affinity.others.processes", "list", t("gui.f_aff_others")]].map(([k, kind, label]) => {
         const [w, read] = widget(kind, getPath(p, k), null, dirty);
         return [k, field(label, k, null, w), read];
       });
