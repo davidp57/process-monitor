@@ -10,24 +10,35 @@ import (
 // Overview is what a session of this config would do, as data: what pm
 // check prints and what the interface draws.
 type Overview struct {
-	Config    string       `json:"config"`
-	Profile   string       `json:"profile"`
-	Name      string       `json:"name"`
-	Shared    bool         `json:"shared"` // one lock for every profile
-	Command   string       `json:"command"`
-	Args      []string     `json:"args"`
-	Workdir   string       `json:"workdir"`
-	Follows   string       `json:"follows"`
-	IfRunning string       `json:"ifRunning"`
-	Ready     *ReadyView   `json:"ready"`
-	LogDir    string       `json:"logDir"`
-	LogKeep   int          `json:"logKeep"`
-	Sync      []SyncView   `json:"sync"`
-	Before    []ActionView `json:"before"`
-	After     []ActionView `json:"after"`
+	Config    string        `json:"config"`
+	Profile   string        `json:"profile"`
+	Name      string        `json:"name"`
+	Shared    bool          `json:"shared"` // one lock for every profile
+	Command   string        `json:"command"`
+	Args      []string      `json:"args"`
+	Workdir   string        `json:"workdir"`
+	Follows   string        `json:"follows"`
+	IfRunning string        `json:"ifRunning"`
+	Affinity  *AffinityView `json:"affinity"`
+	Ready     *ReadyView    `json:"ready"`
+	LogDir    string        `json:"logDir"`
+	LogKeep   int           `json:"logKeep"`
+	Sync      []SyncView    `json:"sync"`
+	Before    []ActionView  `json:"before"`
+	After     []ActionView  `json:"after"`
 	// Missing counts the sources missing: pm run would fail before
 	// launching anything.
 	Missing int `json:"missing"`
+}
+
+// AffinityView is the affinity block as core lists. Shared names the cores
+// given both to the program and to the other processes: allowed, but then
+// they compete for them.
+type AffinityView struct {
+	Cores       string   `json:"cores"`
+	OthersCores string   `json:"othersCores"`
+	Processes   []string `json:"processes"`
+	Shared      string   `json:"shared"`
 }
 
 type ReadyView struct {
@@ -62,6 +73,14 @@ func (c *Config) Overview() Overview {
 	o := Overview{Config: c.Path, Profile: c.Profile, Name: c.Name, Shared: len(c.Profiles) > 0,
 		Command: c.Command, Args: c.Args, Workdir: c.Workdir, Follows: c.ProcessName(), IfRunning: c.IfRunning,
 		LogDir: c.Log.Dir, LogKeep: c.Log.Keep, Sync: []SyncView{}, Before: []ActionView{}, After: []ActionView{}}
+	if a := c.Affinity; a != nil {
+		v := &AffinityView{Cores: a.Mask.String(), Processes: []string{}}
+		if a.Others != nil {
+			v.OthersCores, v.Processes = a.Others.Mask.String(), a.Others.Processes
+			v.Shared = (a.Mask & a.Others.Mask).String()
+		}
+		o.Affinity = v
+	}
 	if c.Ready != nil {
 		o.Ready = &ReadyView{File: c.Ready.File, Timeout: c.Ready.Timeout.D().String()}
 	}
@@ -127,6 +146,17 @@ func (o Overview) Text() string {
 	}
 	b.WriteString(i18n.T("plan.follows", o.Follows))
 	b.WriteString(i18n.T("plan.if_running", o.IfRunning))
+	if a := o.Affinity; a != nil {
+		if a.Cores != "" {
+			b.WriteString(i18n.T("plan.affinity", a.Cores))
+		}
+		if a.OthersCores != "" {
+			b.WriteString(i18n.T("plan.affinity_others", strings.Join(a.Processes, ", "), a.OthersCores))
+		}
+		if a.Shared != "" {
+			b.WriteString(i18n.T("plan.affinity_shared", a.Shared))
+		}
+	}
 	if o.Ready != nil {
 		b.WriteString(i18n.T("plan.ready", o.Ready.File, o.Ready.Timeout))
 	}

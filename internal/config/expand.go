@@ -136,6 +136,13 @@ func (c *Config) expand() error {
 	xp(&c.Icon)
 	x(&c.Track)
 	xs(c.KillOnExit)
+	if a := c.Affinity; a != nil {
+		x(&a.Cores)
+		if a.Others != nil {
+			x(&a.Others.Cores)
+			xs(a.Others.Processes)
+		}
+	}
 	for k, v := range c.Env {
 		x(&v)
 		c.Env[k] = v
