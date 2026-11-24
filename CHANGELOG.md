@@ -9,6 +9,10 @@ A pull request adds its entry at the **end** of `[Unreleased]` and never touches
 
 ## [Unreleased]
 
+### Added
+
+- **Sharing the processor's cores, `affinity:`** (#16): `cores` launches the program on a core list (`0-11`), set before its first instruction and inherited by what it starts, restarts by `pm watch` included; `others` holds processes found by name (SteamVR's) on other cores while the session runs, moving them as soon as they appear and again if they restart, and gives them their original cores back at the end (not after a detach). A profile's block replaces the config's. `pm check` refuses an empty or malformed list and cores the machine lacks, and flags cores given to both; the interface shows the cores and edits them. A followed process that did not inherit the cores is reported, never changed late. For DCS World, which ignores `affinity_mask` in `autoexec.cfg`, this is the way to give it its cores.
+
 ## [2.1.0] — 2026-10-24
 
 ### Added

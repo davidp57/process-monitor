@@ -17,6 +17,11 @@ workdir: ${prof}
 env: { KEY: value }             # added to pm's environment
 track: dcs.exe                  # process to follow instead of the launched one
 kill_on_exit: [SR-ClientRadio.exe]  # stopped once the followed process has exited, wherever they run
+affinity:                       # share the processor's cores (see Features)
+  cores: 0-11                   # the program's cores, set before it starts
+  others:                       # other processes, held on their cores during the session
+    cores: 12-15
+    processes: [vrserver.exe, vrcompositor.exe]
 if_running: abort               # abort (default) or kill
 capture: false                  # program output into the log (and no console window)
 ui: console                     # console (default) or tray: the notification icon
@@ -38,6 +43,7 @@ profiles:                       # pm run ... --profile DEV
   DEV:
     vars: { other: value }      # replaces or adds variables
     icon: Icons\dcs-dev.ico     # replaces the icon
+    affinity: { cores: 0-11 }   # replaces the whole affinity block
     hooks:                      # added to the common hooks
       sync: [ '${prof}\joy.lua <-> ${saved}\Input\joy.lua' ]
   VR: {}
@@ -57,7 +63,8 @@ shortcuts:                      # for pm shortcut (see the pm shortcut page)
 - **Unknown keys**: a typo in a key is an error, never an ignored option.
 - **Paths**: between single quotes `'...'` YAML leaves `\` alone; between double quotes `"..."`, they must be doubled.
 - **Relative paths**: resolved from the config's folder. For `command` and an `exec` program, a bare name (`cmd`) is looked up in `PATH`, a path (`tools\app.exe`) starts from the config's folder. An `exec` command runs in the config's folder; the launched program starts in `workdir`, or else the current folder.
-- **`track`** and **`kill_on_exit`**: process names alone, extension included (`dcs.exe`).
+- **`track`**, **`kill_on_exit`** and **`affinity.others.processes`**: process names alone, extension included (`dcs.exe`).
+- **`affinity`**: core lists (`0-11`, `0-5,8,10-11`), numbered as in the Task Manager. An empty or malformed list, or one naming a core the machine lacks, is an error. `others` needs `cores` and `processes`.
 - **`sync`**: a file may appear in one line only, on the profile side as on the live side.
 - **One document**: a `---` that would cut the file in two is an error.
 - **Order**: before = `sync` (in) then `before`; after = `sync` (back) then `after`.

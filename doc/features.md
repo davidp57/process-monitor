@@ -112,6 +112,34 @@ kill_on_exit: [SR-ClientRadio.exe]
 
 Avec `track`, Process Monitor n'attend pas ces programmes pour récupérer les réglages, et ceux de la liste sont arrêtés quand le programme suivi s'est terminé. Sans `track`, la session attend la fin de tous les programmes lancés, ceux-là compris : `kill_on_exit` ne les arrête qu'ensuite, donc ne sert qu'avec `track`.
 
+## Partager les cœurs du processeur {#affinity}
+
+**Quand** : deux programmes lourds tournent ensemble, et l'un ne doit pas prendre de temps de calcul sur les cœurs de l'autre. Par exemple DCS World sur certains cœurs, et SteamVR sur les autres.
+
+```yaml
+affinity:
+  cores: 0-11            # le programme lancé, et tout ce qu'il démarre
+  others:                # d'autres process, trouvés par leur nom
+    cores: 12-15
+    processes: [vrserver.exe, vrcompositor.exe, vrmonitor.exe]
+```
+
+Les cœurs s'écrivent en liste : `0-11`, ou `0-5,8,10-11`. Ce sont les numéros du Gestionnaire des tâches (vue « processeurs logiques »).
+
+**Le programme lancé** reçoit ses cœurs avant sa première instruction : Process Monitor le crée suspendu, pose ses cœurs, puis le laisse démarrer. Un programme qui lit ses cœurs au démarrage voit donc déjà les bons. Ce qu'il lance en hérite : un lanceur qui passe la main au jeu, ou le jeu qui se relance lui-même. Avec `pm watch`, chaque relance reçoit les mêmes cœurs.
+
+**Les autres process** sont placés sur leurs cœurs dès qu'ils apparaissent (Process Monitor regarde chaque seconde), et de nouveau s'ils redémarrent. Ceux qui tournent déjà avant le lancement sont déplacés avant que le programme démarre. À la fin de la session, chacun retrouve les cœurs qu'il avait. Après un détachement (`d`), ils gardent leurs cœurs, puisque le programme tourne encore.
+
+**Dans un profil**, un bloc `affinity` remplace celui de la config : le partage peut ne servir qu'au profil VR.
+
+À savoir :
+
+- Windows règle les cœurs process par process : on ne peut pas réserver des cœurs à un programme. Pour les libérer, il faut aussi déplacer les autres, d'où `others`.
+- Les cœurs d'un programme déjà lancé ne sont jamais changés. Si le process suivi (`track`) n'a pas reçu les cœurs (démarré par un autre programme, comme Steam), le journal le signale et Process Monitor le laisse tel quel : changer ses cœurs en cours de route écraserait ceux que chacun de ses threads a choisis.
+- Sur un processeur à SMT, deux numéros voisins (`12, 13`) sont souvent le même cœur physique. Donner des paires entières aux autres process évite qu'ils partagent un cœur physique avec le programme.
+- `pm check` refuse une liste vide ou mal écrite, et un cœur que la machine n'a pas. Il signale aussi des cœurs donnés à la fois au programme et aux autres.
+- Le gain dépend du processeur et de la charge ; il peut être nul. L'[exemple DCS](examples/dcs.md#steamvr) propose une façon de le mesurer.
+
 ## L'icône de notification {#tray}
 
 **Quand** : pas de fenêtre console, ou pour voir l'état d'un coup d'œil.

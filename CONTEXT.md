@@ -20,6 +20,10 @@ The program `command` starts. It may be the game itself, or a program that start
 The process whose end ends the session: the game, found by its image name in the session's job, or among processes created after the launch when it left the job.
 Without `track`, the session ends when every process of the job has exited.
 
+**Affinity** (`affinity`):
+The cores a process may run on. The program's are set before its first instruction and inherited by what it starts; never changed once it runs.
+**Other processes** (`affinity.others`) are held on their own cores, found by name, while the session runs, then given their original cores back.
+
 **Handover**:
 The followed process exiting while a process of the same name takes over (a launcher named like its target). pm waits a short grace before concluding the game is over.
 

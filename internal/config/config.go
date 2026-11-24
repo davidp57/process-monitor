@@ -16,6 +16,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/davidp57/process-monitor/internal/affinity"
 	"github.com/davidp57/process-monitor/internal/i18n"
 )
 
@@ -31,8 +32,10 @@ type Config struct {
 	// KillOnExit names processes to stop once the followed one has exited
 	// (a radio client the game started, say).
 	KillOnExit []string `yaml:"kill_on_exit"`
-	IfRunning  string   `yaml:"if_running"`
-	Capture    bool     `yaml:"capture"`
+	// Affinity shares the cores between the program and other processes.
+	Affinity  *Affinity `yaml:"affinity"`
+	IfRunning string    `yaml:"if_running"`
+	Capture   bool      `yaml:"capture"`
 	// UI is how a session shows itself: "console" (default) or "tray".
 	UI string `yaml:"ui"`
 	// Lang is pm's language when neither --lang nor PM_LANG is set: fr or en.
@@ -53,6 +56,24 @@ type Config struct {
 	Profile string     `yaml:"-"`
 	Path    string     `yaml:"-"`
 	Sync    []SyncPair `yaml:"-"`
+}
+
+// Affinity is the cores the program runs on, and the cores other
+// processes are held on while the session runs.
+type Affinity struct {
+	// Cores is a core list ("0-11"); empty leaves the program's cores alone.
+	Cores  string  `yaml:"cores"`
+	Others *Others `yaml:"others"`
+
+	Mask affinity.Mask `yaml:"-"` // Cores, read by validate
+}
+
+// Others are processes found by name, held on their own cores.
+type Others struct {
+	Cores     string   `yaml:"cores"`
+	Processes []string `yaml:"processes"`
+
+	Mask affinity.Mask `yaml:"-"` // Cores, read by validate
 }
 
 // Ready describes the file whose appearance means the program has finished starting.
@@ -132,11 +153,13 @@ func (f *Folders) UnmarshalYAML(n *yaml.Node) error {
 	return nil
 }
 
-// Profile overrides vars and the icon, and appends hooks.
+// Profile overrides vars, the icon and the affinity, and appends hooks.
 type Profile struct {
 	Vars  map[string]string `yaml:"vars"`
 	Icon  string            `yaml:"icon"`
 	Hooks Hooks             `yaml:"hooks"`
+	// Affinity replaces the top-level block as a whole.
+	Affinity *Affinity `yaml:"affinity"`
 }
 
 const (
@@ -231,6 +254,9 @@ func (c *Config) applyProfile(name string) error {
 	c.Hooks.Sync = append(c.Hooks.Sync, p.Hooks.Sync...)
 	if p.Icon != "" {
 		c.Icon = p.Icon
+	}
+	if p.Affinity != nil {
+		c.Affinity = p.Affinity
 	}
 	c.Profile = name
 	return nil
@@ -371,6 +397,17 @@ func (c *Config) validate() error {
 			errs = append(errs, i18n.Errorf("config.bad_kill_on_exit", n))
 		}
 	}
+	if c.Affinity != nil {
+		errs = append(errs, c.Affinity.validate())
+		// Held by the keeper, the program would get new cores while it runs.
+		if o := c.Affinity.Others; o != nil {
+			for _, n := range o.Processes {
+				if strings.EqualFold(n, c.LauncherName()) || strings.EqualFold(n, c.Track) {
+					errs = append(errs, i18n.Errorf("config.affinity_program", n))
+				}
+			}
+		}
+	}
 	c.Sync = nil
 	targets, sources := map[string]string{}, map[string]string{}
 	for _, line := range c.Hooks.Sync {
@@ -393,6 +430,45 @@ func (c *Config) validate() error {
 		}
 		sources[strings.ToLower(pair.Source)] = pair.Target
 		c.Sync = append(c.Sync, pair)
+	}
+	return errors.Join(errs...)
+}
+
+func (a *Affinity) validate() error {
+	if a.Cores == "" && a.Others == nil {
+		return errors.New(i18n.T("config.affinity_nothing"))
+	}
+	sys, err := affinity.System()
+	if err != nil {
+		return i18n.Errorf("config.affinity_system", err)
+	}
+	var errs []error
+	cores := func(field, list string, m *affinity.Mask) {
+		v, err := affinity.Parse(list)
+		if err != nil {
+			errs = append(errs, i18n.Errorf("config.affinity_cores", field, err))
+			return
+		}
+		if extra := v &^ sys; extra != 0 {
+			errs = append(errs, i18n.Errorf("config.affinity_missing", field, extra, sys))
+			return
+		}
+		*m = v
+	}
+	if a.Cores != "" {
+		cores("affinity.cores", a.Cores, &a.Mask)
+	}
+	if o := a.Others; o != nil {
+		if o.Cores == "" || len(o.Processes) == 0 {
+			errs = append(errs, errors.New(i18n.T("config.affinity_others")))
+		} else {
+			cores("affinity.others.cores", o.Cores, &o.Mask)
+		}
+		for _, n := range o.Processes {
+			if !processName(n) {
+				errs = append(errs, i18n.Errorf("config.bad_affinity_process", n))
+			}
+		}
 	}
 	return errors.Join(errs...)
 }

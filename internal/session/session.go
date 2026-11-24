@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidp57/process-monitor/internal/affinity"
 	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/hooks"
 	"github.com/davidp57/process-monitor/internal/lock"
@@ -209,7 +210,10 @@ func (s *Session) Run(ctx context.Context) error {
 		return ErrCancelled
 	}
 
+	stopKeeping := s.keepOthers()
 	runErr, detached := s.loop(ctx)
+	// Detached, the program still runs: the other processes keep its cores free.
+	stopKeeping(!detached)
 
 	if detached {
 		s.update(func(st *State) { st.Status = Detached })
@@ -313,6 +317,41 @@ func (s *Session) killOnExit() {
 	}
 }
 
+// keepOthers holds the processes of affinity.others on their cores until the
+// returned function is called; restore then gives them their own cores back.
+// The first sweep is done before the launch: a VR runtime already running
+// leaves the program's cores before it starts.
+func (s *Session) keepOthers() (stop func(restore bool)) {
+	a := s.cfg.Affinity
+	if a == nil || a.Others == nil {
+		return func(bool) {}
+	}
+	k := &affinity.Keeper{Mask: a.Others.Mask, Names: a.Others.Processes, Program: a.Mask, Event: func(m string) { s.log.Info(m) }}
+	halt, done := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(done)
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+		for {
+			k.Sweep()
+			select {
+			case <-halt:
+				return
+			case <-t.C:
+			}
+		}
+	}()
+	return func(restore bool) {
+		close(halt)
+		<-done
+		if restore {
+			k.Restore()
+		} else if k.Held() {
+			s.log.Info(i18n.T("session.affinity_kept"))
+		}
+	}
+}
+
 // liveKey names the lock of a live file, the same for any spelling of its path.
 func liveKey(path string) string {
 	sum := sha256.Sum256([]byte(strings.ToLower(filepath.Clean(path))))
@@ -351,9 +390,18 @@ func (s *Session) start() (proc.Process, error) {
 		Capture:    c.Capture,
 		Track:      c.Track,
 		TrackGrace: trackGrace,
+		Affinity:   s.affinity(),
 		Output:     s.log.Output,
 		Event:      func(m string) { s.log.Infof("%s", m) },
 	})
+}
+
+// affinity is the program's cores, 0 to leave them alone.
+func (s *Session) affinity() affinity.Mask {
+	if a := s.cfg.Affinity; a != nil {
+		return a.Mask
+	}
+	return 0
 }
 
 // watchReady reports when the ready file appears, or that it never did.

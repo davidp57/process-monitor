@@ -12,6 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sys/windows"
+
+	"github.com/davidp57/process-monitor/internal/affinity"
 	"github.com/davidp57/process-monitor/internal/config"
 	"github.com/davidp57/process-monitor/internal/lock"
 	"github.com/davidp57/process-monitor/internal/logx"
@@ -22,6 +25,7 @@ import (
 //	append:FILE      append "+game" to FILE, exit 0
 //	exit:N           exit with code N
 //	sleep:MS         sleep MS milliseconds, exit 0
+//	cores:FILE       append its own cores and ";" to FILE, sleep 1.5 s, exit 0
 func TestMain(m *testing.M) {
 	mode, arg, _ := strings.Cut(os.Getenv("PM_HELPER"), ":")
 	switch mode {
@@ -38,6 +42,14 @@ func TestMain(m *testing.M) {
 	case "exit":
 		n, _ := strconv.Atoi(arg)
 		os.Exit(n)
+	case "cores":
+		m, _ := affinity.Get(windows.CurrentProcess())
+		if f, err := os.OpenFile(arg, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
+			f.WriteString(m.String() + ";")
+			f.Close()
+		}
+		time.Sleep(1500 * time.Millisecond)
+		os.Exit(0)
 	case "sleep":
 		ms, _ := strconv.Atoi(arg)
 		time.Sleep(time.Duration(ms) * time.Millisecond)
@@ -393,5 +405,121 @@ func TestKillRunsAfterHooksDetachSkipsThem(t *testing.T) {
 				p.Kill()
 			}
 		}
+	}
+}
+
+// other starts a copy of the test binary that sleeps a minute: a third-party
+// process (a VR runtime), killed by its PID at the end of the test.
+func other(t *testing.T) (name string, pid int) {
+	t.Helper()
+	exe := program(t)
+	cmd := exec.Command(exe)
+	cmd.Env = append(os.Environ(), "PM_HELPER=sleep:60000")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
+	return filepath.Base(exe), cmd.Process.Pid
+}
+
+func coresOf(t *testing.T, pid int) affinity.Mask {
+	t.Helper()
+	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer windows.CloseHandle(h)
+	m, err := affinity.Get(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return m
+}
+
+func sharedConfig(t *testing.T, vr string) (*config.Config, string, affinity.Mask) {
+	t.Helper()
+	sys, err := affinity.System()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sys.Count() < 2 {
+		t.Skip("one core: nothing to share")
+	}
+	marker := filepath.Join(t.TempDir(), "cores")
+	c := newConfig(t, "cores:"+marker)
+	c.Affinity = &config.Affinity{Mask: 1, Others: &config.Others{Mask: 2, Processes: []string{vr}}}
+	return c, marker, sys
+}
+
+func TestAffinitySharesCoresThenRestores(t *testing.T) {
+	vr, pid := other(t)
+	c, marker, sys := sharedConfig(t, vr)
+	log, lines := logger(t)
+	s := New(c, log, config.RestartNever)
+	done := make(chan error, 1)
+	go func() { done <- s.Run(context.Background()) }()
+
+	time.Sleep(700 * time.Millisecond) // the program runs 1.5 s
+	if got := coresOf(t, pid); got != 2 {
+		t.Errorf("during the session the other process runs on %s, want core 1", got)
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, marker); got != "0;" {
+		t.Errorf("the program started on cores %q, want 0", got)
+	}
+	if got := coresOf(t, pid); got != sys {
+		t.Errorf("after the session the other process runs on %s, want its original %s", got, sys)
+	}
+	if all := strings.Join(*lines, "\n"); !strings.Contains(all, "placé sur les cœurs 1") || !strings.Contains(all, "rendu à ses cœurs d'origine") {
+		t.Errorf("log:\n%s", all)
+	}
+}
+
+func TestAffinityKeptAfterDetach(t *testing.T) {
+	vr, pid := other(t)
+	c, _, _ := sharedConfig(t, vr)
+	c.Env["PM_HELPER"] = "sleep:3000"
+	log, lines := logger(t)
+	s := New(c, log, config.RestartNever)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- s.Run(ctx) }()
+	time.Sleep(700 * time.Millisecond)
+	if prog := s.PID(); prog != 0 { // detached, it outlives the session: stop it after the test
+		t.Cleanup(func() {
+			if h, err := windows.OpenProcess(windows.PROCESS_TERMINATE|windows.SYNCHRONIZE, false, uint32(prog)); err == nil {
+				windows.TerminateProcess(h, 1)
+				windows.WaitForSingleObject(h, 5000)
+				windows.CloseHandle(h)
+			}
+		})
+	}
+	cancel() // detach: the program keeps running
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if st := s.State().Status; st != Detached {
+		t.Fatalf("status = %s", st)
+	}
+	if got := coresOf(t, pid); got != 2 {
+		t.Errorf("after a detach the other process runs on %s, want it kept on core 1", got)
+	}
+	if all := strings.Join(*lines, "\n"); !strings.Contains(all, "gardent leurs cœurs") {
+		t.Errorf("log:\n%s", all)
+	}
+}
+
+// pm watch launches again with the same cores.
+func TestAffinityOnEveryRestart(t *testing.T) {
+	vr, _ := other(t)
+	c, marker, _ := sharedConfig(t, vr)
+	c.Watch.MaxRestarts = 1
+	log, _ := logger(t)
+	s := New(c, log, config.RestartAlways)
+	runWithin(t, s, 20*time.Second)
+	if got := read(t, marker); got != "0;0;" {
+		t.Errorf("cores seen by each run: %q, want 0 twice", got)
 	}
 }

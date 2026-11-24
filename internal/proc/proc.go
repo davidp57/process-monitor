@@ -12,6 +12,8 @@ import (
 	"io"
 	"strings"
 	"time"
+
+	"github.com/davidp57/process-monitor/internal/affinity"
 )
 
 // Spec describes what to start.
@@ -25,7 +27,10 @@ type Spec struct {
 	// TrackGrace is how long to keep looking for Track once everything
 	// else has exited.
 	TrackGrace time.Duration
-	Output     func(line string)
+	// Affinity is the cores the program runs on, set before its first
+	// instruction and inherited by what it starts; 0 leaves them alone.
+	Affinity affinity.Mask
+	Output   func(line string)
 	// Event reports notable steps (tracked process found, fallbacks).
 	Event func(msg string)
 }

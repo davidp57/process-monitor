@@ -65,3 +65,41 @@ Chacun a ces réglages :
 - **Icône** : la même que celle du profil (`Icons\dcs-dev.ico`)
 
 Un double-clic lance DCS avec ce profil ; l'icône apparaît dans la zone de notification et disparaît quand les réglages sont récupérés.
+
+## DCS et SteamVR sur des cœurs séparés {#steamvr}
+
+**Le besoin** : en réalité virtuelle, laisser à DCS ses cœurs, et faire tourner SteamVR sur les autres.
+
+**Pourquoi par Process Monitor** : la clé `affinity_mask` d'`autoexec.cfg` n'a aucun effet dans DCS 2.9.31. Le fichier `dcs.log` indique toujours tous les cœurs, quelle que soit sa valeur. DCS lit, à son démarrage, les cœurs que Windows a donnés à son process. Il faut donc les poser avant son lancement, et non après : c'est ce que fait le bloc `affinity`, qui remplace `affinity_mask`.
+
+Pour un processeur à 16 processeurs logiques (8 cœurs avec SMT), dans le profil VR de la config ci-dessus :
+
+```yaml
+profiles:
+  VR:
+    icon: ${saved}\Profiles\Icons\dcs-vr.ico
+    affinity:
+      cores: 0-11
+      others:
+        cores: 12-15
+        processes: [vrserver.exe, vrcompositor.exe, vrmonitor.exe, vrdashboard.exe, vrwebhelper.exe, vrstartup.exe]
+```
+
+- DCS, et ce qu'il démarre, tourne sur les cœurs 0 à 11 ; les profils STD et DEV gardent tous les cœurs.
+- Les process de SteamVR sont tenus sur les cœurs 12 à 15 pendant la session, puis retrouvent leurs cœurs. Si SteamVR tourne déjà, il est déplacé avant que DCS démarre.
+- La liste vient de SteamVR 2.19 avec Steam Link. Un autre casque ou un autre runtime peut ajouter ses propres process : les chercher dans le Gestionnaire des tâches, onglet Détails, pendant une session VR.
+- Garder des cœurs physiques entiers : `12-15`, pas `13-15`.
+
+**Vérifier** : après un lancement par Process Monitor, la ligne `process affinity mask:` en tête de `Saved Games\DCS\Logs\dcs.log` compte un chiffre par cœur. Avec `0-11`, elle vaut `111111111111` (12 chiffres). Seize `1` veulent dire que DCS a reçu tous les cœurs : il n'a pas été lancé par Process Monitor, ou un autre programme l'a démarré (le journal de Process Monitor le signale alors).
+
+```powershell
+Select-String -Path "$env:USERPROFILE\Saved Games\DCS\Logs\dcs.log" -Pattern "process affinity mask" | Select-Object -First 1
+```
+
+Pour SteamVR, le journal de Process Monitor note chaque process placé (`affinité : vrserver.exe (pid …) placé sur les cœurs 12-15`).
+
+**Mesurer le gain (facultatif)** : rien ne garantit qu'il existe. Sur un processeur à une seule puce, dont le cache est commun à tous les cœurs, il sera modeste, et DCS perd 4 processeurs logiques. Pour en juger :
+
+1. Rejouer deux fois la même piste (`.trk`) en VR, une fois avec le bloc `affinity`, une fois sans.
+2. Relever les temps d'image pendant trois minutes à chaque passage, avec CapFrameX ou fpsVR.
+3. Comparer la moyenne et le 1 % le plus lent.

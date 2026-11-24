@@ -17,6 +17,11 @@ workdir: ${prof}
 env: { CLE: valeur }            # ajoutées à l'environnement de pm
 track: dcs.exe                  # process à suivre à la place du programme lancé
 kill_on_exit: [SR-ClientRadio.exe]  # arrêtés quand le process suivi s'est terminé, où qu'ils tournent
+affinity:                       # partage des cœurs du processeur (voir Fonctions)
+  cores: 0-11                   # cœurs du programme, posés avant son démarrage
+  others:                       # d'autres process, tenus sur leurs cœurs pendant la session
+    cores: 12-15
+    processes: [vrserver.exe, vrcompositor.exe]
 if_running: abort               # abort (défaut) ou kill
 capture: false                  # sortie du programme dans le journal (et pas de fenêtre console)
 ui: console                     # console (défaut) ou tray : l'icône de notification
@@ -38,6 +43,7 @@ profiles:                       # pm run ... --profile DEV
   DEV:
     vars: { autre: valeur }     # remplace ou ajoute des variables
     icon: Icons\dcs-dev.ico     # remplace l'icône
+    affinity: { cores: 0-11 }   # remplace tout le bloc affinity
     hooks:                      # s'ajoutent aux hooks communs
       sync: [ '${prof}\joy.lua <-> ${saved}\Input\joy.lua' ]
   VR: {}
@@ -57,7 +63,8 @@ shortcuts:                      # pour pm shortcut (voir la page pm shortcut)
 - **Clés inconnues** : une faute de frappe dans une clé est une erreur, jamais une option ignorée.
 - **Chemins** : entre apostrophes `'...'` YAML ne transforme pas les `\` ; entre guillemets `"..."`, il faut les doubler.
 - **Chemins relatifs** : résolus depuis le dossier de la config. Pour `command` et le programme d'un `exec`, un nom seul (`cmd`) est cherché dans le `PATH`, un chemin (`tools\app.exe`) part du dossier de la config. Une commande `exec` s'exécute dans le dossier de la config ; le programme lancé part de `workdir`, ou à défaut du dossier courant.
-- **`track`** et **`kill_on_exit`** : des noms de process seuls, extension comprise (`dcs.exe`).
+- **`track`**, **`kill_on_exit`** et **`affinity.others.processes`** : des noms de process seuls, extension comprise (`dcs.exe`).
+- **`affinity`** : des listes de cœurs (`0-11`, `0-5,8,10-11`), numérotés comme dans le Gestionnaire des tâches. Une liste vide, mal écrite ou qui nomme un cœur absent de la machine est une erreur. `others` demande `cores` et `processes`.
 - **`sync`** : un même fichier ne peut apparaître que dans une seule ligne, côté profil comme côté live.
 - **Un seul document** : un `---` qui couperait le fichier en deux est une erreur.
 - **Ordre** : avant = `sync` (aller) puis `before` ; après = `sync` (retour) puis `after`.
