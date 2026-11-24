@@ -485,6 +485,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#affinity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partager les cœurs du processeur
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tray" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1169,6 +1180,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#affinity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partager les cœurs du processeur
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tray" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1305,6 +1327,26 @@
 <div class="highlight"><pre><span></span><code><span class="nt">kill_on_exit</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">SR-ClientRadio.exe</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <p>Avec <code>track</code>, Process Monitor n'attend pas ces programmes pour récupérer les réglages, et ceux de la liste sont arrêtés quand le programme suivi s'est terminé. Sans <code>track</code>, la session attend la fin de tous les programmes lancés, ceux-là compris : <code>kill_on_exit</code> ne les arrête qu'ensuite, donc ne sert qu'avec <code>track</code>.</p>
+<h2 id="affinity">Partager les cœurs du processeur<a class="headerlink" href="#affinity" title="Permanent link">&para;</a></h2>
+<p><strong>Quand</strong> : deux programmes lourds tournent ensemble, et l'un ne doit pas prendre de temps de calcul sur les cœurs de l'autre. Par exemple DCS World sur certains cœurs, et SteamVR sur les autres.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">affinity</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">cores</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0-11</span><span class="w">            </span><span class="c1"># le programme lancé, et tout ce qu'il démarre</span>
+<span class="w">  </span><span class="nt">others</span><span class="p">:</span><span class="w">                </span><span class="c1"># d'autres process, trouvés par leur nom</span>
+<span class="w">    </span><span class="nt">cores</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">12-15</span>
+<span class="w">    </span><span class="nt">processes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">vrserver.exe</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">vrcompositor.exe</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">vrmonitor.exe</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<p>Les cœurs s'écrivent en liste : <code>0-11</code>, ou <code>0-5,8,10-11</code>. Ce sont les numéros du Gestionnaire des tâches (vue « processeurs logiques »).</p>
+<p><strong>Le programme lancé</strong> reçoit ses cœurs avant sa première instruction : Process Monitor le crée suspendu, pose ses cœurs, puis le laisse démarrer. Un programme qui lit ses cœurs au démarrage voit donc déjà les bons. Ce qu'il lance en hérite : un lanceur qui passe la main au jeu, ou le jeu qui se relance lui-même. Avec <code>pm watch</code>, chaque relance reçoit les mêmes cœurs.</p>
+<p><strong>Les autres process</strong> sont placés sur leurs cœurs dès qu'ils apparaissent (Process Monitor regarde chaque seconde), et de nouveau s'ils redémarrent. Ceux qui tournent déjà avant le lancement sont déplacés avant que le programme démarre. À la fin de la session, chacun retrouve les cœurs qu'il avait. Après un détachement (<code>d</code>), ils gardent leurs cœurs, puisque le programme tourne encore.</p>
+<p><strong>Dans un profil</strong>, un bloc <code>affinity</code> remplace celui de la config : le partage peut ne servir qu'au profil VR.</p>
+<p>À savoir :</p>
+<ul>
+<li>Windows règle les cœurs process par process : on ne peut pas réserver des cœurs à un programme. Pour les libérer, il faut aussi déplacer les autres, d'où <code>others</code>.</li>
+<li>Les cœurs d'un programme déjà lancé ne sont jamais changés. Si le process suivi (<code>track</code>) n'a pas reçu les cœurs (démarré par un autre programme, comme Steam), le journal le signale et Process Monitor le laisse tel quel : changer ses cœurs en cours de route écraserait ceux que chacun de ses threads a choisis.</li>
+<li>Sur un processeur à SMT, deux numéros voisins (<code>12, 13</code>) sont souvent le même cœur physique. Donner des paires entières aux autres process évite qu'ils partagent un cœur physique avec le programme.</li>
+<li><code>pm check</code> refuse une liste vide ou mal écrite, et un cœur que la machine n'a pas. Il signale aussi des cœurs donnés à la fois au programme et aux autres.</li>
+<li>Le gain dépend du processeur et de la charge ; il peut être nul. L'<a href="../examples/dcs/#steamvr">exemple DCS</a> propose une façon de le mesurer.</li>
+</ul>
 <h2 id="tray">L'icône de notification<a class="headerlink" href="#tray" title="Permanent link">&para;</a></h2>
 <p><strong>Quand</strong> : pas de fenêtre console, ou pour voir l'état d'un coup d'œil.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">ui</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tray</span><span class="w">                       </span><span class="c1"># ou --tray sur la ligne de commande</span>

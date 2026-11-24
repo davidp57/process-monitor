@@ -485,6 +485,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#affinity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Share the processor's cores
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tray" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1169,6 +1180,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#affinity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Share the processor's cores
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tray" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1305,6 +1327,26 @@
 <div class="highlight"><pre><span></span><code><span class="nt">kill_on_exit</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">SR-ClientRadio.exe</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <p>With <code>track</code>, Process Monitor does not wait for these programs before bringing the settings back, and those in the list are stopped once the followed program has exited. Without <code>track</code>, the session waits for every program it started, these included: <code>kill_on_exit</code> only stops them afterwards, so it is only useful with <code>track</code>.</p>
+<h2 id="affinity">Share the processor's cores<a class="headerlink" href="#affinity" title="Permanent link">&para;</a></h2>
+<p><strong>When</strong>: two heavy programs run together, and one must not take computing time on the other's cores. For instance DCS World on some cores, and SteamVR on the others.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">affinity</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">cores</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0-11</span><span class="w">            </span><span class="c1"># the launched program, and everything it starts</span>
+<span class="w">  </span><span class="nt">others</span><span class="p">:</span><span class="w">                </span><span class="c1"># other processes, found by their name</span>
+<span class="w">    </span><span class="nt">cores</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">12-15</span>
+<span class="w">    </span><span class="nt">processes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">vrserver.exe</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">vrcompositor.exe</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">vrmonitor.exe</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<p>Cores are written as a list: <code>0-11</code>, or <code>0-5,8,10-11</code>. They are the Task Manager's numbers ("logical processors" view).</p>
+<p><strong>The launched program</strong> gets its cores before its first instruction: Process Monitor creates it suspended, sets its cores, then lets it start. A program that reads its cores when it starts already sees the right ones. What it starts inherits them: a launcher handing over to the game, or the game restarting itself. With <code>pm watch</code>, every restart gets the same cores.</p>
+<p><strong>The other processes</strong> are placed on their cores as soon as they appear (Process Monitor looks every second), and again if they restart. Those already running before the launch are moved before the program starts. At the end of the session, each one gets back the cores it had. After a detach (<code>d</code>), they keep their cores, since the program still runs.</p>
+<p><strong>In a profile</strong>, an <code>affinity</code> block replaces the config's: the sharing can serve the VR profile only.</p>
+<p>Good to know:</p>
+<ul>
+<li>Windows sets cores process by process: cores cannot be reserved for a program. To free them, the others must be moved too, hence <code>others</code>.</li>
+<li>The cores of a program already running are never changed. If the followed process (<code>track</code>) did not get the cores (started by another program, like Steam), the log says so and Process Monitor leaves it as it is: changing its cores while it runs would overwrite those each of its threads chose.</li>
+<li>On a processor with SMT, two neighbouring numbers (<code>12, 13</code>) are often the same physical core. Giving whole pairs to the other processes keeps them off the program's physical cores.</li>
+<li><code>pm check</code> refuses an empty or malformed list, and a core the machine lacks. It also flags cores given both to the program and to the others.</li>
+<li>The gain depends on the processor and the load; it may be none. The <a href="../examples/dcs/#steamvr">DCS example</a> suggests a way to measure it.</li>
+</ul>
 <h2 id="tray">The notification icon<a class="headerlink" href="#tray" title="Permanent link">&para;</a></h2>
 <p><strong>When</strong>: no console window, or to see the state at a glance.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">ui</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tray</span><span class="w">                       </span><span class="c1"># or --tray on the command line</span>

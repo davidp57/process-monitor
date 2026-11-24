@@ -532,6 +532,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#steamvr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DCS and SteamVR on separate cores
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1071,6 +1082,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#steamvr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DCS and SteamVR on separate cores
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1187,6 +1209,35 @@
 <li><strong>Icon</strong>: the same as the profile's (<code>Icons\dcs-dev.ico</code>)</li>
 </ul>
 <p>A double-click starts DCS with that profile; the icon shows in the notification area and goes away once the settings are back.</p>
+<h2 id="steamvr">DCS and SteamVR on separate cores<a class="headerlink" href="#steamvr" title="Permanent link">&para;</a></h2>
+<p><strong>The need</strong>: in virtual reality, leave DCS its cores, and run SteamVR on the others.</p>
+<p><strong>Why through Process Monitor</strong>: the <code>affinity_mask</code> key of <code>autoexec.cfg</code> has no effect in DCS 2.9.31. The <code>dcs.log</code> file always reports every core, whatever its value. DCS reads, when it starts, the cores Windows gave its process. They must therefore be set before it is launched, not after: that is what the <code>affinity</code> block does, and it replaces <code>affinity_mask</code>.</p>
+<p>For a processor with 16 logical processors (8 cores with SMT), in the VR profile of the config above:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">profiles</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">VR</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">icon</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${saved}\Profiles\Icons\dcs-vr.ico</span>
+<span class="w">    </span><span class="nt">affinity</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">cores</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0-11</span>
+<span class="w">      </span><span class="nt">others</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">cores</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">12-15</span>
+<span class="w">        </span><span class="nt">processes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">vrserver.exe</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">vrcompositor.exe</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">vrmonitor.exe</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">vrdashboard.exe</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">vrwebhelper.exe</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">vrstartup.exe</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<ul>
+<li>DCS, and what it starts, runs on cores 0 to 11; the STD and DEV profiles keep every core.</li>
+<li>SteamVR's processes are held on cores 12 to 15 during the session, then get their cores back. If SteamVR already runs, it is moved before DCS starts.</li>
+<li>The list comes from SteamVR 2.19 with Steam Link. Another headset or runtime may add processes of its own: look for them in the Task Manager, Details tab, during a VR session.</li>
+<li>Keep whole physical cores: <code>12-15</code>, not <code>13-15</code>.</li>
+</ul>
+<p><strong>Check</strong>: after a launch by Process Monitor, the <code>process affinity mask:</code> line at the top of <code>Saved Games\DCS\Logs\dcs.log</code> has one digit per core. With <code>0-11</code>, it reads <code>111111111111</code> (12 digits). Sixteen <code>1</code>s mean DCS got every core: it was not launched by Process Monitor, or another program started it (Process Monitor's log then says so).</p>
+<div class="highlight"><pre><span></span><code><span class="nb">Select-String</span> <span class="n">-Path</span> <span class="s2">"$env:USERPROFILE\Saved Games\DCS\Logs\dcs.log"</span> <span class="n">-Pattern</span> <span class="s2">"process affinity mask"</span> <span class="p">|</span> <span class="nb">Select-Object</span> <span class="n">-First</span> <span class="n">1</span>
+</code></pre></div>
+<p>For SteamVR, Process Monitor's log notes each process placed (<code>affinity: vrserver.exe (pid …) placed on cores 12-15</code>).</p>
+<p><strong>Measure the gain (optional)</strong>: nothing guarantees there is one. On a single-die processor, whose cache all cores share, it will be modest, and DCS loses 4 logical processors. To judge:</p>
+<ol>
+<li>Replay the same track (<code>.trk</code>) twice in VR, once with the <code>affinity</code> block, once without.</li>
+<li>Record frame times for three minutes on each pass, with CapFrameX or fpsVR.</li>
+<li>Compare the average and the slowest 1 %.</li>
+</ol>
 
 
 
