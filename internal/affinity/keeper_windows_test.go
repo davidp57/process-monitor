@@ -171,3 +171,27 @@ func TestRestoreGivesEveryCoreToWhatInheritedTheProgramsCores(t *testing.T) {
 		t.Fatalf("after Restore: %s, want every core %s", got, sys)
 	}
 }
+
+// Between the listing and the opening, Windows may give a PID to another
+// process: the keeper checks who it is before changing its cores.
+func TestSweepChecksTheNameAfterOpening(t *testing.T) {
+	sys := needTwo(t)
+	cmd := startHelper(t, copySelf(t, "pmaff-reused.exe"))
+	k := &Keeper{Mask: 1, Names: []string{"pmaff-listed.exe"}, seen: map[uint32]*kept{}}
+	k.sweepOne(uint32(cmd.Process.Pid), "pmaff-listed.exe") // as listed a moment ago
+	if got := affinityOf(t, cmd.Process.Pid); got != sys {
+		t.Fatalf("a process that is not the one listed was moved to %s", got)
+	}
+}
+
+func needTwo(t *testing.T) Mask {
+	t.Helper()
+	sys, err := System()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sys.Count() < 2 {
+		t.Skip("one core: nothing to share")
+	}
+	return sys
+}

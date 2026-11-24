@@ -2,6 +2,7 @@ package affinity
 
 import (
 	"errors"
+	"path/filepath"
 	"strings"
 	"unsafe"
 
@@ -70,6 +71,10 @@ func (k *Keeper) sweepOne(pid uint32, name string) {
 		return
 	}
 	defer windows.CloseHandle(h)
+	// The PID may have been reused since the listing: check who it is now.
+	if !strings.EqualFold(imageName(h), name) {
+		return
+	}
 	created := creationTime(h)
 	e := k.seen[pid]
 	if e != nil && e.created != created {
@@ -171,6 +176,15 @@ func list(names []string) (map[uint32]string, error) {
 		return nil, err
 	}
 	return found, nil
+}
+
+func imageName(h windows.Handle) string {
+	buf := make([]uint16, windows.MAX_LONG_PATH)
+	n := uint32(len(buf))
+	if err := windows.QueryFullProcessImageName(h, 0, &buf[0], &n); err != nil {
+		return ""
+	}
+	return filepath.Base(windows.UTF16ToString(buf[:n]))
 }
 
 func creationTime(h windows.Handle) windows.Filetime {
